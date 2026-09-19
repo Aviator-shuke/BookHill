@@ -2389,13 +2389,13 @@
 
     async function tryLoadDefaultFile() {
       try {
-        const response = await fetch("办理登机手续_中英双语.lrc", { cache: "no-store" });
+        const response = await fetch("default-bilingual.lrc", { cache: "no-store" });
         if (!response.ok) return;
         const text = await response.text();
-        const sentences = parseSentences(text, "办理登机手续_中英双语.lrc");
+        const sentences = parseSentences(text, "default-bilingual.lrc");
         if (sentences.length) {
           state.sentences = sentences;
-          $("sourceStatus").textContent = sentenceSourceLabel("办理登机手续_中英双语.lrc", sentences);
+          $("sourceStatus").textContent = sentenceSourceLabel("default-bilingual.lrc", sentences);
           render();
         }
       } catch {
@@ -3826,4 +3826,5 @@
   </script>
 </body>
 </html>
+
 
