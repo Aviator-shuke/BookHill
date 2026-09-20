@@ -602,11 +602,10 @@ const fallbackSentences = [
         : "";
       const pattern = String(parsed.pattern || "").trim();
       const patternHtml = pattern
-        ? `<div class="grammar-pattern"><span>句型</span><strong>${escapeHtml(pattern)}</strong></div>`
-        : "";
+        ? `<div class="grammar-pattern"><span>句子成分</span><span aria-hidden="true">·</span><strong>${escapeHtml(pattern)}</strong></div>`
+        : '<div class="grammar-pattern"><span>句子成分</span></div>';
       return `
         <div class="grammar-panel grammar-visual">
-          <div class="grammar-legend">句子成分</div>
           ${patternHtml}
           <div class="grammar-nodes">${nodeHtml}</div>
           ${explanationHtml}

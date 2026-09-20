@@ -637,27 +637,21 @@
 
     .grammar-visual {
       display: grid;
-      gap: 8px;
-    }
-
-    .grammar-legend {
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.2;
+      gap: 7px;
     }
 
     .grammar-pattern {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 5px;
       color: var(--muted);
-      font-size: 13px;
-      line-height: 1.35;
+      font-size: 12px;
+      line-height: 1.3;
     }
 
     .grammar-pattern strong {
       color: var(--ink);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
     }
 
@@ -665,19 +659,20 @@
     .grammar-node-children,
     .grammar-chunks {
       display: flex;
-      align-items: stretch;
+      align-items: flex-start;
       flex-wrap: wrap;
-      gap: 7px;
+      gap: 6px;
     }
 
     .grammar-node {
       display: inline-grid;
-      gap: 6px;
-      min-width: 70px;
+      gap: 5px;
+      min-width: 90px;
+      max-width: min(100%, 480px);
       border: 1px solid currentColor;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.04);
-      padding: 6px;
+      border-radius: 6px;
+      background: transparent;
+      padding: 6px 8px;
       color: var(--ink);
       vertical-align: top;
     }
@@ -699,48 +694,70 @@
     }
 
     .grammar-node-children {
-      gap: 5px;
-      padding-top: 6px;
-      border-top: 1px solid rgba(148, 163, 184, 0.28);
+      display: block;
+      gap: 3px;
+      padding: 2px 0 0 7px;
+      border-left: 2px solid rgba(148, 163, 184, 0.32);
     }
 
     .grammar-node-children .grammar-node {
-      min-width: 48px;
-      padding: 5px;
-      background: rgba(255, 255, 255, 0.025);
+      display: block;
+      min-width: 0;
+      max-width: 100%;
+      border: 0;
+      border-radius: 0;
+      padding: 3px 0;
+      background: transparent;
+    }
+
+    .grammar-node-children .grammar-node-main {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 2px 7px;
+      min-width: 0;
+    }
+
+    .grammar-node-children .grammar-note {
+      flex-basis: 100%;
+      padding-left: 0;
+    }
+
+    .grammar-node-children .grammar-node-children {
+      margin: 3px 0 0 8px;
     }
 
     .grammar-role {
       justify-self: start;
       border: 1px solid var(--grammar-role-color, #94a3b8);
-      border-radius: 5px;
-      padding: 1px 5px;
+      border-radius: 4px;
+      padding: 0 4px;
       color: var(--grammar-role-color, #94a3b8);
       background: transparent;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       line-height: 1.25;
     }
 
     .grammar-text {
       color: var(--ink);
-      font-size: 15px;
+      font-size: 14px;
       line-height: 1.25;
       font-weight: 650;
     }
 
     .grammar-note {
       color: var(--muted);
-      font-size: 12px;
-      line-height: 1.35;
+      font-size: 11px;
+      line-height: 1.3;
     }
 
     .grammar-points {
       margin: 0;
       padding-left: 18px;
       color: var(--muted);
-      font-size: 13px;
-      line-height: 1.55;
+      font-size: 12px;
+      line-height: 1.45;
     }
 
     .grammar-subject { --grammar-role-color: #45b36b; color: var(--grammar-role-color); }
