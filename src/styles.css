@@ -628,6 +628,126 @@
       color: var(--muted);
     }
 
+    .grammar-visual {
+      display: grid;
+      gap: 8px;
+    }
+
+    .grammar-legend {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.2;
+    }
+
+    .grammar-pattern {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .grammar-pattern strong {
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .grammar-nodes,
+    .grammar-node-children,
+    .grammar-chunks {
+      display: flex;
+      align-items: stretch;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .grammar-node {
+      display: inline-grid;
+      gap: 6px;
+      min-width: 70px;
+      border: 1px solid currentColor;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 6px;
+      color: var(--ink);
+      vertical-align: top;
+    }
+
+    .grammar-node-main,
+    .grammar-chunk {
+      display: inline-grid;
+      gap: 3px;
+      min-width: 54px;
+      color: var(--ink);
+      vertical-align: top;
+    }
+
+    .grammar-chunk {
+      border: 1px solid currentColor;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 5px 7px;
+    }
+
+    .grammar-node-children {
+      gap: 5px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(148, 163, 184, 0.28);
+    }
+
+    .grammar-node-children .grammar-node {
+      min-width: 48px;
+      padding: 5px;
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .grammar-role {
+      justify-self: start;
+      border-radius: 5px;
+      padding: 1px 5px;
+      color: #ffffff;
+      background: currentColor;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+
+    .grammar-text {
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1.25;
+      font-weight: 650;
+    }
+
+    .grammar-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .grammar-points {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .grammar-subject { color: #45b36b; }
+    .grammar-predicate { color: #f97316; }
+    .grammar-object { color: #eab308; }
+    .grammar-predicative { color: #9a7b2f; }
+    .grammar-complement { color: #5aa872; }
+    .grammar-attribute { color: #38bdf8; }
+    .grammar-adverbial { color: #2563eb; }
+    .grammar-appositive { color: #8b5cf6; }
+    .grammar-prep { color: #ec4899; }
+    .grammar-clause { color: #14b8a6; }
+    .grammar-connector { color: #64748b; }
+    .grammar-other { color: #94a3b8; }
+
     .translation-prompt.is-hidden {
       color: transparent;
       user-select: none;
@@ -1363,6 +1483,60 @@
       box-shadow: 0 0 0 3px var(--ring);
     }
 
+    .ai-text-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(0, 0, 0, 0.56);
+    }
+
+    .ai-text-modal[hidden] {
+      display: none;
+    }
+
+    .ai-text-dialog {
+      display: grid;
+      gap: 10px;
+      width: min(820px, 100%);
+      max-height: min(760px, calc(100vh - 36px));
+      border: 1px solid #dbe3ef;
+      border-radius: 12px;
+      background: #ffffff;
+      padding: 12px;
+      box-shadow: 0 24px 70px rgba(15, 23, 42, 0.36);
+    }
+
+    .ai-text-header,
+    .ai-text-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .ai-text-header h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .ai-text-dialog textarea {
+      width: 100%;
+      min-height: 420px;
+      max-height: calc(100vh - 190px);
+      resize: vertical;
+      border: 1px solid #d1d5db;
+      border-radius: 9px;
+      padding: 10px;
+      color: var(--ink);
+      background: #fbfdff;
+      font: 13px/1.55 Consolas, "Microsoft YaHei", monospace;
+      white-space: pre;
+    }
+
     .speaking-result-grid {
       display: grid;
       grid-template-columns: minmax(0, 1fr) 360px;
@@ -1494,6 +1668,7 @@
     body[data-theme="gray"] select,
     body[data-theme="gray"] input[type="file"],
     body[data-theme="gray"] input[type="text"],
+    body[data-theme="gray"] .ai-text-dialog textarea,
     body[data-theme="gray"] .sentence-list,
     body[data-theme="gray"] .shortcut-input,
     body[data-theme="gray"] .audio-option,
@@ -1501,6 +1676,7 @@
     body[data-theme="black"] select,
     body[data-theme="black"] input[type="file"],
     body[data-theme="black"] input[type="text"],
+    body[data-theme="black"] .ai-text-dialog textarea,
     body[data-theme="black"] .sentence-list,
     body[data-theme="black"] .shortcut-input,
     body[data-theme="black"] .audio-option {
@@ -1525,12 +1701,14 @@
     body[data-theme="gray"] .user-popover,
     body[data-theme="gray"] .shortcut-popover,
     body[data-theme="gray"] .help-content,
+    body[data-theme="gray"] .ai-text-dialog,
     body[data-theme="gray"] .login-card,
     body[data-theme="gray"] .drop-card,
     body[data-theme="black"] .source-popover,
     body[data-theme="black"] .user-popover,
     body[data-theme="black"] .shortcut-popover,
     body[data-theme="black"] .help-content,
+    body[data-theme="black"] .ai-text-dialog,
     body[data-theme="black"] .login-card,
     body[data-theme="black"] .drop-card {
       border-color: #3a3a3a;

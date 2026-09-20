@@ -150,7 +150,9 @@
                 <strong>1.00x</strong><span>原速</span>
               </div>
               <button id="speakBtn" type="button">朗读</button>
-              <button id="analyzeGrammarBtn" type="button">语法分析</button>
+              <button id="analyzeGrammarBtn" type="button">Ai语法分析</button>
+              <button id="showAiPromptBtn" type="button">查看Ai询问</button>
+              <button id="showAiResponseBtn" type="button">查看Ai回复</button>
               <div class="sentence-tool-end">
                 <div id="counter" class="counter"></div>
                 <details class="help-popover">
@@ -244,6 +246,18 @@
       </div>
     </section>
   </main>
+  <div id="aiTextModal" class="ai-text-modal" hidden>
+    <div class="ai-text-dialog" role="dialog" aria-modal="true" aria-labelledby="aiTextModalTitle">
+      <div class="ai-text-header">
+        <h2 id="aiTextModalTitle">Ai内容</h2>
+        <button id="closeAiTextModalBtn" type="button">关闭</button>
+      </div>
+      <textarea id="aiTextModalBody" readonly spellcheck="false"></textarea>
+      <div class="ai-text-actions">
+        <button id="copyAiTextBtn" type="button">复制</button>
+      </div>
+    </div>
+  </div>
   <script src="src/app.js"></script>
 </body>
 </html>
