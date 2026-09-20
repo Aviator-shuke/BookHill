@@ -1,6 +1,6 @@
 @echo off
 setlocal
-for %%I in ("%~dp0.") do set "APP_DIR=%%~fI"
+for %%I in ("%~dp0..") do set "APP_DIR=%%~fI"
 cd /d "%APP_DIR%"
 echo langLSRW local server starting...
 echo Serving folder:
@@ -37,4 +37,5 @@ if errorlevel 1 (
   echo.
   pause
 )
+
 

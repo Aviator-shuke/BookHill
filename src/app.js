@@ -407,13 +407,13 @@ const fallbackSentences = [
 
     async function tryLoadDefaultFile() {
       try {
-        const response = await fetch("default-bilingual.lrc", { cache: "no-store" });
+        const response = await fetch("assets/materials/default-bilingual.lrc", { cache: "no-store" });
         if (!response.ok) return;
         const text = await response.text();
-        const sentences = parseSentences(text, "default-bilingual.lrc");
+        const sentences = parseSentences(text, "assets/materials/default-bilingual.lrc");
         if (sentences.length) {
           state.sentences = sentences;
-          $("sourceStatus").textContent = sentenceSourceLabel("default-bilingual.lrc", sentences);
+          $("sourceStatus").textContent = sentenceSourceLabel("assets/materials/default-bilingual.lrc", sentences);
           render();
         }
       } catch {
@@ -1841,4 +1841,5 @@ const fallbackSentences = [
 
     tryLoadDefaultFile();
     render();
+
 
