@@ -96,8 +96,10 @@ const fallbackSentences = [
       replaySlowStep: 0,
       shortcuts: loadShortcutSettings(),
       speechSettings: JSON.parse(localStorage.getItem("langLSRWSpeechSettings") || "{}"),
+      aiSettings: JSON.parse(localStorage.getItem("langLSRWAISettings") || "{}"),
       theme: localStorage.getItem("langLSRWTheme") || "black",
       activePage: loadActiveLearningPage(),
+      grammarLoading: false,
       speaking: {
         isRecognizing: false,
         isRecording: false,
@@ -166,10 +168,11 @@ const fallbackSentences = [
       if (item && typeof item === "object") {
         return {
           text: String(item.text || item.sentence || item.english || "").trim(),
-          translation: String(item.translation || item.zh || item.cn || "").trim()
+          translation: String(item.translation || item.zh || item.cn || "").trim(),
+          grammar: String(item.grammar || item.grammarAnalysis || "").trim()
         };
       }
-      return { text: String(item || "").trim(), translation: "" };
+      return { text: String(item || "").trim(), translation: "", grammar: "" };
     }
 
     function sentenceText(item) {
@@ -178,6 +181,10 @@ const fallbackSentences = [
 
     function sentenceTranslation(item) {
       return normalizeSentenceItem(item).translation;
+    }
+
+    function sentenceGrammar(item) {
+      return normalizeSentenceItem(item).grammar;
     }
 
     function normalizeSentenceList(items) {
@@ -443,6 +450,91 @@ const fallbackSentences = [
       $("sourceStatus").textContent = `当前句库：已更新当前句翻译（${state.sentences.length}句）`;
     }
 
+    function currentGrammar() {
+      return sentenceGrammar(state.sentences[state.index]);
+    }
+
+    function renderGrammarAnalysis() {
+      if (state.grammarLoading) {
+        return '<div class="grammar-panel is-loading">正在分析语法...</div>';
+      }
+      const grammar = currentGrammar();
+      if (!grammar) return "";
+      return `<div class="grammar-panel">${escapeHtml(grammar).replace(/\n/g, "<br>")}</div>`;
+    }
+
+    function grammarPrompt(sentence, translation) {
+      return [
+        "你是英语学习网站 langLSRW 的语法老师。",
+        "请分析下面这个英文句子，面向中文母语英语学习者。",
+        "要求：",
+        "1. 用中文回答，简洁但要讲清楚。",
+        "2. 按固定结构输出：句子结构、核心语法、短语/搭配、容易错的点、仿写提示。",
+        "3. 不要闲聊，不要输出 Markdown 表格。",
+        "4. 如果有中文翻译，可结合翻译解释。",
+        "",
+        `英文句子：${sentence}`,
+        translation ? `中文翻译：${translation}` : ""
+      ].filter(Boolean).join("\n");
+    }
+
+    function chatCompletionContent(data) {
+      return data?.choices?.[0]?.message?.content
+        || data?.choices?.[0]?.text
+        || data?.output_text
+        || "";
+    }
+
+    async function analyzeCurrentGrammar() {
+      if (state.grammarLoading) return;
+      const settings = mergedAiSettings();
+      if (!settings.apiKey) {
+        alert("请先在“源文件”里填写并保存 API Key。");
+        return;
+      }
+      const sentence = currentSentence();
+      if (!sentence) return;
+      state.grammarLoading = true;
+      renderTarget();
+      $("analyzeGrammarBtn").disabled = true;
+      $("analyzeGrammarBtn").textContent = "分析中";
+      try {
+        const baseUrl = settings.baseUrl.replace(/\/+$/, "");
+        const response = await fetch(`${baseUrl}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${settings.apiKey}`
+          },
+          body: JSON.stringify({
+            model: settings.model,
+            messages: [
+              { role: "system", content: "你是专业、严谨、简洁的英语语法老师。" },
+              { role: "user", content: grammarPrompt(sentence, currentTranslation()) }
+            ]
+          })
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || `HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        const content = chatCompletionContent(data).trim();
+        if (!content) throw new Error("AI 没有返回语法分析内容。");
+        const item = normalizeSentenceItem(state.sentences[state.index]);
+        item.grammar = content;
+        state.sentences[state.index] = item;
+        $("sourceStatus").textContent = "当前句语法分析已保存。";
+      } catch (error) {
+        alert(`语法分析失败：${error.message || error}`);
+      } finally {
+        state.grammarLoading = false;
+        $("analyzeGrammarBtn").disabled = false;
+        $("analyzeGrammarBtn").textContent = "语法分析";
+        renderTarget();
+      }
+    }
+
     function sentenceSourceLabel(name, sentences) {
       const translated = normalizeSentenceList(sentences).filter((item) => item.translation).length;
       return `当前句库：${name}（${sentences.length}句，${translated}句有翻译）`;
@@ -463,6 +555,36 @@ const fallbackSentences = [
 
     function saveShortcuts() {
       localStorage.setItem("langLSRWShortcuts", JSON.stringify(state.shortcuts));
+    }
+
+    function aiDefaults() {
+      return {
+        baseUrl: "https://api.openai.com/v1",
+        model: "gpt-5.6-luna",
+        apiKey: ""
+      };
+    }
+
+    function mergedAiSettings() {
+      return { ...aiDefaults(), ...state.aiSettings };
+    }
+
+    function loadAiSettings() {
+      const settings = mergedAiSettings();
+      $("aiBaseUrlInput").value = settings.baseUrl;
+      $("aiModelInput").value = settings.model;
+      $("aiApiKeyInput").value = settings.apiKey;
+    }
+
+    function saveAiSettings() {
+      const settings = {
+        baseUrl: $("aiBaseUrlInput").value.trim() || aiDefaults().baseUrl,
+        model: $("aiModelInput").value.trim() || aiDefaults().model,
+        apiKey: $("aiApiKeyInput").value.trim()
+      };
+      state.aiSettings = settings;
+      localStorage.setItem("langLSRWAISettings", JSON.stringify(settings));
+      $("sourceStatus").textContent = "AI 设置已保存。";
     }
 
     function applyTheme(theme) {
@@ -1368,6 +1490,7 @@ const fallbackSentences = [
       const showTranslation = $("showTranslationToggle").checked;
       const translationText = translation ? escapeHtml(translation) : "暂无翻译";
       const translationHtml = `<div class="translation-prompt ${showTranslation ? "" : "is-hidden"}">${showTranslation ? translationText : "&nbsp;"}</div>`;
+      const grammarHtml = renderGrammarAnalysis();
       const input = typingBox.value;
       const inputChars = getCheckChars(input);
       let checkIndex = 0;
@@ -1387,7 +1510,7 @@ const fallbackSentences = [
           }
           return `<span class="target-word covered-word" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
         }).join("");
-        targetEl.innerHTML = `<span class="target-english">${html || "&nbsp;"}</span>${translationHtml}`;
+        targetEl.innerHTML = `<span class="target-english">${html || "&nbsp;"}</span>${translationHtml}${grammarHtml}`;
         counterEl.textContent = `${state.index + 1} / ${state.sentences.length}`;
         $("translationInput").value = translation;
         return;
@@ -1417,7 +1540,7 @@ const fallbackSentences = [
         return `<span class="target-word ${className}" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
       }).join("");
 
-      targetEl.innerHTML = `<span class="target-english">${html || "&nbsp;"}</span>${translationHtml}`;
+      targetEl.innerHTML = `<span class="target-english">${html || "&nbsp;"}</span>${translationHtml}${grammarHtml}`;
       counterEl.textContent = `${state.index + 1} / ${state.sentences.length}`;
       $("translationInput").value = translation;
     }
@@ -1664,6 +1787,8 @@ const fallbackSentences = [
     });
 
     $("saveTranslationBtn").addEventListener("click", saveCurrentTranslation);
+    $("saveAiSettingsBtn").addEventListener("click", saveAiSettings);
+    $("analyzeGrammarBtn").addEventListener("click", analyzeCurrentGrammar);
 
     $("speakBtn").addEventListener("click", () => {
       saveSpeechSettings();
@@ -1890,6 +2015,7 @@ const fallbackSentences = [
     applyTheme(state.theme);
     setActivePage(state.activePage);
     loadSpeechSettings();
+    loadAiSettings();
     renderShortcutSettings();
     updateSpeechRateIndicator();
     populateVoices();

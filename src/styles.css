@@ -612,6 +612,22 @@
       line-height: 1.35;
     }
 
+    .grammar-panel {
+      min-height: 42px;
+      border: 1px solid rgba(156, 163, 175, 0.35);
+      border-radius: 9px;
+      background: #fbfdff;
+      padding: 8px 10px;
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.55;
+      white-space: normal;
+    }
+
+    .grammar-panel.is-loading {
+      color: var(--muted);
+    }
+
     .translation-prompt.is-hidden {
       color: transparent;
       user-select: none;
@@ -1542,6 +1558,7 @@
     body[data-theme="gray"] .inline-metrics,
     body[data-theme="gray"] .volume-meter,
     body[data-theme="gray"] .translation-prompt,
+    body[data-theme="gray"] .grammar-panel,
     body[data-theme="gray"] .target-english,
     body[data-theme="gray"] .compact-box,
     body[data-theme="gray"] .practice-controls,
@@ -1554,6 +1571,7 @@
     body[data-theme="black"] .inline-metrics,
     body[data-theme="black"] .volume-meter,
     body[data-theme="black"] .translation-prompt,
+    body[data-theme="black"] .grammar-panel,
     body[data-theme="black"] .target-english,
     body[data-theme="black"] .compact-box,
     body[data-theme="black"] .practice-controls,

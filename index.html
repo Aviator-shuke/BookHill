@@ -79,6 +79,19 @@
               <textarea id="translationInput" class="sentence-list" spellcheck="false" placeholder="没有翻译时，可以在这里补充当前句中文提示。"></textarea>
             </label>
             <button id="saveTranslationBtn" type="button">保存当前句翻译</button>
+            <label>
+              AI 接口地址
+              <input id="aiBaseUrlInput" type="text" placeholder="https://api.openai.com/v1">
+            </label>
+            <label>
+              AI 模型
+              <input id="aiModelInput" type="text" placeholder="gpt-5.6-luna">
+            </label>
+            <label>
+              API Key
+              <input id="aiApiKeyInput" type="password" autocomplete="off" placeholder="只保存在当前浏览器">
+            </label>
+            <button id="saveAiSettingsBtn" type="button">保存 AI 设置</button>
           </div>
         </details>
       </div>
@@ -137,6 +150,7 @@
                 <strong>1.00x</strong><span>原速</span>
               </div>
               <button id="speakBtn" type="button">朗读</button>
+              <button id="analyzeGrammarBtn" type="button">语法分析</button>
               <div class="sentence-tool-end">
                 <div id="counter" class="counter"></div>
                 <details class="help-popover">
