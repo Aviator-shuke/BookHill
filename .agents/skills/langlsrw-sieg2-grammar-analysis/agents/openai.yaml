@@ -1,0 +1,6 @@
+interface:
+  display_name: "langLSRW SIEG2 语法分析"
+  short_description: "依据 SIEG2 与 CGEL 分析英文句法；当前不用于网页运行时"
+  default_prompt: "使用 $langlsrw-sieg2-grammar-analysis 按 SIEG2/CGEL 框架分析我提供的英文句子，返回带版本的层级语法 JSON。"
+policy:
+  allow_implicit_invocation: false

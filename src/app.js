@@ -101,6 +101,10 @@ const fallbackSentences = [
       activePage: loadActiveLearningPage(),
       grammarLoading: false,
       grammarVisible: false,
+      grammarExpansionMode: "main",
+      grammarExpandedNodeIds: new Set(),
+      grammarSelectedNodeId: 0,
+      grammarSelectedText: "",
       speaking: {
         isRecognizing: false,
         isRecording: false,
@@ -211,10 +215,21 @@ const fallbackSentences = [
         .trim();
     }
 
+    function grammarFrameworkFromContent(grammar) {
+      try {
+        const parsed = JSON.parse(String(grammar || "").trim());
+        return parsed?.convention === "traditional-school/1" ? "traditional" : "sieg2-cgel";
+      } catch {
+        return "sieg2-cgel";
+      }
+    }
+
     function findCachedGrammar(sentence) {
       const key = grammarCacheSentenceKey(sentence);
       const record = loadGrammarCache().find((item) => (
-        item && grammarCacheSentenceKey(item.key || item.sentence) === key
+        item
+        && grammarCacheSentenceKey(item.key || item.sentence) === key
+        && (item.framework || grammarFrameworkFromContent(item.grammar)) === "traditional"
       ));
       if (!record || !String(record.grammar || "").trim()) return null;
       return {
@@ -226,11 +241,15 @@ const fallbackSentences = [
     function saveGrammarCache(sentence, grammar, grammarRaw = grammar) {
       const key = grammarCacheSentenceKey(sentence);
       const records = loadGrammarCache().filter((item) => (
-        item && grammarCacheSentenceKey(item.key || item.sentence) !== key
+        item && !(
+          grammarCacheSentenceKey(item.key || item.sentence) === key
+          && (item.framework || grammarFrameworkFromContent(item.grammar)) === "traditional"
+        )
       ));
       records.unshift({
         key,
         sentence,
+        framework: "traditional",
         grammar,
         grammarRaw,
         savedAt: new Date().toISOString()
@@ -248,14 +267,18 @@ const fallbackSentences = [
 
     function sentenceWithCachedGrammar(item) {
       const normalized = normalizeSentenceItem(item);
-      if (normalized.grammar) {
+      if (normalized.grammar && grammarFrameworkFromContent(normalized.grammar) === "traditional") {
         if (!findCachedGrammar(normalized.text)) {
           saveGrammarCache(normalized.text, normalized.grammar, normalized.grammarRaw || normalized.grammar);
         }
         return normalized;
       }
       const cached = findCachedGrammar(normalized.text);
-      if (!cached) return normalized;
+      if (!cached) {
+        normalized.grammar = "";
+        normalized.grammarRaw = "";
+        return normalized;
+      }
       normalized.grammar = cached.grammar;
       normalized.grammarRaw = cached.grammarRaw;
       return normalized;
@@ -591,7 +614,7 @@ const fallbackSentences = [
       }
       if (!state.grammarVisible) return "";
       const grammar = currentGrammar();
-      if (!grammar) return "";
+      if (!grammar) return '<div class="grammar-panel grammar-visual"><div class="grammar-toolbar"><div class="grammar-pattern"><span>句子成分</span></div></div><div class="grammar-empty">当前体系暂无分析</div></div>';
       const parsed = parseGrammarAnalysis(grammar);
       if (!parsed) return `<div class="grammar-panel">${escapeHtml(grammar).replace(/\n/g, "<br>")}</div>`;
       const nodes = Array.isArray(parsed.nodes) ? parsed.nodes : [];
@@ -601,21 +624,31 @@ const fallbackSentences = [
         ? `<ul class="grammar-points">${explanation.map((item) => `<li>${escapeHtml(String(item))}</li>`).join("")}</ul>`
         : "";
       const pattern = String(parsed.pattern || "").trim();
+      const provenance = grammarAnalysisProvenance(parsed);
+      const analysisLabel = `句子成分${provenance.legacy ? " · 旧版" : ""}${parsed.status === "partial" ? " · 部分分析" : ""}`;
       const patternHtml = pattern
-        ? `<div class="grammar-pattern"><span>句子成分</span><span aria-hidden="true">·</span><strong>${escapeHtml(pattern)}</strong></div>`
-        : '<div class="grammar-pattern"><span>句子成分</span></div>';
+        ? `<div class="grammar-pattern"><span title="${escapeHtml(provenance.label)}">${analysisLabel}</span><span aria-hidden="true">·</span><strong>${escapeHtml(pattern)}</strong></div>`
+        : `<div class="grammar-pattern"><span title="${escapeHtml(provenance.label)}">${analysisLabel}</span></div>`;
+      const levels = [["main", "主干"], ["level1", "一级"], ["all", "全部"]];
+      const levelControls = levels.map(([value, label]) => `
+        <button type="button" class="grammar-level-btn ${state.grammarExpansionMode === value ? "is-active" : ""}"
+          data-grammar-level="${value}" aria-pressed="${state.grammarExpansionMode === value}">${label}</button>
+      `).join("");
       return `
         <div class="grammar-panel grammar-visual">
-          ${patternHtml}
+          <div class="grammar-toolbar">
+            ${patternHtml}
+            <div class="grammar-levels" role="group" aria-label="语法节点展开层级">${levelControls}</div>
+          </div>
           <div class="grammar-nodes">${nodeHtml}</div>
           ${explanationHtml}
         </div>
       `;
     }
 
-    function renderGrammarNodes(nodes) {
-      if (!Array.isArray(nodes) || !nodes.length) return "";
-      const normalized = nodes
+    function normalizeGrammarNodes(nodes) {
+      if (!Array.isArray(nodes)) return [];
+      return nodes
         .map((node, index) => ({
           id: Number(node.id),
           parent: Number(node.parent || 0),
@@ -626,6 +659,11 @@ const fallbackSentences = [
           order: index
         }))
         .filter((node) => Number.isFinite(node.id) && node.id > 0 && node.text);
+    }
+
+    function renderGrammarNodes(nodes) {
+      const normalized = normalizeGrammarNodes(nodes);
+      if (!normalized.length) return "";
       const byParent = new Map();
       normalized.forEach((node) => {
         const parent = normalized.some((item) => item.id === node.parent) ? node.parent : 0;
@@ -633,22 +671,67 @@ const fallbackSentences = [
         byParent.get(parent).push(node);
       });
       byParent.forEach((items) => items.sort((a, b) => a.order - b.order));
-      const renderNode = (node) => {
+      const renderNode = (node, depth = 0) => {
         const roleType = grammarRoleType(node.role);
-        const label = [node.role, node.type].filter(Boolean).join(" · ");
         const children = byParent.get(node.id) || [];
+        const isExpanded = children.length && state.grammarExpandedNodeIds.has(node.id);
+        const isSelected = state.grammarSelectedNodeId === node.id;
+        const details = [node.type, node.note].filter(Boolean);
         return `
-          <div class="grammar-node grammar-${roleType}">
-            <div class="grammar-node-main">
-              <span class="grammar-role">${escapeHtml(label)}</span>
-              <span class="grammar-text">${escapeHtml(node.text)}</span>
-              ${node.note ? `<span class="grammar-note">${escapeHtml(node.note)}</span>` : ""}
+          <div class="grammar-node grammar-${roleType} ${isSelected ? "is-selected" : ""}" data-grammar-node-id="${node.id}" data-depth="${depth}">
+            <div class="grammar-node-heading">
+              ${children.length
+                ? `<button type="button" class="grammar-node-toggle" data-grammar-toggle="${node.id}" aria-expanded="${Boolean(isExpanded)}" aria-label="${isExpanded ? "收起" : "展开"}${escapeHtml(node.text)}">${isExpanded ? "▾" : "▸"}</button>`
+                : '<span class="grammar-node-toggle-spacer" aria-hidden="true"></span>'}
+              <button type="button" class="grammar-node-content" data-grammar-select="${node.id}">
+                <span class="grammar-role">${escapeHtml(node.role)}</span>
+                <span class="grammar-text">${escapeHtml(node.text)}</span>
+              </button>
             </div>
-            ${children.length ? `<div class="grammar-node-children">${children.map(renderNode).join("")}</div>` : ""}
+            ${(isExpanded || isSelected) && details.length
+              ? `<div class="grammar-node-details">${node.type ? `<span>${escapeHtml(node.type)}</span>` : ""}${node.note ? `<span>${escapeHtml(node.note)}</span>` : ""}</div>`
+              : ""}
+            ${isExpanded ? `<div class="grammar-node-children">${children.map((child) => renderNode(child, depth + 1)).join("")}</div>` : ""}
           </div>
         `;
       };
       return (byParent.get(0) || normalized.filter((node) => node.parent === 0)).map(renderNode).join("");
+    }
+
+    function setGrammarExpansion(mode) {
+      const parsed = parseGrammarAnalysis(currentGrammar());
+      const nodes = normalizeGrammarNodes(parsed?.nodes);
+      const parentIds = new Set(nodes.map((node) => node.parent).filter((id) => id > 0));
+      const next = new Set();
+      if (mode === "level1") {
+        nodes.filter((node) => node.parent === 0 && parentIds.has(node.id)).forEach((node) => next.add(node.id));
+      } else if (mode === "all") {
+        parentIds.forEach((id) => next.add(id));
+      }
+      state.grammarExpansionMode = mode;
+      state.grammarExpandedNodeIds = next;
+      renderTarget();
+    }
+
+    function resetGrammarInteraction() {
+      state.grammarExpansionMode = "main";
+      state.grammarExpandedNodeIds = new Set();
+      state.grammarSelectedNodeId = 0;
+      state.grammarSelectedText = "";
+    }
+
+    function grammarSelectedWordIndexes(target) {
+      if (!state.grammarSelectedText) return new Set();
+      const sentenceWords = getTargetWordPieces(target).filter((piece) => piece.type === "word");
+      const selectedWords = getTargetWordPieces(state.grammarSelectedText)
+        .filter((piece) => piece.type === "word")
+        .map((piece) => piece.normalized);
+      if (!selectedWords.length) return new Set();
+      for (let start = 0; start <= sentenceWords.length - selectedWords.length; start += 1) {
+        const matches = selectedWords.every((word, offset) => sentenceWords[start + offset].normalized === word);
+        if (matches) return new Set(selectedWords.map((_, offset) => start + offset));
+      }
+      return new Set();
     }
 
     function parseGrammarAnalysis(text) {
@@ -684,8 +767,21 @@ const fallbackSentences = [
       }
     }
 
+    function grammarAnalysisProvenance(parsed) {
+      const convention = typeof parsed?.convention === "string" ? parsed.convention : "";
+      const schemaVersion = Number.isInteger(parsed?.schemaVersion) ? parsed.schemaVersion : null;
+      if (!convention || !schemaVersion) return { legacy: true, label: "旧版分析：未记录分析规范或数据版本" };
+      return { legacy: false, label: `分析规范：${convention}；数据版本：${schemaVersion}` };
+    }
+
     function grammarRoleType(role) {
       const text = String(role || "");
+      const conventionRoles = {
+        "中心语": "predicate", "述语补足语": "predicative", "补足语": "complement",
+        "修饰语": "attribute", "附加语": "adverbial", "限定语": "attribute",
+        "标记语": "connector", "并列项": "clause", "补充语": "appositive", "未定": "other"
+      };
+      if (Object.prototype.hasOwnProperty.call(conventionRoles, text)) return conventionRoles[text];
       if (text.includes("主语")) return "subject";
       if (text.includes("谓语")) return "predicate";
       if (text.includes("宾语")) return "object";
@@ -707,11 +803,12 @@ const fallbackSentences = [
         || "";
     }
 
-    async function analyzeCurrentGrammar() {
+    async function analyzeCurrentGrammar({ force = false } = {}) {
       if (state.grammarLoading) return;
       const sentence = currentSentence();
       if (!sentence) return;
-      if (currentGrammar()) {
+      const cachedGrammar = currentGrammar();
+      if (cachedGrammar && !force) {
         state.grammarVisible = true;
         renderTarget();
         $("sourceStatus").textContent = "当前句已有 Ai 语法分析，已使用缓存。";
@@ -755,9 +852,11 @@ const fallbackSentences = [
         item.grammarRaw = content;
         state.sentences[state.index] = item;
         saveGrammarCache(sentence, content, content);
-        $("sourceStatus").textContent = "当前句语法分析已保存。";
+        $("sourceStatus").textContent = force
+          ? "当前句已重新分析并更新缓存。"
+          : "当前句语法分析已保存。";
       } catch (error) {
-        state.grammarVisible = false;
+        state.grammarVisible = Boolean(cachedGrammar);
         alert(`语法分析失败：${error.message || error}`);
       } finally {
         state.grammarLoading = false;
@@ -765,6 +864,26 @@ const fallbackSentences = [
         $("analyzeGrammarBtn").textContent = "Ai语法分析";
         renderTarget();
       }
+    }
+
+    function closeGrammarContextMenu() {
+      const menu = $("grammarContextMenu");
+      menu.hidden = true;
+    }
+
+    function openGrammarContextMenu(event) {
+      event.preventDefault();
+      if (state.grammarLoading || !currentSentence()) return;
+      closeTopMenus();
+      const menu = $("grammarContextMenu");
+      const buttonRect = $("analyzeGrammarBtn").getBoundingClientRect();
+      menu.hidden = false;
+      const menuRect = menu.getBoundingClientRect();
+      const requestedX = event.clientX || buttonRect.left;
+      const requestedY = event.clientY || buttonRect.bottom;
+      menu.style.left = `${Math.max(8, Math.min(requestedX, window.innerWidth - menuRect.width - 8))}px`;
+      menu.style.top = `${Math.max(8, Math.min(requestedY, window.innerHeight - menuRect.height - 8))}px`;
+      $("reanalyzeGrammarBtn").focus();
     }
 
     function sentenceSourceLabel(name, sentences) {
@@ -1718,10 +1837,13 @@ const fallbackSentences = [
 
     function renderTarget() {
       const target = currentSentence();
+      const grammarHighlightIndexes = grammarSelectedWordIndexes(target);
       const translation = currentTranslation();
       const hasGrammarCache = Boolean(currentGrammar());
       $("analyzeGrammarBtn").classList.toggle("has-cache", hasGrammarCache);
-      $("analyzeGrammarBtn").title = hasGrammarCache ? "当前句已有缓存，点击查看" : "分析当前句语法";
+      $("analyzeGrammarBtn").title = hasGrammarCache
+        ? "当前句已有缓存：左键查看，右键重新分析"
+        : "左键分析当前句，右键重新分析";
       const showTranslation = $("showTranslationToggle").checked;
       const translationText = translation ? escapeHtml(translation) : "暂无翻译";
       const translationHtml = `<div class="translation-prompt ${showTranslation ? "" : "is-hidden"}">${showTranslation ? translationText : "&nbsp;"}</div>`;
@@ -1741,9 +1863,9 @@ const fallbackSentences = [
           const currentWordIndex = wordIndex;
           wordIndex += 1;
           if (isRevealed) {
-            return `<span class="target-word revealed-word" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
+            return `<span class="target-word revealed-word ${grammarHighlightIndexes.has(currentWordIndex) ? "grammar-source-highlight" : ""}" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
           }
-          return `<span class="target-word covered-word" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
+          return `<span class="target-word covered-word ${grammarHighlightIndexes.has(currentWordIndex) ? "grammar-source-highlight" : ""}" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
         }).join("");
         targetEl.innerHTML = `<span class="target-english">${html || "&nbsp;"}</span>${translationHtml}${grammarHtml}`;
         counterEl.textContent = `${state.index + 1} / ${state.sentences.length}`;
@@ -1772,7 +1894,7 @@ const fallbackSentences = [
         const currentWordIndex = targetWordIndex;
         targetWordIndex += 1;
         const className = isWrong ? "wrong" : (isDone ? "done" : "pending");
-        return `<span class="target-word ${className}" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
+        return `<span class="target-word ${className} ${grammarHighlightIndexes.has(currentWordIndex) ? "grammar-source-highlight" : ""}" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
       }).join("");
 
       targetEl.innerHTML = `<span class="target-english">${html || "&nbsp;"}</span>${translationHtml}${grammarHtml}`;
@@ -1859,6 +1981,7 @@ const fallbackSentences = [
       stopSpeakingPractice();
       state.index = (nextIndex + state.sentences.length) % state.sentences.length;
       state.grammarVisible = false;
+      resetGrammarInteraction();
       typingBox.value = "";
       state.events = [];
       state.startedAt = 0;
@@ -1873,6 +1996,7 @@ const fallbackSentences = [
 
     function resetCurrent(shouldSpeak = false) {
       state.grammarVisible = false;
+      resetGrammarInteraction();
       typingBox.value = "";
       state.events = [];
       state.startedAt = 0;
@@ -2025,7 +2149,12 @@ const fallbackSentences = [
 
     $("saveTranslationBtn").addEventListener("click", saveCurrentTranslation);
     $("saveAiSettingsBtn").addEventListener("click", saveAiSettings);
-    $("analyzeGrammarBtn").addEventListener("click", analyzeCurrentGrammar);
+    $("analyzeGrammarBtn").addEventListener("click", () => analyzeCurrentGrammar());
+    $("analyzeGrammarBtn").addEventListener("contextmenu", openGrammarContextMenu);
+    $("reanalyzeGrammarBtn").addEventListener("click", () => {
+      closeGrammarContextMenu();
+      analyzeCurrentGrammar({ force: true });
+    });
     $("showAiPromptBtn").addEventListener("click", showCurrentAiPrompt);
     $("showAiResponseBtn").addEventListener("click", showCurrentAiResponse);
     $("copyAiTextBtn").addEventListener("click", copyAiText);
@@ -2080,6 +2209,35 @@ const fallbackSentences = [
         wordEl.classList.add("peek-word");
         document.body.classList.add("hide-cursor");
       }
+    });
+
+    targetEl.addEventListener("click", (event) => {
+      const levelButton = event.target.closest("[data-grammar-level]");
+      if (levelButton) {
+        setGrammarExpansion(levelButton.dataset.grammarLevel);
+        return;
+      }
+
+      const toggleButton = event.target.closest("[data-grammar-toggle]");
+      if (toggleButton) {
+        const nodeId = Number(toggleButton.dataset.grammarToggle);
+        if (state.grammarExpandedNodeIds.has(nodeId)) state.grammarExpandedNodeIds.delete(nodeId);
+        else state.grammarExpandedNodeIds.add(nodeId);
+        state.grammarExpansionMode = "custom";
+        renderTarget();
+        return;
+      }
+
+      const nodeButton = event.target.closest("[data-grammar-select]");
+      if (!nodeButton) return;
+      const nodeId = Number(nodeButton.dataset.grammarSelect);
+      const parsed = parseGrammarAnalysis(currentGrammar());
+      const node = normalizeGrammarNodes(parsed?.nodes).find((item) => item.id === nodeId);
+      if (!node) return;
+      const deselecting = state.grammarSelectedNodeId === nodeId;
+      state.grammarSelectedNodeId = deselecting ? 0 : nodeId;
+      state.grammarSelectedText = deselecting ? "" : node.text;
+      renderTarget();
     });
 
     targetEl.addEventListener("auxclick", (event) => {
@@ -2217,14 +2375,21 @@ const fallbackSentences = [
       if (!event.target.closest(".source-menu, .shortcut-menu, .user-menu")) {
         closeTopMenus();
       }
+      if (!event.target.closest(".grammar-context-menu, #analyzeGrammarBtn")) {
+        closeGrammarContextMenu();
+      }
     });
 
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         closeAiTextModal();
         closeTopMenus();
+        closeGrammarContextMenu();
       }
     });
+
+    window.addEventListener("resize", closeGrammarContextMenu);
+    window.addEventListener("scroll", closeGrammarContextMenu, true);
 
     let dragDepth = 0;
 

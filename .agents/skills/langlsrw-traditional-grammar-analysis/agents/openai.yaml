@@ -1,0 +1,4 @@
+interface:
+  display_name: "langLSRW 传统英语语法分析"
+  short_description: "按传统英语教学语法分析句子功能并生成层级 JSON"
+  default_prompt: "请使用传统英语教学语法分析这个英文句子，并严格返回约定的层级 JSON。"

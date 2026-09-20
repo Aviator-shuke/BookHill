@@ -1,0 +1,421 @@
+[
+  {
+    "name": "predicate-and-np",
+    "sentence": "The skilled mechanic repaired the radio.",
+    "analysis": {
+      "schemaVersion": 2,
+      "convention": "sieg2-cgel/1",
+      "status": "complete",
+      "pattern": "主语 + 谓语（中心语 + 宾语）",
+      "nodes": [
+        {
+          "id": 1,
+          "text": "The skilled mechanic",
+          "role": "主语",
+          "type": "名词短语",
+          "parent": 0,
+          "note": ""
+        },
+        {
+          "id": 2,
+          "text": "The",
+          "role": "限定语",
+          "type": "限定词",
+          "parent": 1,
+          "note": ""
+        },
+        {
+          "id": 3,
+          "text": "skilled mechanic",
+          "role": "中心语",
+          "type": "名词性结构",
+          "parent": 1,
+          "note": ""
+        },
+        {
+          "id": 4,
+          "text": "skilled",
+          "role": "修饰语",
+          "type": "形容词短语",
+          "parent": 3,
+          "note": "修饰 mechanic"
+        },
+        {
+          "id": 5,
+          "text": "mechanic",
+          "role": "中心语",
+          "type": "名词",
+          "parent": 3,
+          "note": ""
+        },
+        {
+          "id": 6,
+          "text": "repaired the radio.",
+          "role": "谓语",
+          "type": "动词短语",
+          "parent": 0,
+          "note": ""
+        },
+        {
+          "id": 7,
+          "text": "repaired",
+          "role": "中心语",
+          "type": "动词",
+          "parent": 6,
+          "note": "Predicator；过去式"
+        },
+        {
+          "id": 8,
+          "text": "the radio.",
+          "role": "宾语",
+          "type": "名词短语",
+          "parent": 6,
+          "note": "直接宾语"
+        }
+      ],
+      "explanation": [
+        "谓语包含 repaired 及其宾语。",
+        "skilled 是名词性结构内部的修饰语。"
+      ]
+    }
+  },
+  {
+    "name": "content-clause",
+    "sentence": "I know that she is ready.",
+    "analysis": {
+      "schemaVersion": 2,
+      "convention": "sieg2-cgel/1",
+      "status": "complete",
+      "pattern": "主语 + 谓语（中心语 + 内容分句补足语）",
+      "nodes": [
+        {
+          "id": 1,
+          "text": "I",
+          "role": "主语",
+          "type": "名词短语",
+          "parent": 0,
+          "note": ""
+        },
+        {
+          "id": 2,
+          "text": "know that she is ready.",
+          "role": "谓语",
+          "type": "动词短语",
+          "parent": 0,
+          "note": ""
+        },
+        {
+          "id": 3,
+          "text": "know",
+          "role": "中心语",
+          "type": "动词",
+          "parent": 2,
+          "note": ""
+        },
+        {
+          "id": 4,
+          "text": "that she is ready.",
+          "role": "补足语",
+          "type": "内容分句",
+          "parent": 2,
+          "note": "know 的陈述性内容分句"
+        },
+        {
+          "id": 5,
+          "text": "that",
+          "role": "标记语",
+          "type": "从属标记词",
+          "parent": 4,
+          "note": ""
+        },
+        {
+          "id": 6,
+          "text": "she",
+          "role": "主语",
+          "type": "名词短语",
+          "parent": 4,
+          "note": ""
+        },
+        {
+          "id": 7,
+          "text": "is ready.",
+          "role": "谓语",
+          "type": "动词短语",
+          "parent": 4,
+          "note": ""
+        },
+        {
+          "id": 8,
+          "text": "is",
+          "role": "中心语",
+          "type": "动词",
+          "parent": 7,
+          "note": ""
+        },
+        {
+          "id": 9,
+          "text": "ready.",
+          "role": "述语补足语",
+          "type": "形容词短语",
+          "parent": 7,
+          "note": "主语指向；说明 she"
+        }
+      ],
+      "explanation": [
+        "内容分句充当 know 的补足语。",
+        "ready 述说从句主语的状态。"
+      ]
+    }
+  },
+  {
+    "name": "subject-predication",
+    "sentence": "Maya is calm.",
+    "analysis": {
+      "schemaVersion": 2,
+      "convention": "sieg2-cgel/1",
+      "status": "complete",
+      "pattern": "主语 + 谓语（中心语 + 述语补足语）",
+      "nodes": [
+        {
+          "id": 1,
+          "text": "Maya",
+          "role": "主语",
+          "type": "名词短语",
+          "parent": 0,
+          "note": ""
+        },
+        {
+          "id": 2,
+          "text": "is calm.",
+          "role": "谓语",
+          "type": "动词短语",
+          "parent": 0,
+          "note": ""
+        },
+        {
+          "id": 3,
+          "text": "is",
+          "role": "中心语",
+          "type": "动词",
+          "parent": 2,
+          "note": ""
+        },
+        {
+          "id": 4,
+          "text": "calm.",
+          "role": "述语补足语",
+          "type": "形容词短语",
+          "parent": 2,
+          "note": "主语指向；说明 Maya"
+        }
+      ],
+      "explanation": [
+        "calm 是主语指向的述语补足语。"
+      ]
+    }
+  },
+  {
+    "name": "object-predication",
+    "sentence": "They made Maya happy.",
+    "analysis": {
+      "schemaVersion": 2,
+      "convention": "sieg2-cgel/1",
+      "status": "complete",
+      "pattern": "主语 + 谓语（中心语 + 宾语 + 述语补足语）",
+      "nodes": [
+        {
+          "id": 1,
+          "text": "They",
+          "role": "主语",
+          "type": "名词短语",
+          "parent": 0,
+          "note": ""
+        },
+        {
+          "id": 2,
+          "text": "made Maya happy.",
+          "role": "谓语",
+          "type": "动词短语",
+          "parent": 0,
+          "note": ""
+        },
+        {
+          "id": 3,
+          "text": "made",
+          "role": "中心语",
+          "type": "动词",
+          "parent": 2,
+          "note": ""
+        },
+        {
+          "id": 4,
+          "text": "Maya",
+          "role": "宾语",
+          "type": "名词短语",
+          "parent": 2,
+          "note": "直接宾语"
+        },
+        {
+          "id": 5,
+          "text": "happy.",
+          "role": "述语补足语",
+          "type": "形容词短语",
+          "parent": 2,
+          "note": "宾语指向；说明 Maya"
+        }
+      ],
+      "explanation": [
+        "happy 述说宾语 Maya 的状态。"
+      ]
+    }
+  },
+  {
+    "name": "licensed-pp",
+    "sentence": "We rely on Maya.",
+    "analysis": {
+      "schemaVersion": 2,
+      "convention": "sieg2-cgel/1",
+      "status": "complete",
+      "pattern": "主语 + 谓语（中心语 + 介词短语补足语）",
+      "nodes": [
+        {
+          "id": 1,
+          "text": "We",
+          "role": "主语",
+          "type": "名词短语",
+          "parent": 0,
+          "note": ""
+        },
+        {
+          "id": 2,
+          "text": "rely on Maya.",
+          "role": "谓语",
+          "type": "动词短语",
+          "parent": 0,
+          "note": ""
+        },
+        {
+          "id": 3,
+          "text": "rely",
+          "role": "中心语",
+          "type": "动词",
+          "parent": 2,
+          "note": ""
+        },
+        {
+          "id": 4,
+          "text": "on Maya.",
+          "role": "补足语",
+          "type": "介词短语",
+          "parent": 2,
+          "note": "rely 许可的 on 短语"
+        },
+        {
+          "id": 5,
+          "text": "on",
+          "role": "中心语",
+          "type": "介词",
+          "parent": 4,
+          "note": ""
+        },
+        {
+          "id": 6,
+          "text": "Maya.",
+          "role": "补足语",
+          "type": "名词短语",
+          "parent": 4,
+          "note": "介词 on 的补足语"
+        }
+      ],
+      "explanation": [
+        "on Maya 是 rely 许可的补足语，不能仅因是介词短语就标作附加语。"
+      ]
+    }
+  },
+  {
+    "name": "repeated-occurrences",
+    "sentence": "Maya saw Maya.",
+    "analysis": {
+      "schemaVersion": 2,
+      "convention": "sieg2-cgel/1",
+      "status": "complete",
+      "pattern": "主语 + 谓语（中心语 + 宾语）",
+      "nodes": [
+        {
+          "id": 1,
+          "text": "Maya",
+          "role": "主语",
+          "type": "名词短语",
+          "parent": 0,
+          "note": ""
+        },
+        {
+          "id": 2,
+          "text": "saw Maya.",
+          "role": "谓语",
+          "type": "动词短语",
+          "parent": 0,
+          "note": ""
+        },
+        {
+          "id": 3,
+          "text": "saw",
+          "role": "中心语",
+          "type": "动词",
+          "parent": 2,
+          "note": ""
+        },
+        {
+          "id": 4,
+          "text": "Maya.",
+          "role": "宾语",
+          "type": "名词短语",
+          "parent": 2,
+          "note": ""
+        }
+      ],
+      "explanation": [
+        "两个 Maya 对应不同出现位置和句法功能。"
+      ]
+    }
+  },
+  {
+    "name": "noncontiguous-limit",
+    "sentence": "Did Maya repair it?",
+    "analysis": {
+      "schemaVersion": 2,
+      "convention": "sieg2-cgel/1",
+      "status": "partial",
+      "pattern": "助动词前置的疑问句",
+      "nodes": [
+        {
+          "id": 1,
+          "text": "Did Maya repair it?",
+          "role": "未定",
+          "type": "疑问分句",
+          "parent": 0,
+          "note": "不连续关系未完整表示"
+        },
+        {
+          "id": 2,
+          "text": "Maya",
+          "role": "主语",
+          "type": "名词短语",
+          "parent": 1,
+          "note": ""
+        },
+        {
+          "id": 3,
+          "text": "it?",
+          "role": "宾语",
+          "type": "名词短语",
+          "parent": 1,
+          "note": "repair 的直接宾语"
+        }
+      ],
+      "explanation": [
+        "Did 位于主语前；此连续片段树未完整表示倒装后的谓语关系。"
+      ]
+    }
+  }
+]
