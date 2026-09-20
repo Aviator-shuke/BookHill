@@ -127,8 +127,8 @@
                 <span>自动朗读</span>
               </label>
               <select id="accentSelect" class="compact-select" aria-label="口音">
-                <option value="en-US">美音</option>
                 <option value="en-GB">英音</option>
+                <option value="en-US">美音</option>
               </select>
               <select id="voiceSelect" class="voice-select" aria-label="可用声音">
                 <option value="">自动声音</option>
@@ -190,11 +190,13 @@
               <button id="startSpeakingBtn" class="primary hold-speak-button" type="button">按住说话</button>
               <h2>识别结果</h2>
               <div id="speakingStatus" class="speaking-status"></div>
+              <div id="speakingVolumeMeter" class="volume-meter" aria-label="口说音量"></div>
               <div class="inline-metrics speaking-header-metrics">
                 <div class="mini-metric"><strong id="speakingScore">0%</strong><span>相似度</span></div>
                 <div class="mini-metric"><strong id="speakingMissing">0</strong><span>漏词</span></div>
                 <div class="mini-metric"><strong id="speakingWrong">0</strong><span>错词</span></div>
                 <div class="mini-metric"><strong id="speakingExtra">0</strong><span>多说</span></div>
+                <div class="mini-metric"><strong id="speakingVolume">0</strong><span>音量</span></div>
               </div>
             </div>
             <div id="speakingCompare" class="word-compare speech-result"></div>

@@ -110,6 +110,12 @@ const fallbackSentences = [
         recognition: null,
         mediaRecorder: null,
         mediaStream: null,
+        audioContext: null,
+        volumeAnalyser: null,
+        volumeFrame: 0,
+        volumeLevel: 0,
+        volumeTotal: 0,
+        volumeSamples: 0,
         audioChunks: [],
         spokenText: "",
         recordedAudioUrl: "",
@@ -692,7 +698,7 @@ const fallbackSentences = [
     }
 
     function loadSpeechSettings() {
-      $("accentSelect").value = state.speechSettings.accent || "en-US";
+      $("accentSelect").value = state.speechSettings.accent || "en-GB";
       $("autoSpeakToggle").checked = state.speechSettings.autoSpeak !== false;
       $("speakWordToggle").checked = state.speechSettings.speakWord !== false;
       $("showSourceToggle").checked = state.speechSettings.showSource !== false;
@@ -1054,11 +1060,8 @@ const fallbackSentences = [
     }
 
     function setSpeakingStatus(message = "") {
-      const parts = [];
-      if (state.speaking.isRecognizing) parts.push("正在识别");
-      if (state.speaking.isRecording) parts.push('<span class="recording-dot"></span>正在录音');
       const capability = speakingCapabilityText();
-      $("speakingStatus").innerHTML = [message, parts.join(" · "), capability].filter(Boolean).join(" ");
+      $("speakingStatus").innerHTML = [message, capability].filter(Boolean).join(" ");
     }
 
     function renderSpeakingPage() {
@@ -1068,6 +1071,7 @@ const fallbackSentences = [
         ? (state.speaking.metrics || compareSpeakingText(target, state.speaking.spokenText))
         : { score: 0, wrong: 0, extra: 0, missing: 0, compareItems: [] };
       $("speakingScore").textContent = `${metrics.score}%`;
+      $("speakingVolume").textContent = Math.round(state.speaking.volumeSamples ? state.speaking.volumeTotal / state.speaking.volumeSamples : state.speaking.volumeLevel);
       $("speakingMissing").textContent = metrics.missing;
       $("speakingWrong").textContent = metrics.wrong;
       $("speakingExtra").textContent = metrics.extra;
@@ -1083,6 +1087,19 @@ const fallbackSentences = [
         ? "已生成本次录音，可直接回放。"
         : "录音完成后会出现在这里。";
       setSpeakingStatus();
+      renderVolumeMeter();
+    }
+
+    function renderVolumeMeter() {
+      const meter = $("speakingVolumeMeter");
+      if (!meter) return;
+      const level = Math.max(0, Math.min(100, state.speaking.volumeLevel || 0));
+      const barCount = 12;
+      const activeCount = Math.round((level / 100) * barCount);
+      meter.classList.toggle("is-active", state.speaking.isRecording || state.speaking.isRecognizing || state.speaking.isStarting);
+      meter.innerHTML = Array.from({ length: barCount }, (_, index) => (
+        `<span class="${index < activeCount ? "active" : ""}"></span>`
+      )).join("");
     }
 
     function renderSpeakingCompareItem(item) {
@@ -1098,10 +1115,57 @@ const fallbackSentences = [
     function resetSpeakingResult() {
       state.speaking.spokenText = "";
       state.speaking.metrics = null;
+      state.speaking.volumeLevel = 0;
+      state.speaking.volumeTotal = 0;
+      state.speaking.volumeSamples = 0;
       if (state.speaking.recordedAudioUrl) URL.revokeObjectURL(state.speaking.recordedAudioUrl);
       state.speaking.recordedAudioUrl = "";
       state.speaking.audioChunks = [];
       renderSpeakingPage();
+    }
+
+    function stopVolumeMeter() {
+      if (state.speaking.volumeFrame) {
+        cancelAnimationFrame(state.speaking.volumeFrame);
+        state.speaking.volumeFrame = 0;
+      }
+      if (state.speaking.audioContext) {
+        state.speaking.audioContext.close().catch(() => {});
+        state.speaking.audioContext = null;
+      }
+      state.speaking.volumeAnalyser = null;
+    }
+
+    function startVolumeMeter(stream) {
+      stopVolumeMeter();
+      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextCtor) return;
+      const audioContext = new AudioContextCtor();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      audioContext.createMediaStreamSource(stream).connect(analyser);
+      const samples = new Uint8Array(analyser.fftSize);
+      state.speaking.audioContext = audioContext;
+      state.speaking.volumeAnalyser = analyser;
+
+      const tick = () => {
+        if (!state.speaking.volumeAnalyser) return;
+        state.speaking.volumeAnalyser.getByteTimeDomainData(samples);
+        let sum = 0;
+        for (const sample of samples) {
+          const centered = (sample - 128) / 128;
+          sum += centered * centered;
+        }
+        const rms = Math.sqrt(sum / samples.length);
+        const level = Math.max(0, Math.min(100, Math.round(rms * 240)));
+        state.speaking.volumeLevel = level;
+        state.speaking.volumeTotal += level;
+        state.speaking.volumeSamples += 1;
+        if ($("speakingVolume")) $("speakingVolume").textContent = Math.round(state.speaking.volumeTotal / state.speaking.volumeSamples);
+        renderVolumeMeter();
+        state.speaking.volumeFrame = requestAnimationFrame(tick);
+      };
+      tick();
     }
 
     function startSpeechRecognition() {
@@ -1109,7 +1173,7 @@ const fallbackSentences = [
       if (!Recognition) return false;
       const recognition = new Recognition();
       state.speaking.recognition = recognition;
-      recognition.lang = $("accentSelect").value || "en-US";
+      recognition.lang = $("accentSelect").value || "en-GB";
       recognition.interimResults = true;
       recognition.continuous = false;
 
@@ -1158,10 +1222,12 @@ const fallbackSentences = [
       state.speaking.mediaStream = stream;
       state.speaking.mediaRecorder = recorder;
       state.speaking.audioChunks = [];
+      startVolumeMeter(stream);
       recorder.ondataavailable = (event) => {
         if (event.data && event.data.size) state.speaking.audioChunks.push(event.data);
       };
       recorder.onstop = () => {
+        stopVolumeMeter();
         if (state.speaking.recordedAudioUrl) URL.revokeObjectURL(state.speaking.recordedAudioUrl);
         const blob = new Blob(state.speaking.audioChunks, { type: recorder.mimeType || "audio/webm" });
         state.speaking.recordedAudioUrl = URL.createObjectURL(blob);
@@ -1230,6 +1296,7 @@ const fallbackSentences = [
         state.speaking.mediaStream.getTracks().forEach((track) => track.stop());
         state.speaking.mediaStream = null;
       }
+      stopVolumeMeter();
       state.speaking.isRecording = false;
     }
 
