@@ -100,6 +100,7 @@ const fallbackSentences = [
       theme: localStorage.getItem("langLSRWTheme") || "black",
       activePage: loadActiveLearningPage(),
       grammarLoading: false,
+      grammarVisible: false,
       speaking: {
         isRecognizing: false,
         isRecording: false,
@@ -192,6 +193,74 @@ const fallbackSentences = [
       return normalizeSentenceItem(item).grammarRaw;
     }
 
+    const grammarCacheStorageKey = "langLSRWGrammarCache";
+
+    function loadGrammarCache() {
+      try {
+        const cached = JSON.parse(localStorage.getItem(grammarCacheStorageKey) || "[]");
+        return Array.isArray(cached) ? cached : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function grammarCacheSentenceKey(sentence) {
+      return String(sentence || "")
+        .normalize("NFKC")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function findCachedGrammar(sentence) {
+      const key = grammarCacheSentenceKey(sentence);
+      const record = loadGrammarCache().find((item) => (
+        item && grammarCacheSentenceKey(item.key || item.sentence) === key
+      ));
+      if (!record || !String(record.grammar || "").trim()) return null;
+      return {
+        grammar: String(record.grammar).trim(),
+        grammarRaw: String(record.grammarRaw || record.grammar).trim()
+      };
+    }
+
+    function saveGrammarCache(sentence, grammar, grammarRaw = grammar) {
+      const key = grammarCacheSentenceKey(sentence);
+      const records = loadGrammarCache().filter((item) => (
+        item && grammarCacheSentenceKey(item.key || item.sentence) !== key
+      ));
+      records.unshift({
+        key,
+        sentence,
+        grammar,
+        grammarRaw,
+        savedAt: new Date().toISOString()
+      });
+      let retained = records.slice(0, 500);
+      while (retained.length) {
+        try {
+          localStorage.setItem(grammarCacheStorageKey, JSON.stringify(retained));
+          return;
+        } catch {
+          retained = retained.slice(0, Math.floor(retained.length / 2));
+        }
+      }
+    }
+
+    function sentenceWithCachedGrammar(item) {
+      const normalized = normalizeSentenceItem(item);
+      if (normalized.grammar) {
+        if (!findCachedGrammar(normalized.text)) {
+          saveGrammarCache(normalized.text, normalized.grammar, normalized.grammarRaw || normalized.grammar);
+        }
+        return normalized;
+      }
+      const cached = findCachedGrammar(normalized.text);
+      if (!cached) return normalized;
+      normalized.grammar = cached.grammar;
+      normalized.grammarRaw = cached.grammarRaw;
+      return normalized;
+    }
+
     function normalizeSentenceList(items) {
       return (items || [])
         .map(normalizeSentenceItem)
@@ -217,7 +286,7 @@ const fallbackSentences = [
           ? [state.currentUser, ...users]
           : users,
         currentIndex: state.index,
-        sentences: normalizeSentenceList(state.sentences),
+        sentences: normalizeSentenceList(state.sentences).map(sentenceWithCachedGrammar),
         histories
       };
     }
@@ -266,6 +335,9 @@ const fallbackSentences = [
 
       state.sentences = normalizeSentenceList(data.sentences);
       if (!state.sentences.length) state.sentences = normalizeSentenceList(fallbackSentences);
+      state.sentences.forEach((item) => {
+        if (item.grammar) saveGrammarCache(item.text, item.grammar, item.grammarRaw || item.grammar);
+      });
       state.index = Number.isInteger(data.currentIndex)
         ? Math.min(Math.max(0, data.currentIndex), state.sentences.length - 1)
         : 0;
@@ -456,10 +528,13 @@ const fallbackSentences = [
     }
 
     function currentGrammar() {
-      return sentenceGrammar(state.sentences[state.index]);
+      const item = sentenceWithCachedGrammar(state.sentences[state.index]);
+      state.sentences[state.index] = item;
+      return item.grammar;
     }
 
     function currentGrammarRaw() {
+      currentGrammar();
       return sentenceGrammarRaw(state.sentences[state.index]);
     }
 
@@ -507,13 +582,14 @@ const fallbackSentences = [
         alert("当前没有可分析的句子。");
         return;
       }
-      openAiTextModal("Ai询问", grammarPrompt(sentence, currentTranslation()));
+      openAiTextModal("Ai询问", buildGrammarPrompt(sentence, currentTranslation()));
     }
 
     function renderGrammarAnalysis() {
       if (state.grammarLoading) {
         return '<div class="grammar-panel is-loading">正在分析语法...</div>';
       }
+      if (!state.grammarVisible) return "";
       const grammar = currentGrammar();
       if (!grammar) return "";
       const parsed = parseGrammarAnalysis(grammar);
@@ -545,6 +621,7 @@ const fallbackSentences = [
           id: Number(node.id),
           parent: Number(node.parent || 0),
           role: String(node.role || "其他").trim() || "其他",
+          type: typeof node.type === "string" ? node.type.trim() : "",
           text: String(node.text || "").trim(),
           note: String(node.note || "").trim(),
           order: index
@@ -559,11 +636,12 @@ const fallbackSentences = [
       byParent.forEach((items) => items.sort((a, b) => a.order - b.order));
       const renderNode = (node) => {
         const roleType = grammarRoleType(node.role);
+        const label = [node.role, node.type].filter(Boolean).join(" · ");
         const children = byParent.get(node.id) || [];
         return `
           <div class="grammar-node grammar-${roleType}">
             <div class="grammar-node-main">
-              <span class="grammar-role">${escapeHtml(node.role)}</span>
+              <span class="grammar-role">${escapeHtml(label)}</span>
               <span class="grammar-text">${escapeHtml(node.text)}</span>
               ${node.note ? `<span class="grammar-note">${escapeHtml(node.note)}</span>` : ""}
             </div>
@@ -572,76 +650,6 @@ const fallbackSentences = [
         `;
       };
       return (byParent.get(0) || normalized.filter((node) => node.parent === 0)).map(renderNode).join("");
-    }
-
-    function grammarPrompt(sentence, translation) {
-      return [
-        "任务：分析用户提供的英文句子，并返回结构化语法数据供程序渲染。",
-        "",
-        "只输出合法 JSON。",
-        "不要 Markdown。",
-        "不要代码块。",
-        "不要解释 JSON 之外的内容。",
-        "",
-        "句子成分只允许：主语、谓语、宾语、表语、补语、定语、状语、同位语、从句、连接词、其他。",
-        "",
-        "输出格式：",
-        "",
-        "{",
-        '  "pattern": "主语 + 谓语 + 宾语",',
-        '  "nodes": [',
-        "    {",
-        '      "id": 1,',
-        '      "text": "原句中的连续片段",',
-        '      "role": "主语",',
-        '      "parent": 0,',
-        '      "note": "简短说明"',
-        "    }",
-        "  ],",
-        '  "explanation": ["核心语法点"]',
-        "}",
-        "",
-        "规则：",
-        "",
-        "1. pattern 只描述句子的最外层核心结构，不展开短语内部结构。",
-        "",
-        "例如：The experienced engineer fixed the problem.",
-        "pattern 应为：主语 + 谓语 + 宾语",
-        "不能写：定语 + 主语 + 谓语 + 宾语。",
-        "",
-        "2. nodes 用来表示详细语法结构。parent=0 表示句子最外层成分。如果一个成分属于另一个成分内部，则 parent 填父节点 id。",
-        "",
-        "3. text 必须是原句中连续出现的文本，不得改写。",
-        "",
-        "4. 外层成分和内部成分可以同时出现。例如 The experienced engineer 整体是主语，experienced 可作为它内部的定语。",
-        "",
-        "5. 谓语必须优先作为完整结构识别。例如 is being treated 整体是一个谓语，不要在句子最外层拆成 is / being / treated。可以在谓语内部继续建立子节点。",
-        "",
-        "6. 助动词、情态动词、be、分词等如果只是谓语内部组成部分，role 使用“其他”，通过 note 说明作用。",
-        "",
-        "7. 介词短语不能因为形式是介词短语就统一分类。必须根据句法功能判断：修饰名词为定语；说明时间、地点、方式、原因、条件等为状语；补充主语或宾语身份、状态、结果为补语。",
-        "",
-        "8. 从句整体 role 使用“从句”。note 中说明：定语从句 / 宾语从句 / 主语从句 / 表语从句 / 状语从句等，以及它在上层结构中的作用。",
-        "",
-        "9. 不需要把所有单词都拆开。只拆对语法学习有价值的结构。冠词、普通介词、单个助动词等只有在理解结构确实需要时才建立子节点。",
-        "",
-        "10. note 必须简短，通常不超过20个中文字。",
-        "",
-        "11. explanation 最多4条，每条只说明重要语法结构。",
-        "",
-        "12. 不输出翻译，不输出词义，不输出页面布局、颜色、坐标、HTML、CSS或任何渲染信息。",
-        "",
-        "13. id 必须是正整数且不能重复；父节点必须先于子节点出现；parent 只能是 0 或已出现节点的 id；不能出现循环父子关系。",
-        "",
-        "14. 子节点 text 必须是父节点 text 中连续出现的片段；同一父节点下的子节点应按原句顺序排列，尽量不要互相重叠。",
-        "",
-        "15. 如果句子是疑问句、倒装句、祈使句、残句或省略句，按真实句法分析，不要补造原句中不存在的文本。遇到非连续谓语时，优先保证 text 连续，可用多个节点并在 note 中说明它们同属谓语结构。",
-        "",
-        "只允许输出 pattern、nodes、explanation 这三个顶层字段。",
-        "",
-        `英文句子：${sentence}`,
-        translation ? `参考中文翻译（只辅助理解，不要输出翻译）：${translation}` : ""
-      ].filter(Boolean).join("\n");
     }
 
     function parseGrammarAnalysis(text) {
@@ -702,14 +710,21 @@ const fallbackSentences = [
 
     async function analyzeCurrentGrammar() {
       if (state.grammarLoading) return;
+      const sentence = currentSentence();
+      if (!sentence) return;
+      if (currentGrammar()) {
+        state.grammarVisible = true;
+        renderTarget();
+        $("sourceStatus").textContent = "当前句已有 Ai 语法分析，已使用缓存。";
+        return;
+      }
       const settings = mergedAiSettings();
       if (!settings.apiKey) {
         alert("请先在“源文件”里填写并保存 API Key。");
         return;
       }
-      const sentence = currentSentence();
-      if (!sentence) return;
       state.grammarLoading = true;
+      state.grammarVisible = true;
       renderTarget();
       $("analyzeGrammarBtn").disabled = true;
       $("analyzeGrammarBtn").textContent = "分析中";
@@ -725,7 +740,7 @@ const fallbackSentences = [
             model: settings.model,
             messages: [
               { role: "system", content: "你是专业、严谨、简洁的英语语法老师。" },
-              { role: "user", content: grammarPrompt(sentence, currentTranslation()) }
+              { role: "user", content: buildGrammarPrompt(sentence, currentTranslation()) }
             ]
           })
         });
@@ -740,8 +755,10 @@ const fallbackSentences = [
         item.grammar = content;
         item.grammarRaw = content;
         state.sentences[state.index] = item;
+        saveGrammarCache(sentence, content, content);
         $("sourceStatus").textContent = "当前句语法分析已保存。";
       } catch (error) {
+        state.grammarVisible = false;
         alert(`语法分析失败：${error.message || error}`);
       } finally {
         state.grammarLoading = false;
@@ -1703,6 +1720,9 @@ const fallbackSentences = [
     function renderTarget() {
       const target = currentSentence();
       const translation = currentTranslation();
+      const hasGrammarCache = Boolean(currentGrammar());
+      $("analyzeGrammarBtn").classList.toggle("has-cache", hasGrammarCache);
+      $("analyzeGrammarBtn").title = hasGrammarCache ? "当前句已有缓存，点击查看" : "分析当前句语法";
       const showTranslation = $("showTranslationToggle").checked;
       const translationText = translation ? escapeHtml(translation) : "暂无翻译";
       const translationHtml = `<div class="translation-prompt ${showTranslation ? "" : "is-hidden"}">${showTranslation ? translationText : "&nbsp;"}</div>`;
@@ -1839,6 +1859,7 @@ const fallbackSentences = [
     function switchSpeakingSentence(nextIndex, shouldSpeak = false) {
       stopSpeakingPractice();
       state.index = (nextIndex + state.sentences.length) % state.sentences.length;
+      state.grammarVisible = false;
       typingBox.value = "";
       state.events = [];
       state.startedAt = 0;
@@ -1852,6 +1873,7 @@ const fallbackSentences = [
     }
 
     function resetCurrent(shouldSpeak = false) {
+      state.grammarVisible = false;
       typingBox.value = "";
       state.events = [];
       state.startedAt = 0;

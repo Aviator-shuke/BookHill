@@ -1,0 +1,4 @@
+interface:
+  display_name: "langLSRW 英语语法分析"
+  short_description: "生成忠于原句的层级语法数据，维护提示词并检查成分归属与完整性"
+  default_prompt: "使用 $langlsrw-grammar-analysis 分析我提供的英文句子，输出符合 langLSRW 约定的层级语法 JSON。"

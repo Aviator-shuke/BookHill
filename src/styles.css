@@ -55,6 +55,13 @@
       background: var(--accent-strong);
     }
 
+    #analyzeGrammarBtn.has-cache {
+      border-color: var(--good);
+      background: color-mix(in srgb, var(--good) 16%, var(--panel));
+      color: var(--good);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--good) 22%, transparent);
+    }
+
     .app {
       width: min(1240px, calc(100vw - 24px));
       margin: 0 auto;
@@ -705,10 +712,11 @@
 
     .grammar-role {
       justify-self: start;
+      border: 1px solid var(--grammar-role-color, #94a3b8);
       border-radius: 5px;
       padding: 1px 5px;
-      color: #ffffff;
-      background: currentColor;
+      color: var(--grammar-role-color, #94a3b8);
+      background: transparent;
       font-size: 11px;
       font-weight: 700;
       line-height: 1.25;
@@ -735,18 +743,18 @@
       line-height: 1.55;
     }
 
-    .grammar-subject { color: #45b36b; }
-    .grammar-predicate { color: #f97316; }
-    .grammar-object { color: #eab308; }
-    .grammar-predicative { color: #9a7b2f; }
-    .grammar-complement { color: #5aa872; }
-    .grammar-attribute { color: #38bdf8; }
-    .grammar-adverbial { color: #2563eb; }
-    .grammar-appositive { color: #8b5cf6; }
-    .grammar-prep { color: #ec4899; }
-    .grammar-clause { color: #14b8a6; }
-    .grammar-connector { color: #64748b; }
-    .grammar-other { color: #94a3b8; }
+    .grammar-subject { --grammar-role-color: #45b36b; color: var(--grammar-role-color); }
+    .grammar-predicate { --grammar-role-color: #f97316; color: var(--grammar-role-color); }
+    .grammar-object { --grammar-role-color: #eab308; color: var(--grammar-role-color); }
+    .grammar-predicative { --grammar-role-color: #9a7b2f; color: var(--grammar-role-color); }
+    .grammar-complement { --grammar-role-color: #5aa872; color: var(--grammar-role-color); }
+    .grammar-attribute { --grammar-role-color: #38bdf8; color: var(--grammar-role-color); }
+    .grammar-adverbial { --grammar-role-color: #2563eb; color: var(--grammar-role-color); }
+    .grammar-appositive { --grammar-role-color: #8b5cf6; color: var(--grammar-role-color); }
+    .grammar-prep { --grammar-role-color: #ec4899; color: var(--grammar-role-color); }
+    .grammar-clause { --grammar-role-color: #14b8a6; color: var(--grammar-role-color); }
+    .grammar-connector { --grammar-role-color: #64748b; color: var(--grammar-role-color); }
+    .grammar-other { --grammar-role-color: #94a3b8; color: var(--grammar-role-color); }
 
     .translation-prompt.is-hidden {
       color: transparent;
