@@ -218,7 +218,7 @@ const fallbackSentences = [
     function grammarFrameworkFromContent(grammar) {
       try {
         const parsed = JSON.parse(String(grammar || "").trim());
-        return parsed?.convention === "traditional-school/1" ? "traditional" : "sieg2-cgel";
+        return String(parsed?.convention || "").startsWith("traditional-school/") ? "traditional" : "sieg2-cgel";
       } catch {
         return "sieg2-cgel";
       }
@@ -590,13 +590,27 @@ const fallbackSentences = [
       }
     }
 
+    function formatAiResponseForDisplay(text) {
+      const raw = String(text || "").trim();
+      if (!raw) return "";
+      const jsonText = raw
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/, "")
+        .trim();
+      try {
+        return JSON.stringify(JSON.parse(jsonText), null, 2);
+      } catch {
+        return raw;
+      }
+    }
+
     function showCurrentAiResponse() {
       const raw = currentGrammarRaw();
       if (!raw) {
         alert("当前句还没有 Ai 语法分析回复。");
         return;
       }
-      openAiTextModal("Ai回复", raw);
+      openAiTextModal("Ai回复", formatAiResponseForDisplay(raw));
     }
 
     function showCurrentAiPrompt() {
@@ -606,6 +620,49 @@ const fallbackSentences = [
         return;
       }
       openAiTextModal("Ai询问", buildGrammarPrompt(sentence, currentTranslation()));
+    }
+
+    let aiTextContextKind = "";
+
+    function closeAiTextContextMenu() {
+      $("aiTextContextMenu").hidden = true;
+      aiTextContextKind = "";
+    }
+
+    function openAiTextContextMenu(event, kind) {
+      event.preventDefault();
+      closeGrammarContextMenu();
+      closeTopMenus();
+      aiTextContextKind = kind;
+      const menu = $("aiTextContextMenu");
+      const buttonRect = event.currentTarget.getBoundingClientRect();
+      menu.hidden = false;
+      const menuRect = menu.getBoundingClientRect();
+      const requestedX = event.clientX || buttonRect.left;
+      const requestedY = event.clientY || buttonRect.bottom;
+      menu.style.left = `${Math.max(8, Math.min(requestedX, window.innerWidth - menuRect.width - 8))}px`;
+      menu.style.top = `${Math.max(8, Math.min(requestedY, window.innerHeight - menuRect.height - 8))}px`;
+      $("copyAiContextBtn").focus();
+    }
+
+    async function copyAiContextText() {
+      const kind = aiTextContextKind;
+      closeAiTextContextMenu();
+      const sentence = currentSentence();
+      const raw = kind === "prompt"
+        ? (sentence ? buildGrammarPrompt(sentence, currentTranslation()) : "")
+        : currentGrammarRaw();
+      if (!raw) {
+        alert(kind === "prompt" ? "当前没有可复制的 Ai 询问。" : "当前句还没有 Ai 语法分析回复。");
+        return;
+      }
+      const text = kind === "response" ? formatAiResponseForDisplay(raw) : raw;
+      try {
+        await navigator.clipboard.writeText(text);
+        $("sourceStatus").textContent = kind === "prompt" ? "已复制 Ai 询问。" : "已复制 Ai 回复。";
+      } catch {
+        openAiTextModal(kind === "prompt" ? "Ai询问" : "Ai回复", text);
+      }
     }
 
     function renderGrammarAnalysis() {
@@ -673,10 +730,11 @@ const fallbackSentences = [
       byParent.forEach((items) => items.sort((a, b) => a.order - b.order));
       const renderNode = (node, depth = 0) => {
         const roleType = grammarRoleType(node.role);
+        const label = [node.role, node.type].filter(Boolean).join(" · ");
         const children = byParent.get(node.id) || [];
         const isExpanded = children.length && state.grammarExpandedNodeIds.has(node.id);
         const isSelected = state.grammarSelectedNodeId === node.id;
-        const details = [node.type, node.note].filter(Boolean);
+        const details = [node.note].filter(Boolean);
         return `
           <div class="grammar-node grammar-${roleType} ${isSelected ? "is-selected" : ""}" data-grammar-node-id="${node.id}" data-depth="${depth}">
             <div class="grammar-node-heading">
@@ -684,12 +742,12 @@ const fallbackSentences = [
                 ? `<button type="button" class="grammar-node-toggle" data-grammar-toggle="${node.id}" aria-expanded="${Boolean(isExpanded)}" aria-label="${isExpanded ? "收起" : "展开"}${escapeHtml(node.text)}">${isExpanded ? "▾" : "▸"}</button>`
                 : '<span class="grammar-node-toggle-spacer" aria-hidden="true"></span>'}
               <button type="button" class="grammar-node-content" data-grammar-select="${node.id}">
-                <span class="grammar-role">${escapeHtml(node.role)}</span>
+                <span class="grammar-role">${escapeHtml(label)}</span>
                 <span class="grammar-text">${escapeHtml(node.text)}</span>
               </button>
             </div>
             ${(isExpanded || isSelected) && details.length
-              ? `<div class="grammar-node-details">${node.type ? `<span>${escapeHtml(node.type)}</span>` : ""}${node.note ? `<span>${escapeHtml(node.note)}</span>` : ""}</div>`
+              ? `<div class="grammar-node-details">${node.note ? `<span>${escapeHtml(node.note)}</span>` : ""}</div>`
               : ""}
             ${isExpanded ? `<div class="grammar-node-children">${children.map((child) => renderNode(child, depth + 1)).join("")}</div>` : ""}
           </div>
@@ -874,6 +932,7 @@ const fallbackSentences = [
     function openGrammarContextMenu(event) {
       event.preventDefault();
       if (state.grammarLoading || !currentSentence()) return;
+      closeAiTextContextMenu();
       closeTopMenus();
       const menu = $("grammarContextMenu");
       const buttonRect = $("analyzeGrammarBtn").getBoundingClientRect();
@@ -2157,6 +2216,9 @@ const fallbackSentences = [
     });
     $("showAiPromptBtn").addEventListener("click", showCurrentAiPrompt);
     $("showAiResponseBtn").addEventListener("click", showCurrentAiResponse);
+    $("showAiPromptBtn").addEventListener("contextmenu", (event) => openAiTextContextMenu(event, "prompt"));
+    $("showAiResponseBtn").addEventListener("contextmenu", (event) => openAiTextContextMenu(event, "response"));
+    $("copyAiContextBtn").addEventListener("click", copyAiContextText);
     $("copyAiTextBtn").addEventListener("click", copyAiText);
     $("closeAiTextModalBtn").addEventListener("click", closeAiTextModal);
     $("aiTextModal").addEventListener("pointerdown", (event) => {
@@ -2378,6 +2440,9 @@ const fallbackSentences = [
       if (!event.target.closest(".grammar-context-menu, #analyzeGrammarBtn")) {
         closeGrammarContextMenu();
       }
+      if (!event.target.closest("#aiTextContextMenu, #showAiPromptBtn, #showAiResponseBtn")) {
+        closeAiTextContextMenu();
+      }
     });
 
     document.addEventListener("keydown", (event) => {
@@ -2385,11 +2450,14 @@ const fallbackSentences = [
         closeAiTextModal();
         closeTopMenus();
         closeGrammarContextMenu();
+        closeAiTextContextMenu();
       }
     });
 
     window.addEventListener("resize", closeGrammarContextMenu);
     window.addEventListener("scroll", closeGrammarContextMenu, true);
+    window.addEventListener("resize", closeAiTextContextMenu);
+    window.addEventListener("scroll", closeAiTextContextMenu, true);
 
     let dragDepth = 0;
 
