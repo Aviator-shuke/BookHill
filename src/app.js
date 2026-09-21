@@ -103,8 +103,6 @@ const fallbackSentences = [
       grammarVisible: false,
       grammarExpansionMode: "main",
       grammarExpandedNodeIds: new Set(),
-      grammarSelectedNodeId: 0,
-      grammarSelectedText: "",
       speaking: {
         isRecognizing: false,
         isRecording: false,
@@ -733,20 +731,19 @@ const fallbackSentences = [
         const label = [node.role, node.type].filter(Boolean).join(" · ");
         const children = byParent.get(node.id) || [];
         const isExpanded = children.length && state.grammarExpandedNodeIds.has(node.id);
-        const isSelected = state.grammarSelectedNodeId === node.id;
         const details = [node.note].filter(Boolean);
+        const content = `
+          <span class="grammar-role">${escapeHtml(label)}</span>
+          <span class="grammar-text">${escapeHtml(node.text)}</span>
+        `;
         return `
-          <div class="grammar-node grammar-${roleType} ${isSelected ? "is-selected" : ""}" data-grammar-node-id="${node.id}" data-depth="${depth}">
+          <div class="grammar-node grammar-${roleType} ${children.length ? "has-children" : ""}" data-grammar-node-id="${node.id}" data-depth="${depth}">
             <div class="grammar-node-heading">
               ${children.length
-                ? `<button type="button" class="grammar-node-toggle" data-grammar-toggle="${node.id}" aria-expanded="${Boolean(isExpanded)}" aria-label="${isExpanded ? "收起" : "展开"}${escapeHtml(node.text)}">${isExpanded ? "▾" : "▸"}</button>`
-                : '<span class="grammar-node-toggle-spacer" aria-hidden="true"></span>'}
-              <button type="button" class="grammar-node-content" data-grammar-select="${node.id}">
-                <span class="grammar-role">${escapeHtml(label)}</span>
-                <span class="grammar-text">${escapeHtml(node.text)}</span>
-              </button>
+                ? `<button type="button" class="grammar-node-content" data-grammar-toggle="${node.id}" aria-expanded="${Boolean(isExpanded)}" aria-label="${isExpanded ? "收起" : "展开"}${escapeHtml(node.text)}">${content}</button>`
+                : `<div class="grammar-node-content">${content}</div>`}
             </div>
-            ${(isExpanded || isSelected) && details.length
+            ${details.length
               ? `<div class="grammar-node-details">${node.note ? `<span>${escapeHtml(node.note)}</span>` : ""}</div>`
               : ""}
             ${isExpanded ? `<div class="grammar-node-children">${children.map((child) => renderNode(child, depth + 1)).join("")}</div>` : ""}
@@ -774,22 +771,6 @@ const fallbackSentences = [
     function resetGrammarInteraction() {
       state.grammarExpansionMode = "main";
       state.grammarExpandedNodeIds = new Set();
-      state.grammarSelectedNodeId = 0;
-      state.grammarSelectedText = "";
-    }
-
-    function grammarSelectedWordIndexes(target) {
-      if (!state.grammarSelectedText) return new Set();
-      const sentenceWords = getTargetWordPieces(target).filter((piece) => piece.type === "word");
-      const selectedWords = getTargetWordPieces(state.grammarSelectedText)
-        .filter((piece) => piece.type === "word")
-        .map((piece) => piece.normalized);
-      if (!selectedWords.length) return new Set();
-      for (let start = 0; start <= sentenceWords.length - selectedWords.length; start += 1) {
-        const matches = selectedWords.every((word, offset) => sentenceWords[start + offset].normalized === word);
-        if (matches) return new Set(selectedWords.map((_, offset) => start + offset));
-      }
-      return new Set();
     }
 
     function parseGrammarAnalysis(text) {
@@ -1896,7 +1877,6 @@ const fallbackSentences = [
 
     function renderTarget() {
       const target = currentSentence();
-      const grammarHighlightIndexes = grammarSelectedWordIndexes(target);
       const translation = currentTranslation();
       const hasGrammarCache = Boolean(currentGrammar());
       $("analyzeGrammarBtn").classList.toggle("has-cache", hasGrammarCache);
@@ -1922,9 +1902,9 @@ const fallbackSentences = [
           const currentWordIndex = wordIndex;
           wordIndex += 1;
           if (isRevealed) {
-            return `<span class="target-word revealed-word ${grammarHighlightIndexes.has(currentWordIndex) ? "grammar-source-highlight" : ""}" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
+            return `<span class="target-word revealed-word" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
           }
-          return `<span class="target-word covered-word ${grammarHighlightIndexes.has(currentWordIndex) ? "grammar-source-highlight" : ""}" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
+          return `<span class="target-word covered-word" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
         }).join("");
         targetEl.innerHTML = `<span class="target-english">${html || "&nbsp;"}</span>${translationHtml}${grammarHtml}`;
         counterEl.textContent = `${state.index + 1} / ${state.sentences.length}`;
@@ -1953,7 +1933,7 @@ const fallbackSentences = [
         const currentWordIndex = targetWordIndex;
         targetWordIndex += 1;
         const className = isWrong ? "wrong" : (isDone ? "done" : "pending");
-        return `<span class="target-word ${className} ${grammarHighlightIndexes.has(currentWordIndex) ? "grammar-source-highlight" : ""}" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
+        return `<span class="target-word ${className}" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
       }).join("");
 
       targetEl.innerHTML = `<span class="target-english">${html || "&nbsp;"}</span>${translationHtml}${grammarHtml}`;
@@ -2290,16 +2270,6 @@ const fallbackSentences = [
         return;
       }
 
-      const nodeButton = event.target.closest("[data-grammar-select]");
-      if (!nodeButton) return;
-      const nodeId = Number(nodeButton.dataset.grammarSelect);
-      const parsed = parseGrammarAnalysis(currentGrammar());
-      const node = normalizeGrammarNodes(parsed?.nodes).find((item) => item.id === nodeId);
-      if (!node) return;
-      const deselecting = state.grammarSelectedNodeId === nodeId;
-      state.grammarSelectedNodeId = deselecting ? 0 : nodeId;
-      state.grammarSelectedText = deselecting ? "" : node.text;
-      renderTarget();
     });
 
     targetEl.addEventListener("auxclick", (event) => {
