@@ -770,7 +770,7 @@
       max-width: min(100%, 680px);
     }
 
-    .grammar-node.has-children {
+    .grammar-node.has-children:not(.is-expanded) {
       border-bottom: 2px solid var(--grammar-role-color, #94a3b8);
     }
 
@@ -837,7 +837,7 @@
       background: transparent;
     }
 
-    .grammar-node-children .grammar-node.has-children {
+    .grammar-node-children .grammar-node.has-children:not(.is-expanded) {
       border-bottom: 2px solid var(--grammar-role-color, #94a3b8);
     }
 

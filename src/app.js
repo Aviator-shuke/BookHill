@@ -737,7 +737,7 @@ const fallbackSentences = [
           <span class="grammar-text">${escapeHtml(node.text)}</span>
         `;
         return `
-          <div class="grammar-node grammar-${roleType} ${children.length ? "has-children" : ""}" data-grammar-node-id="${node.id}" data-depth="${depth}">
+          <div class="grammar-node grammar-${roleType} ${children.length ? "has-children" : ""} ${isExpanded ? "is-expanded" : ""}" data-grammar-node-id="${node.id}" data-depth="${depth}">
             <div class="grammar-node-heading">
               ${children.length
                 ? `<button type="button" class="grammar-node-content" data-grammar-toggle="${node.id}" aria-expanded="${Boolean(isExpanded)}" aria-label="${isExpanded ? "收起" : "展开"}${escapeHtml(node.text)}">${content}</button>`
