@@ -37,18 +37,22 @@ gerund-participial structures that directly express a verb's content object;
 reserve complement for descriptions of an object's identity, state, quality, or
 result. Every child span must occur inside its direct parent span.
 
-For sentence analysis, follow [the runtime contract](references/grammar-prompt.txt)
-and return only its JSON object. English is authoritative; an optional reference
-translation may assist understanding but cannot add or replace source content.
+For sentence analysis, read [the complete convention](references/grammar-convention.md),
+apply [the compact runtime contract](references/grammar-prompt.txt), and return only
+its JSON object. English is authoritative; an optional reference translation may
+assist understanding but cannot add or replace source content.
 
 Do not mix SIEG2/CGEL functions or labels into a traditional analysis. Keep source
 coverage, structural containment, learner-facing pattern, and explanations consistent.
 Use `status=partial` when the continuous-span representation cannot express a
 structure faithfully.
 
-For maintenance requests, normal prose is allowed. Keep the browser prompt in the
-reference file and regenerate the web artifact instead of duplicating prompt text
-inside application code:
+For maintenance requests, normal prose is allowed. Keep the detailed rationale and
+edge cases in `grammar-convention.md`; keep `grammar-prompt.txt` concise enough to
+send with each API request. They serve different purposes and must retain the same
+schema version, convention version, role set, and behavioral boundaries. Update the
+convention first, then its compact runtime contract and tests. Regenerate the web
+artifact instead of duplicating prompt text inside application code:
 
 ```sh
 node .agents/skills/langlsrw-traditional-grammar-analysis/scripts/build-web-prompt.js
