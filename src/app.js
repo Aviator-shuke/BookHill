@@ -39,6 +39,64 @@ const fallbackSentences = [
       { id: "eye", label: "护眼" }
     ];
 
+    const englishFontPresets = {
+      default: '"Segoe UI", Arial, sans-serif',
+      georgia: 'Georgia, "Times New Roman", serif',
+      times: '"Times New Roman", Times, serif',
+      segoe: '"Segoe UI", Arial, sans-serif',
+      arial: 'Arial, sans-serif'
+    };
+
+    const chineseFontPresets = {
+      yahei: '"Microsoft YaHei", "PingFang SC", sans-serif',
+      simsun: 'SimSun, "宋体", serif',
+      simhei: 'SimHei, "黑体", sans-serif',
+      kaiti: 'KaiTi, "楷体", serif'
+    };
+
+    function fontDefaults() {
+      return { english: "default", chinese: "yahei" };
+    }
+
+    function loadStoredFontSettings() {
+      try {
+        return { ...fontDefaults(), ...JSON.parse(localStorage.getItem("langLSRWFontSettings") || "{}") };
+      } catch {
+        return fontDefaults();
+      }
+    }
+
+    function grammarColorDefaults() {
+      return {
+        subject: "#ef4444",
+        predicate: "#f97316",
+        object: "#eab308",
+        predicative: "#b58ba0",
+        complement: "#22c55e",
+        attribute: "#14b8a6",
+        adverbial: "#06b6d4",
+        appositive: "#3b82f6",
+        head: "#a855f7",
+        other: "#94a3b8"
+      };
+    }
+
+    function normalizeGrammarColors(colors) {
+      const defaults = grammarColorDefaults();
+      return Object.fromEntries(Object.entries(defaults).map(([key, fallback]) => {
+        const value = String(colors?.[key] || "").trim();
+        return [key, /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : fallback];
+      }));
+    }
+
+    function loadStoredGrammarColors() {
+      try {
+        return normalizeGrammarColors(JSON.parse(localStorage.getItem("langLSRWGrammarColors") || "{}"));
+      } catch {
+        return grammarColorDefaults();
+      }
+    }
+
     const shortcutActions = [
       { id: "speakSentence", label: "朗读当前句" },
       { id: "toggleSource", label: "显示/隐藏原文" },
@@ -97,6 +155,8 @@ const fallbackSentences = [
       shortcuts: loadShortcutSettings(),
       speechSettings: JSON.parse(localStorage.getItem("langLSRWSpeechSettings") || "{}"),
       aiSettings: JSON.parse(localStorage.getItem("langLSRWAISettings") || "{}"),
+      fontSettings: loadStoredFontSettings(),
+      grammarColors: loadStoredGrammarColors(),
       theme: localStorage.getItem("langLSRWTheme") || "black",
       activePage: loadActiveLearningPage(),
       grammarLoading: false,
@@ -678,7 +738,11 @@ const fallbackSentences = [
       const explanationHtml = explanation.length
         ? `<ul class="grammar-points">${explanation.map((item) => `<li>${escapeHtml(String(item))}</li>`).join("")}</ul>`
         : "";
-      const pattern = String(parsed.pattern || "").trim();
+      const pattern = String(parsed.pattern || "")
+        .trim()
+        .replace(/（/g, "(")
+        .replace(/）/g, ")")
+        .replace(/\s*\+\s*/g, " + ");
       const provenance = grammarAnalysisProvenance(parsed);
       const analysisLabel = `句子成分${provenance.legacy ? " · 旧版" : ""}${parsed.status === "partial" ? " · 部分分析" : ""}`;
       const patternHtml = pattern
@@ -1001,13 +1065,102 @@ const fallbackSentences = [
       applyTheme(themes[(currentIndex + 1) % themes.length].id);
     }
 
+    function applyFontSettings(settings, { persist = true } = {}) {
+      const defaults = fontDefaults();
+      const english = Object.prototype.hasOwnProperty.call(englishFontPresets, settings?.english)
+        ? settings.english
+        : defaults.english;
+      const chinese = Object.prototype.hasOwnProperty.call(chineseFontPresets, settings?.chinese)
+        ? settings.chinese
+        : defaults.chinese;
+      state.fontSettings = { english, chinese };
+      document.documentElement.style.setProperty("--font-english-content", englishFontPresets[english]);
+      document.documentElement.style.setProperty("--font-translation", chineseFontPresets[chinese]);
+      $("englishFontSelect").value = english;
+      $("chineseFontSelect").value = chinese;
+      if (persist) localStorage.setItem("langLSRWFontSettings", JSON.stringify(state.fontSettings));
+    }
+
+    function saveFontSettings() {
+      applyFontSettings({
+        english: $("englishFontSelect").value,
+        chinese: $("chineseFontSelect").value
+      });
+    }
+
+    function resetFontSettings() {
+      localStorage.removeItem("langLSRWFontSettings");
+      applyFontSettings(fontDefaults(), { persist: false });
+    }
+
+    const grammarColorLabels = {
+      subject: "主语",
+      predicate: "谓语",
+      object: "宾语",
+      predicative: "表语",
+      complement: "补语",
+      attribute: "定语",
+      adverbial: "状语",
+      appositive: "同位语",
+      head: "中心语",
+      other: "其他"
+    };
+    let activeGrammarColorRole = "subject";
+
+    function setActiveGrammarColorRole(role) {
+      if (!grammarColorLabels[role]) return;
+      activeGrammarColorRole = role;
+      document.querySelectorAll("[data-grammar-color-row]").forEach((row) => {
+        row.classList.toggle("is-active", row.dataset.grammarColorRow === role);
+      });
+      $("grammarColorActiveLabel").textContent = grammarColorLabels[role];
+    }
+
+    function normalizeHexInput(value) {
+      const compact = String(value || "").trim();
+      const prefixed = compact.startsWith("#") ? compact : `#${compact}`;
+      return /^#[0-9a-f]{6}$/i.test(prefixed) ? prefixed.toLowerCase() : "";
+    }
+
+    function updateGrammarColor(role, value) {
+      const normalized = normalizeHexInput(value);
+      if (!normalized || !grammarColorLabels[role]) return false;
+      setActiveGrammarColorRole(role);
+      applyGrammarColors({ ...state.grammarColors, [role]: normalized });
+      return true;
+    }
+
+    function applyGrammarColors(colors, { persist = true } = {}) {
+      state.grammarColors = normalizeGrammarColors(colors);
+      Object.entries(state.grammarColors).forEach(([key, value]) => {
+        document.documentElement.style.setProperty(`--grammar-${key}-color`, value);
+        const input = document.querySelector(`[data-grammar-color="${key}"]`);
+        if (input) input.value = value;
+        const hexInput = document.querySelector(`[data-grammar-hex="${key}"]`);
+        if (hexInput) {
+          hexInput.value = value.toUpperCase();
+          hexInput.classList.remove("is-invalid");
+        }
+      });
+      if (persist) localStorage.setItem("langLSRWGrammarColors", JSON.stringify(state.grammarColors));
+    }
+
+    function resetGrammarColors() {
+      localStorage.removeItem("langLSRWGrammarColors");
+      applyGrammarColors(grammarColorDefaults(), { persist: false });
+    }
+
     function resetSettingsToDefault() {
       localStorage.removeItem("langLSRWTheme");
       localStorage.removeItem("langLSRWShortcuts");
       localStorage.removeItem("langLSRWSpeechSettings");
+      localStorage.removeItem("langLSRWFontSettings");
+      localStorage.removeItem("langLSRWGrammarColors");
       state.shortcuts = { ...defaultShortcuts };
       state.speechSettings = {};
       applyTheme("black");
+      applyFontSettings(fontDefaults(), { persist: false });
+      applyGrammarColors(grammarColorDefaults(), { persist: false });
       loadSpeechSettings();
       populateVoices();
       renderShortcutSettings();
@@ -1015,7 +1168,7 @@ const fallbackSentences = [
     }
 
     function resetGlobalSettings() {
-      const confirmed = confirm("确定恢复默认设置吗？主题、快捷键、朗读设置会重置，用户记录和句库不会删除。");
+      const confirmed = confirm("确定恢复默认设置吗？主题、字体、句子成分颜色、快捷键、朗读设置会重置，用户记录和句库不会删除。");
       if (!confirmed) return;
 
       resetSettingsToDefault();
@@ -1120,9 +1273,14 @@ const fallbackSentences = [
       return true;
     }
 
+    function isTopMenuOpen() {
+      return Boolean(document.querySelector(".source-menu[open], .shortcut-menu[open], .font-menu[open], .user-menu[open]"));
+    }
+
     function handleGlobalShortcut(event) {
       if (event.isComposing) return;
       if (event.target && event.target.closest && event.target.closest("[data-shortcut]")) return;
+      if (isTopMenuOpen()) return;
       if (state.activePage !== "listenPage") return;
       const target = event.target;
       const isTypingFocused = document.activeElement === typingBox || target === typingBox || Boolean(target && target.closest && target.closest("#typingBox"));
@@ -1199,6 +1357,11 @@ const fallbackSentences = [
     function handleGlobalShortcutKeyup(event) {
       if (event.isComposing) return;
       if (event.target && event.target.closest && event.target.closest("[data-shortcut]")) return;
+      if (isTopMenuOpen()) {
+        if (state.speaking.holdActive) scheduleStopSpeakingPractice();
+        clearPeekedWord();
+        return;
+      }
       if (state.activePage !== "listenPage") return;
       const target = event.target;
       const isTypingFocused = document.activeElement === typingBox || target === typingBox || Boolean(target && target.closest && target.closest("#typingBox"));
@@ -2103,7 +2266,7 @@ const fallbackSentences = [
     }
 
     function closeTopMenus(exceptMenu = null) {
-      document.querySelectorAll(".source-menu, .shortcut-menu, .user-menu").forEach((menu) => {
+      document.querySelectorAll(".source-menu, .shortcut-menu, .font-menu, .user-menu").forEach((menu) => {
         if (menu !== exceptMenu) menu.removeAttribute("open");
       });
     }
@@ -2357,6 +2520,38 @@ const fallbackSentences = [
     });
 
     $("themeToggleBtn").addEventListener("click", toggleTheme);
+    $("englishFontSelect").addEventListener("change", saveFontSettings);
+    $("chineseFontSelect").addEventListener("change", saveFontSettings);
+    $("resetFontSettingsBtn").addEventListener("click", resetFontSettings);
+    $("grammarColorGrid").addEventListener("pointerdown", (event) => {
+      const row = event.target.closest("[data-grammar-color-row]");
+      if (row) setActiveGrammarColorRole(row.dataset.grammarColorRow);
+    });
+    $("grammarColorGrid").addEventListener("input", (event) => {
+      const colorInput = event.target.closest("[data-grammar-color]");
+      if (colorInput) {
+        updateGrammarColor(colorInput.dataset.grammarColor, colorInput.value);
+        return;
+      }
+      const hexInput = event.target.closest("[data-grammar-hex]");
+      if (!hexInput) return;
+      const normalized = normalizeHexInput(hexInput.value);
+      hexInput.classList.toggle("is-invalid", hexInput.value.length >= 7 && !normalized);
+      if (normalized) updateGrammarColor(hexInput.dataset.grammarHex, normalized);
+    });
+    $("grammarColorGrid").addEventListener("change", (event) => {
+      const input = event.target.closest("[data-grammar-hex]");
+      if (!input) return;
+      if (!updateGrammarColor(input.dataset.grammarHex, input.value)) {
+        input.value = state.grammarColors[input.dataset.grammarHex].toUpperCase();
+        input.classList.remove("is-invalid");
+      }
+    });
+    $("grammarCommonPalette").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-grammar-preset]");
+      if (button) updateGrammarColor(activeGrammarColorRole, button.dataset.grammarPreset);
+    });
+    $("resetGrammarColorsBtn").addEventListener("click", resetGrammarColors);
 
     document.querySelectorAll(".page-tab").forEach((tab) => {
       tab.addEventListener("click", () => setActivePage(tab.dataset.pageTarget));
@@ -2404,14 +2599,18 @@ const fallbackSentences = [
       showLogin();
     });
 
-    document.querySelectorAll(".source-menu, .shortcut-menu, .user-menu").forEach((menu) => {
+    document.querySelectorAll(".source-menu, .shortcut-menu, .font-menu, .user-menu").forEach((menu) => {
       menu.addEventListener("toggle", () => {
-        if (menu.open) closeTopMenus(menu);
+        if (menu.open) {
+          closeTopMenus(menu);
+          if (state.speaking.holdActive) scheduleStopSpeakingPractice();
+          clearPeekedWord();
+        }
       });
     });
 
     document.addEventListener("pointerdown", (event) => {
-      if (!event.target.closest(".source-menu, .shortcut-menu, .user-menu")) {
+      if (!event.target.closest(".source-menu, .shortcut-menu, .font-menu, .user-menu")) {
         closeTopMenus();
       }
       if (!event.target.closest(".grammar-context-menu, #analyzeGrammarBtn")) {
@@ -2470,6 +2669,8 @@ const fallbackSentences = [
     window.addEventListener("keyup", handleGlobalShortcutKeyup, { capture: true });
 
     applyTheme(state.theme);
+    applyFontSettings(state.fontSettings, { persist: false });
+    applyGrammarColors(state.grammarColors, { persist: false });
     setActivePage(state.activePage);
     loadSpeechSettings();
     loadAiSettings();

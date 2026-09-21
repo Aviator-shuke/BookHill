@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260920-7">
+  <link rel="stylesheet" href="src/styles.css?v=20260922-13">
 
 </head>
 <body data-theme="black" data-active-page="listenPage">
@@ -97,6 +97,62 @@
       </div>
       <div class="toolbar">
         <button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="切换背景模式">黑夜</button>
+        <details class="font-menu">
+          <summary>设置</summary>
+          <div class="font-popover settings">
+            <label>
+              英文字体
+              <select id="englishFontSelect">
+                <option value="default">默认（Segoe UI）</option>
+                <option value="georgia">Georgia</option>
+                <option value="times">Times New Roman</option>
+                <option value="segoe">Segoe UI</option>
+                <option value="arial">Arial</option>
+              </select>
+            </label>
+            <label>
+              中文字体
+              <select id="chineseFontSelect">
+                <option value="yahei">微软雅黑</option>
+                <option value="simsun">宋体</option>
+                <option value="simhei">黑体</option>
+                <option value="kaiti">楷体</option>
+              </select>
+            </label>
+            <button id="resetFontSettingsBtn" type="button">恢复默认字体</button>
+            <div class="settings-section">
+              <div class="settings-section-title">句子成分颜色</div>
+              <div id="grammarColorGrid" class="grammar-color-grid">
+                <label class="grammar-color-row is-active" data-grammar-color-row="subject"><span>主语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="subject" aria-label="主语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="subject" maxlength="7" spellcheck="false" aria-label="主语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="predicate"><span>谓语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="predicate" aria-label="谓语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="predicate" maxlength="7" spellcheck="false" aria-label="谓语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="object"><span>宾语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="object" aria-label="宾语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="object" maxlength="7" spellcheck="false" aria-label="宾语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="predicative"><span>表语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="predicative" aria-label="表语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="predicative" maxlength="7" spellcheck="false" aria-label="表语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="complement"><span>补语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="complement" aria-label="补语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="complement" maxlength="7" spellcheck="false" aria-label="补语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="attribute"><span>定语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="attribute" aria-label="定语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="attribute" maxlength="7" spellcheck="false" aria-label="定语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="adverbial"><span>状语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="adverbial" aria-label="状语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="adverbial" maxlength="7" spellcheck="false" aria-label="状语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="appositive"><span>同位语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="appositive" aria-label="同位语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="appositive" maxlength="7" spellcheck="false" aria-label="同位语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="head"><span>中心语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="head" aria-label="中心语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="head" maxlength="7" spellcheck="false" aria-label="中心语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="other"><span>其他</span><span class="grammar-color-controls"><input type="color" data-grammar-color="other" aria-label="其他颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="other" maxlength="7" spellcheck="false" aria-label="其他 HEX 颜色"></span></span></label>
+              </div>
+              <div class="grammar-palette-title">常用颜色 · 当前：<strong id="grammarColorActiveLabel">主语</strong></div>
+              <div id="grammarCommonPalette" class="grammar-common-palette" aria-label="常用颜色">
+                <button type="button" data-grammar-preset="#ef4444" style="--swatch:#ef4444" aria-label="红色 #EF4444" title="#EF4444"></button>
+                <button type="button" data-grammar-preset="#f97316" style="--swatch:#f97316" aria-label="橙色 #F97316" title="#F97316"></button>
+                <button type="button" data-grammar-preset="#eab308" style="--swatch:#eab308" aria-label="黄色 #EAB308" title="#EAB308"></button>
+                <button type="button" data-grammar-preset="#b58ba0" style="--swatch:#b58ba0" aria-label="豆沙色 #B58BA0" title="#B58BA0"></button>
+                <button type="button" data-grammar-preset="#22c55e" style="--swatch:#22c55e" aria-label="绿色 #22C55E" title="#22C55E"></button>
+                <button type="button" data-grammar-preset="#14b8a6" style="--swatch:#14b8a6" aria-label="青绿色 #14B8A6" title="#14B8A6"></button>
+                <button type="button" data-grammar-preset="#06b6d4" style="--swatch:#06b6d4" aria-label="青色 #06B6D4" title="#06B6D4"></button>
+                <button type="button" data-grammar-preset="#3b82f6" style="--swatch:#3b82f6" aria-label="蓝色 #3B82F6" title="#3B82F6"></button>
+                <button type="button" data-grammar-preset="#6366f1" style="--swatch:#6366f1" aria-label="靛蓝色 #6366F1" title="#6366F1"></button>
+                <button type="button" data-grammar-preset="#a855f7" style="--swatch:#a855f7" aria-label="紫色 #A855F7" title="#A855F7"></button>
+                <button type="button" data-grammar-preset="#ec4899" style="--swatch:#ec4899" aria-label="粉色 #EC4899" title="#EC4899"></button>
+                <button type="button" data-grammar-preset="#94a3b8" style="--swatch:#94a3b8" aria-label="灰色 #94A3B8" title="#94A3B8"></button>
+              </div>
+              <button id="resetGrammarColorsBtn" type="button">恢复默认颜色</button>
+            </div>
+          </div>
+        </details>
         <details class="user-menu">
           <summary id="userBadge">未登录</summary>
           <div class="user-popover settings">
@@ -269,7 +325,7 @@
     <button id="copyAiContextBtn" type="button" role="menuitem">复制</button>
   </div>
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
-  <script src="src/app.js?v=20260921-6"></script>
+  <script src="src/app.js?v=20260922-14"></script>
 </body>
 </html>
 
