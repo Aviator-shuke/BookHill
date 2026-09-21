@@ -815,9 +815,16 @@ const fallbackSentences = [
 
     function grammarRoleType(role) {
       const text = String(role || "");
+      const traditionalRoles = {
+        "主语": "subject", "谓语": "predicate", "宾语": "object",
+        "表语": "predicative", "补语": "complement", "定语": "attribute",
+        "状语": "adverbial", "同位语": "appositive", "中心语": "head", "其他": "other"
+      };
+      if (Object.prototype.hasOwnProperty.call(traditionalRoles, text)) return traditionalRoles[text];
       const conventionRoles = {
-        "中心语": "predicate", "述语补足语": "predicative", "补足语": "complement",
-        "修饰语": "attribute", "附加语": "adverbial", "限定语": "attribute",
+        "述语补足语": "predicative", "补足语": "complement",
+        "修饰语": "attribute", "附加语": "adverbial",
+        "限定语": "attribute",
         "标记语": "connector", "并列项": "clause", "补充语": "appositive", "未定": "other"
       };
       if (Object.prototype.hasOwnProperty.call(conventionRoles, text)) return conventionRoles[text];
