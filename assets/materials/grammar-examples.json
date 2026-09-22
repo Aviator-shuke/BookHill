@@ -1,0 +1,77 @@
+[
+  {
+    "category": "1: 主干句型",
+    "categoryKey": "core",
+    "subcategory": "1.1: 主语 + 谓语 + 宾语",
+    "subcategoryKey": "svo",
+    "typeId": "core.svo",
+    "tags": ["主干句型", "主谓宾", "SVO"],
+    "examples": [
+      {
+        "id": "core.svo.001",
+        "en": "I need an English menu.",
+        "zh": "我需要一份英文菜单。"
+      },
+      {
+        "id": "core.svo.002",
+        "en": "She bought a grammar book.",
+        "zh": "她买了一本语法书。"
+      },
+      {
+        "id": "core.svo.003",
+        "en": "They finished the report yesterday.",
+        "zh": "他们昨天完成了报告。"
+      }
+    ]
+  },
+  {
+    "category": "2: 修饰成分",
+    "categoryKey": "modifier",
+    "subcategory": "2.1: 形容词作定语",
+    "subcategoryKey": "adjective_attributive",
+    "typeId": "modifier.adjective_attributive",
+    "tags": ["修饰成分", "定语", "形容词"],
+    "examples": [
+      {
+        "id": "modifier.adjective_attributive.001",
+        "en": "The young student asked a good question.",
+        "zh": "那个年轻的学生问了一个好问题。"
+      },
+      {
+        "id": "modifier.adjective_attributive.002",
+        "en": "A small mistake changed the meaning.",
+        "zh": "一个小错误改变了意思。"
+      },
+      {
+        "id": "modifier.adjective_attributive.003",
+        "en": "The difficult lesson became clear later.",
+        "zh": "这节难懂的课后来变清楚了。"
+      }
+    ]
+  },
+  {
+    "category": "3: 从句",
+    "categoryKey": "clause",
+    "subcategory": "3.1: 宾语从句",
+    "subcategoryKey": "object_clause",
+    "typeId": "clause.object_clause",
+    "tags": ["从句", "宾语从句", "名词性从句"],
+    "examples": [
+      {
+        "id": "clause.object_clause.001",
+        "en": "I know that he is honest.",
+        "zh": "我知道他很诚实。"
+      },
+      {
+        "id": "clause.object_clause.002",
+        "en": "She said that she was ready.",
+        "zh": "她说她准备好了。"
+      },
+      {
+        "id": "clause.object_clause.003",
+        "en": "We believe that practice builds confidence.",
+        "zh": "我们相信练习能建立信心。"
+      }
+    ]
+  }
+]

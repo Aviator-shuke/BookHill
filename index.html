@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260922-13">
+  <link rel="stylesheet" href="src/styles.css?v=20260923-6">
 
 </head>
 <body data-theme="black" data-active-page="listenPage">
@@ -50,6 +50,7 @@
         </nav>
       </div>
       <div class="module-tools" aria-label="当前页面工具">
+        <button id="openLibraryBtn" type="button">句库</button>
         <details class="shortcut-menu">
           <summary>快捷键</summary>
           <div class="shortcut-popover settings">
@@ -306,6 +307,49 @@
       </div>
     </section>
   </main>
+  <div id="libraryModal" class="library-modal" hidden>
+    <div class="library-dialog" role="dialog" aria-modal="true" aria-labelledby="libraryModalTitle">
+      <div class="library-header">
+        <div>
+          <h2 id="libraryModalTitle">句库</h2>
+          <div class="small-note">选择内容后进入听写与口说练习</div>
+        </div>
+        <button id="closeLibraryBtn" type="button">关闭</button>
+      </div>
+      <div class="library-layout">
+        <aside class="library-sidebar" aria-label="句库分类">
+          <button class="library-type-button is-active" type="button" aria-current="true">常用句库</button>
+          <button class="library-type-button" type="button" disabled>情景句库</button>
+          <button class="library-type-button" type="button" disabled>语法句库</button>
+          <button class="library-type-button" type="button" disabled>等级句库</button>
+          <button class="library-type-button" type="button" disabled>短语句库</button>
+        </aside>
+        <section class="library-content">
+          <div class="library-summary">
+            <div class="library-title-line">
+              <h3 id="libraryName">常用英语句库</h3>
+              <div id="libraryMeta" class="small-note">准备加载...</div>
+            </div>
+            <button id="useLibraryBtn" class="primary" type="button" disabled>使用此句库</button>
+          </div>
+          <label class="library-search-label" for="librarySearchInput">搜索英文、中文或序号</label>
+          <input id="librarySearchInput" class="library-search" type="search" autocomplete="off" placeholder="输入关键词">
+          <div id="librarySentenceList" class="library-sentence-list"></div>
+          <div class="library-pagination">
+            <button id="libraryFirstPageBtn" type="button" disabled>最前页</button>
+            <button id="libraryPreviousPageBtn" type="button" disabled>上一页</button>
+            <label class="library-page-jump">
+              <input id="libraryPageInput" type="number" min="1" value="0" inputmode="numeric" aria-label="跳转页码">
+              <span id="libraryPageCount">/ 0 页</span>
+            </label>
+            <button id="libraryNextPageBtn" type="button" disabled>下一页</button>
+            <button id="libraryLastPageBtn" type="button" disabled>最后页</button>
+            <span id="libraryStatus" class="library-status" aria-live="polite">尚未加载</span>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
   <div id="aiTextModal" class="ai-text-modal" hidden>
     <div class="ai-text-dialog" role="dialog" aria-modal="true" aria-labelledby="aiTextModalTitle">
       <div class="ai-text-header">
@@ -325,7 +369,8 @@
     <button id="copyAiContextBtn" type="button" role="menuitem">复制</button>
   </div>
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
-  <script src="src/app.js?v=20260922-14"></script>
+  <script src="src/library.js?v=20260923-1"></script>
+  <script src="src/app.js?v=20260923-2"></script>
 </body>
 </html>
 

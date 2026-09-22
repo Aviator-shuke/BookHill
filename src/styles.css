@@ -646,8 +646,8 @@
     }
 
     .sentence-tools #voiceSelect {
-      width: 260px;
-      min-width: 260px;
+      width: 190px;
+      min-width: 190px;
     }
 
     .sentence-tools .help-popover summary {
@@ -1804,6 +1804,237 @@
       display: none;
     }
 
+    .library-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 55;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(0, 0, 0, 0.56);
+    }
+
+    .library-modal[hidden] {
+      display: none;
+    }
+
+    .library-dialog {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      width: min(1040px, 100%);
+      height: min(760px, calc(100vh - 36px));
+      border: 1px solid #dbe3ef;
+      border-radius: 10px;
+      background: var(--panel);
+      color: var(--ink);
+      box-shadow: 0 24px 70px rgba(15, 23, 42, 0.36);
+      overflow: hidden;
+    }
+
+    .library-header,
+    .library-summary,
+    .library-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .library-header {
+      border-bottom: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+      padding: 12px 14px;
+    }
+
+    .library-header h2,
+    .library-summary h3 {
+      margin: 0;
+    }
+
+    .library-header h2 {
+      font-size: 18px;
+    }
+
+    .library-layout {
+      display: grid;
+      grid-template-columns: 180px minmax(0, 1fr);
+      min-height: 0;
+    }
+
+    .library-sidebar {
+      display: grid;
+      align-content: start;
+      gap: 4px;
+      border-right: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+      padding: 10px;
+      background: color-mix(in srgb, var(--surface) 78%, var(--panel));
+    }
+
+    .library-type-button {
+      width: 100%;
+      border-color: transparent;
+      background: transparent;
+      text-align: left;
+    }
+
+    .library-type-button.is-active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      font-weight: 700;
+    }
+
+    .library-type-button:disabled {
+      cursor: default;
+      opacity: 0.45;
+    }
+
+    .library-content {
+      display: grid;
+      grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+      gap: 8px;
+      min-width: 0;
+      min-height: 0;
+      padding: 12px;
+    }
+
+    .library-summary h3 {
+      font-size: 17px;
+    }
+
+    .library-title-line {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 6px 10px;
+      min-width: 0;
+    }
+
+    .library-search-label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .library-search {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+      border-radius: 7px;
+      background: var(--panel);
+      padding: 6px 9px;
+      color: var(--ink);
+    }
+
+    .library-status,
+    .library-pagination {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .library-sentence-list {
+      min-height: 0;
+      border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+      border-radius: 7px;
+      overflow: auto;
+    }
+
+    .library-sentence-row {
+      display: grid;
+      grid-template-columns: 64px minmax(0, 1.35fr) minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      border-bottom: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+      padding: 7px 9px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .library-sentence-row:last-child {
+      border-bottom: 0;
+    }
+
+    .library-sentence-id,
+    .library-sentence-translation {
+      color: var(--muted);
+    }
+
+    .library-sentence-english {
+      font-family: var(--font-english-content);
+      color: var(--ink);
+    }
+
+    .library-sentence-translation {
+      font-family: var(--font-translation);
+    }
+
+    .library-pagination {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+
+    .library-pagination .library-status {
+      margin-left: auto;
+      text-align: right;
+    }
+
+    .library-page-jump {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .library-page-jump input {
+      width: 58px;
+      min-height: 34px;
+      border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+      border-radius: 7px;
+      background: var(--panel);
+      padding: 4px 5px;
+      color: var(--ink);
+      text-align: center;
+    }
+
+    @media (max-width: 700px) {
+      .library-modal {
+        padding: 8px;
+      }
+
+      .library-dialog {
+        height: calc(100vh - 16px);
+      }
+
+      .library-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(0, 1fr);
+      }
+
+      .library-sidebar {
+        grid-template-columns: repeat(5, max-content);
+        overflow-x: auto;
+        border-right: 0;
+        border-bottom: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+      }
+
+      .library-sentence-row {
+        grid-template-columns: 52px minmax(0, 1fr);
+      }
+
+      .library-sentence-translation {
+        grid-column: 2;
+      }
+
+      .library-pagination {
+        justify-content: flex-start;
+      }
+
+      .library-pagination .library-status {
+        width: 100%;
+        margin-left: 0;
+        }
+    }
+
     .ai-text-dialog {
       display: grid;
       gap: 10px;
@@ -2009,6 +2240,7 @@
     body[data-theme="gray"] .shortcut-popover,
     body[data-theme="gray"] .help-content,
     body[data-theme="gray"] .ai-text-dialog,
+    body[data-theme="gray"] .library-dialog,
     body[data-theme="gray"] .login-card,
     body[data-theme="gray"] .drop-card,
     body[data-theme="black"] .source-popover,
@@ -2017,6 +2249,7 @@
     body[data-theme="black"] .shortcut-popover,
     body[data-theme="black"] .help-content,
     body[data-theme="black"] .ai-text-dialog,
+    body[data-theme="black"] .library-dialog,
     body[data-theme="black"] .login-card,
     body[data-theme="black"] .drop-card {
       border-color: #3a3a3a;

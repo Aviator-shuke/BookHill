@@ -1,0 +1,5491 @@
+[
+  {
+    "category": "1: 主干句型",
+    "categoryKey": "core",
+    "subcategory": "1.1: 主语 + 谓语",
+    "subcategoryKey": "sv",
+    "typeId": "core.sv",
+    "tags": [
+      "主干句型",
+      "主语 + 谓语",
+      "关注：The baby / smiled"
+    ],
+    "examples": [
+      {
+        "id": "core.sv.001",
+        "en": "The baby smiled.",
+        "zh": "宝宝笑了。"
+      }
+    ]
+  },
+  {
+    "category": "1: 主干句型",
+    "categoryKey": "core",
+    "subcategory": "1.2: 主语 + 系动词 + 表语",
+    "subcategoryKey": "svc",
+    "typeId": "core.svc",
+    "tags": [
+      "主干句型",
+      "主语 + 系动词 + 表语",
+      "关注：The soup / tastes / delicious"
+    ],
+    "examples": [
+      {
+        "id": "core.svc.001",
+        "en": "The soup tastes delicious.",
+        "zh": "这汤味道很好。"
+      }
+    ]
+  },
+  {
+    "category": "1: 主干句型",
+    "categoryKey": "core",
+    "subcategory": "1.3: 主语 + 谓语 + 宾语",
+    "subcategoryKey": "svo",
+    "typeId": "core.svo",
+    "tags": [
+      "主干句型",
+      "主语 + 谓语 + 宾语",
+      "关注：I / need / an English menu"
+    ],
+    "examples": [
+      {
+        "id": "core.svo.001",
+        "en": "I need an English menu.",
+        "zh": "我需要一份英文菜单。"
+      }
+    ]
+  },
+  {
+    "category": "1: 主干句型",
+    "categoryKey": "core",
+    "subcategory": "1.4: 主语 + 谓语 + 间接宾语 + 直接宾语",
+    "subcategoryKey": "svoo",
+    "typeId": "core.svoo",
+    "tags": [
+      "主干句型",
+      "主语 + 谓语 + 间接宾语 + 直接宾语",
+      "关注：The receptionist / gave / me / a map"
+    ],
+    "examples": [
+      {
+        "id": "core.svoo.001",
+        "en": "The receptionist gave me a map.",
+        "zh": "前台接待员给了我一张地图。"
+      }
+    ]
+  },
+  {
+    "category": "1: 主干句型",
+    "categoryKey": "core",
+    "subcategory": "1.5: 主语 + 谓语 + 宾语 + 宾语补足语",
+    "subcategoryKey": "svoc",
+    "typeId": "core.svoc",
+    "tags": [
+      "主干句型",
+      "主语 + 谓语 + 宾语 + 宾语补足语",
+      "关注：We / found / the room / empty"
+    ],
+    "examples": [
+      {
+        "id": "core.svoc.001",
+        "en": "We found the room empty.",
+        "zh": "我们发现房间是空的。"
+      }
+    ]
+  },
+  {
+    "category": "2: 句子成分",
+    "categoryKey": "component",
+    "subcategory": "2.1: 主语",
+    "subcategoryKey": "subject",
+    "typeId": "component.subject",
+    "tags": [
+      "句子成分",
+      "主语",
+      "关注：My camera"
+    ],
+    "examples": [
+      {
+        "id": "component.subject.001",
+        "en": "My camera fell.",
+        "zh": "我的相机掉下来了。"
+      }
+    ]
+  },
+  {
+    "category": "2: 句子成分",
+    "categoryKey": "component",
+    "subcategory": "2.2: 谓语（动词部分）",
+    "subcategoryKey": "predicate",
+    "typeId": "component.predicate",
+    "tags": [
+      "句子成分",
+      "谓语（动词部分）",
+      "关注：has arrived"
+    ],
+    "examples": [
+      {
+        "id": "component.predicate.001",
+        "en": "The train has arrived.",
+        "zh": "火车已经到了。"
+      }
+    ]
+  },
+  {
+    "category": "2: 句子成分",
+    "categoryKey": "component",
+    "subcategory": "2.3: 直接宾语",
+    "subcategoryKey": "direct_object",
+    "typeId": "component.direct_object",
+    "tags": [
+      "句子成分",
+      "直接宾语",
+      "关注：the window"
+    ],
+    "examples": [
+      {
+        "id": "component.direct_object.001",
+        "en": "She opened the window.",
+        "zh": "她打开了窗户。"
+      }
+    ]
+  },
+  {
+    "category": "2: 句子成分",
+    "categoryKey": "component",
+    "subcategory": "2.4: 间接宾语",
+    "subcategoryKey": "indirect_object",
+    "typeId": "component.indirect_object",
+    "tags": [
+      "句子成分",
+      "间接宾语",
+      "关注：his sister"
+    ],
+    "examples": [
+      {
+        "id": "component.indirect_object.001",
+        "en": "He sent his sister a postcard.",
+        "zh": "他给妹妹寄了一张明信片。"
+      }
+    ]
+  },
+  {
+    "category": "2: 句子成分",
+    "categoryKey": "component",
+    "subcategory": "2.5: 表语",
+    "subcategoryKey": "predicative",
+    "typeId": "component.predicative",
+    "tags": [
+      "句子成分",
+      "表语",
+      "关注：dark"
+    ],
+    "examples": [
+      {
+        "id": "component.predicative.001",
+        "en": "The sky became dark.",
+        "zh": "天空变暗了。"
+      }
+    ]
+  },
+  {
+    "category": "2: 句子成分",
+    "categoryKey": "component",
+    "subcategory": "2.6: 宾语补足语",
+    "subcategoryKey": "object_complement",
+    "typeId": "component.object_complement",
+    "tags": [
+      "句子成分",
+      "宾语补足语",
+      "关注：happy"
+    ],
+    "examples": [
+      {
+        "id": "component.object_complement.001",
+        "en": "The news made us happy.",
+        "zh": "这个消息让我们很高兴。"
+      }
+    ]
+  },
+  {
+    "category": "2: 句子成分",
+    "categoryKey": "component",
+    "subcategory": "2.7: 定语",
+    "subcategoryKey": "attributive",
+    "typeId": "component.attributive",
+    "tags": [
+      "句子成分",
+      "定语",
+      "关注：red"
+    ],
+    "examples": [
+      {
+        "id": "component.attributive.001",
+        "en": "The red bag is mine.",
+        "zh": "那个红色的包是我的。"
+      }
+    ]
+  },
+  {
+    "category": "2: 句子成分",
+    "categoryKey": "component",
+    "subcategory": "2.8: 状语",
+    "subcategoryKey": "adverbial",
+    "typeId": "component.adverbial",
+    "tags": [
+      "句子成分",
+      "状语",
+      "关注：early"
+    ],
+    "examples": [
+      {
+        "id": "component.adverbial.001",
+        "en": "We left early.",
+        "zh": "我们很早就离开了。"
+      }
+    ]
+  },
+  {
+    "category": "2: 句子成分",
+    "categoryKey": "component",
+    "subcategory": "2.9: 同位语",
+    "subcategoryKey": "appositive",
+    "typeId": "component.appositive",
+    "tags": [
+      "句子成分",
+      "同位语",
+      "关注：a software engineer"
+    ],
+    "examples": [
+      {
+        "id": "component.appositive.001",
+        "en": "My colleague, a software engineer, lives nearby.",
+        "zh": "我的同事是一名软件工程师，住在附近。"
+      }
+    ]
+  },
+  {
+    "category": "2: 句子成分",
+    "categoryKey": "component",
+    "subcategory": "2.10: 中心语（短语内部层级）",
+    "subcategoryKey": "head",
+    "typeId": "component.head",
+    "tags": [
+      "句子成分",
+      "中心语（短语内部层级）",
+      "关注：主语名词短语中的中心语 hotel",
+      "短语内部概念；不与主语等处于同一层级"
+    ],
+    "examples": [
+      {
+        "id": "component.head.001",
+        "en": "The small hotel near the station is full.",
+        "zh": "车站附近的那家小旅馆客满了。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.1: 名词作主语",
+    "subcategoryKey": "noun_subject",
+    "typeId": "form.noun_subject",
+    "tags": [
+      "成分形式",
+      "名词作主语",
+      "关注：Birds"
+    ],
+    "examples": [
+      {
+        "id": "form.noun_subject.001",
+        "en": "Birds migrate.",
+        "zh": "鸟类会迁徙。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.2: 代词作主语",
+    "subcategoryKey": "pronoun_subject",
+    "typeId": "form.pronoun_subject",
+    "tags": [
+      "成分形式",
+      "代词作主语",
+      "关注：They"
+    ],
+    "examples": [
+      {
+        "id": "form.pronoun_subject.001",
+        "en": "They agreed.",
+        "zh": "他们同意了。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.3: 名词短语作主语",
+    "subcategoryKey": "noun_phrase_subject",
+    "typeId": "form.noun_phrase_subject",
+    "tags": [
+      "成分形式",
+      "名词短语作主语",
+      "关注：The last bus"
+    ],
+    "examples": [
+      {
+        "id": "form.noun_phrase_subject.001",
+        "en": "The last bus has gone.",
+        "zh": "末班公交车已经走了。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.4: 动名词短语作主语",
+    "subcategoryKey": "gerund_subject",
+    "typeId": "form.gerund_subject",
+    "tags": [
+      "成分形式",
+      "动名词短语作主语",
+      "关注：Learning English"
+    ],
+    "examples": [
+      {
+        "id": "form.gerund_subject.001",
+        "en": "Learning English takes time.",
+        "zh": "学习英语需要时间。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.5: 动词不定式短语作主语",
+    "subcategoryKey": "infinitive_subject",
+    "typeId": "form.infinitive_subject",
+    "tags": [
+      "成分形式",
+      "动词不定式短语作主语",
+      "关注：To travel alone"
+    ],
+    "examples": [
+      {
+        "id": "form.infinitive_subject.001",
+        "en": "To travel alone requires confidence.",
+        "zh": "独自旅行需要自信。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.6: 从句作主语",
+    "subcategoryKey": "clause_subject",
+    "typeId": "form.clause_subject",
+    "tags": [
+      "成分形式",
+      "从句作主语",
+      "关注：What you said"
+    ],
+    "examples": [
+      {
+        "id": "form.clause_subject.001",
+        "en": "What you said surprised me.",
+        "zh": "你说的话让我很惊讶。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.7: 名词作宾语",
+    "subcategoryKey": "noun_object",
+    "typeId": "form.noun_object",
+    "tags": [
+      "成分形式",
+      "名词作宾语",
+      "关注：coffee"
+    ],
+    "examples": [
+      {
+        "id": "form.noun_object.001",
+        "en": "I drink coffee.",
+        "zh": "我喝咖啡。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.8: 代词作宾语",
+    "subcategoryKey": "pronoun_object",
+    "typeId": "form.pronoun_object",
+    "tags": [
+      "成分形式",
+      "代词作宾语",
+      "关注：me"
+    ],
+    "examples": [
+      {
+        "id": "form.pronoun_object.001",
+        "en": "She called me.",
+        "zh": "她给我打了电话。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.9: 名词短语作宾语",
+    "subcategoryKey": "noun_phrase_object",
+    "typeId": "form.noun_phrase_object",
+    "tags": [
+      "成分形式",
+      "名词短语作宾语",
+      "关注：a quiet room"
+    ],
+    "examples": [
+      {
+        "id": "form.noun_phrase_object.001",
+        "en": "We booked a quiet room.",
+        "zh": "我们订了一间安静的房间。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.10: 动名词短语作宾语",
+    "subcategoryKey": "gerund_object",
+    "typeId": "form.gerund_object",
+    "tags": [
+      "成分形式",
+      "动名词短语作宾语",
+      "关注：taking photos"
+    ],
+    "examples": [
+      {
+        "id": "form.gerund_object.001",
+        "en": "I enjoy taking photos.",
+        "zh": "我喜欢拍照。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.11: 动词不定式短语作宾语（传统分析）",
+    "subcategoryKey": "infinitive_object",
+    "typeId": "form.infinitive_object",
+    "tags": [
+      "成分形式",
+      "动词不定式短语作宾语（传统分析）",
+      "关注：to leave early"
+    ],
+    "examples": [
+      {
+        "id": "form.infinitive_object.001",
+        "en": "They decided to leave early.",
+        "zh": "他们决定早点离开。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.12: 从句作宾语",
+    "subcategoryKey": "clause_object",
+    "typeId": "form.clause_object",
+    "tags": [
+      "成分形式",
+      "从句作宾语",
+      "关注：that the shop is closed"
+    ],
+    "examples": [
+      {
+        "id": "form.clause_object.001",
+        "en": "I know that the shop is closed.",
+        "zh": "我知道商店关门了。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.13: 形容词作表语",
+    "subcategoryKey": "adjective_predicative",
+    "typeId": "form.adjective_predicative",
+    "tags": [
+      "成分形式",
+      "形容词作表语",
+      "关注：clear"
+    ],
+    "examples": [
+      {
+        "id": "form.adjective_predicative.001",
+        "en": "The instructions are clear.",
+        "zh": "这些说明很清楚。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.14: 名词作表语",
+    "subcategoryKey": "noun_predicative",
+    "typeId": "form.noun_predicative",
+    "tags": [
+      "成分形式",
+      "名词作表语",
+      "关注：a doctor"
+    ],
+    "examples": [
+      {
+        "id": "form.noun_predicative.001",
+        "en": "She is a doctor.",
+        "zh": "她是一名医生。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.15: 介词短语作表语",
+    "subcategoryKey": "prepositional_predicative",
+    "typeId": "form.prepositional_predicative",
+    "tags": [
+      "成分形式",
+      "介词短语作表语",
+      "关注：out of order"
+    ],
+    "examples": [
+      {
+        "id": "form.prepositional_predicative.001",
+        "en": "The machine is out of order.",
+        "zh": "这台机器坏了。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.16: 动词不定式短语作表语",
+    "subcategoryKey": "infinitive_predicative",
+    "typeId": "form.infinitive_predicative",
+    "tags": [
+      "成分形式",
+      "动词不定式短语作表语",
+      "关注：to speak English fluently"
+    ],
+    "examples": [
+      {
+        "id": "form.infinitive_predicative.001",
+        "en": "My goal is to speak English fluently.",
+        "zh": "我的目标是流利地说英语。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.17: 动名词短语作表语",
+    "subcategoryKey": "gerund_predicative",
+    "typeId": "form.gerund_predicative",
+    "tags": [
+      "成分形式",
+      "动名词短语作表语",
+      "关注：collecting stamps"
+    ],
+    "examples": [
+      {
+        "id": "form.gerund_predicative.001",
+        "en": "Her hobby is collecting stamps.",
+        "zh": "她的爱好是集邮。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.18: 从句作表语",
+    "subcategoryKey": "clause_predicative",
+    "typeId": "form.clause_predicative",
+    "tags": [
+      "成分形式",
+      "从句作表语",
+      "关注：that we have no time"
+    ],
+    "examples": [
+      {
+        "id": "form.clause_predicative.001",
+        "en": "The problem is that we have no time.",
+        "zh": "问题是我们没有时间。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.19: 形容词作定语",
+    "subcategoryKey": "adjective_attributive",
+    "typeId": "form.adjective_attributive",
+    "tags": [
+      "成分形式",
+      "形容词作定语",
+      "关注：narrow"
+    ],
+    "examples": [
+      {
+        "id": "form.adjective_attributive.001",
+        "en": "We followed a narrow path.",
+        "zh": "我们沿着一条狭窄的小路走。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.20: 名词作定语",
+    "subcategoryKey": "noun_attributive",
+    "typeId": "form.noun_attributive",
+    "tags": [
+      "成分形式",
+      "名词作定语",
+      "关注：train"
+    ],
+    "examples": [
+      {
+        "id": "form.noun_attributive.001",
+        "en": "The train station is nearby.",
+        "zh": "火车站就在附近。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.21: 介词短语作定语",
+    "subcategoryKey": "prepositional_attributive",
+    "typeId": "form.prepositional_attributive",
+    "tags": [
+      "成分形式",
+      "介词短语作定语",
+      "关注：on the desk"
+    ],
+    "examples": [
+      {
+        "id": "form.prepositional_attributive.001",
+        "en": "The book on the desk is yours.",
+        "zh": "桌上的那本书是你的。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.22: 动词不定式短语作定语",
+    "subcategoryKey": "infinitive_attributive",
+    "typeId": "form.infinitive_attributive",
+    "tags": [
+      "成分形式",
+      "动词不定式短语作定语",
+      "关注：to finish"
+    ],
+    "examples": [
+      {
+        "id": "form.infinitive_attributive.001",
+        "en": "I have a report to finish.",
+        "zh": "我有一份报告要完成。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.23: 现在分词短语作定语",
+    "subcategoryKey": "present_participle_attributive",
+    "typeId": "form.present_participle_attributive",
+    "tags": [
+      "成分形式",
+      "现在分词短语作定语",
+      "关注：waiting outside"
+    ],
+    "examples": [
+      {
+        "id": "form.present_participle_attributive.001",
+        "en": "The woman waiting outside is my teacher.",
+        "zh": "在外面等候的那位女士是我的老师。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.24: 过去分词短语作定语",
+    "subcategoryKey": "past_participle_attributive",
+    "typeId": "form.past_participle_attributive",
+    "tags": [
+      "成分形式",
+      "过去分词短语作定语",
+      "关注：taken yesterday"
+    ],
+    "examples": [
+      {
+        "id": "form.past_participle_attributive.001",
+        "en": "The photos taken yesterday are beautiful.",
+        "zh": "昨天拍的照片很美。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.25: 副词作状语",
+    "subcategoryKey": "adverb_adverbial",
+    "typeId": "form.adverb_adverbial",
+    "tags": [
+      "成分形式",
+      "副词作状语",
+      "关注：politely"
+    ],
+    "examples": [
+      {
+        "id": "form.adverb_adverbial.001",
+        "en": "He answered politely.",
+        "zh": "他礼貌地回答了。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.26: 介词短语作状语",
+    "subcategoryKey": "prepositional_adverbial",
+    "typeId": "form.prepositional_adverbial",
+    "tags": [
+      "成分形式",
+      "介词短语作状语",
+      "关注：at the airport"
+    ],
+    "examples": [
+      {
+        "id": "form.prepositional_adverbial.001",
+        "en": "We met at the airport.",
+        "zh": "我们在机场见了面。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.27: 名词短语作状语",
+    "subcategoryKey": "noun_phrase_adverbial",
+    "typeId": "form.noun_phrase_adverbial",
+    "tags": [
+      "成分形式",
+      "名词短语作状语",
+      "关注：all night"
+    ],
+    "examples": [
+      {
+        "id": "form.noun_phrase_adverbial.001",
+        "en": "I worked all night.",
+        "zh": "我工作了一整夜。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.28: 动词不定式短语作目的状语",
+    "subcategoryKey": "infinitive_adverbial",
+    "typeId": "form.infinitive_adverbial",
+    "tags": [
+      "成分形式",
+      "动词不定式短语作目的状语",
+      "关注：to make a call"
+    ],
+    "examples": [
+      {
+        "id": "form.infinitive_adverbial.001",
+        "en": "She went outside to make a call.",
+        "zh": "她到外面去打电话。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.29: 现在分词短语作状语",
+    "subcategoryKey": "present_participle_adverbial",
+    "typeId": "form.present_participle_adverbial",
+    "tags": [
+      "成分形式",
+      "现在分词短语作状语",
+      "关注：Walking home"
+    ],
+    "examples": [
+      {
+        "id": "form.present_participle_adverbial.001",
+        "en": "Walking home, I found a wallet.",
+        "zh": "步行回家时，我发现了一个钱包。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.30: 过去分词短语作状语",
+    "subcategoryKey": "past_participle_adverbial",
+    "typeId": "form.past_participle_adverbial",
+    "tags": [
+      "成分形式",
+      "过去分词短语作状语",
+      "关注：Written in simple English"
+    ],
+    "examples": [
+      {
+        "id": "form.past_participle_adverbial.001",
+        "en": "Written in simple English, the guide is easy to read.",
+        "zh": "这份指南用简单的英语写成，很容易读懂。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.31: 形容词作宾语补足语",
+    "subcategoryKey": "adjective_object_complement",
+    "typeId": "form.adjective_object_complement",
+    "tags": [
+      "成分形式",
+      "形容词作宾语补足语",
+      "关注：open"
+    ],
+    "examples": [
+      {
+        "id": "form.adjective_object_complement.001",
+        "en": "Please keep the door open.",
+        "zh": "请让门保持开着。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.32: 名词作宾语补足语",
+    "subcategoryKey": "noun_object_complement",
+    "typeId": "form.noun_object_complement",
+    "tags": [
+      "成分形式",
+      "名词作宾语补足语",
+      "关注：team leader"
+    ],
+    "examples": [
+      {
+        "id": "form.noun_object_complement.001",
+        "en": "They elected her team leader.",
+        "zh": "他们选她担任组长。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.33: 带 to 的动词不定式作宾语补足语",
+    "subcategoryKey": "infinitive_object_complement",
+    "typeId": "form.infinitive_object_complement",
+    "tags": [
+      "成分形式",
+      "带 to 的动词不定式作宾语补足语",
+      "关注：to wait"
+    ],
+    "examples": [
+      {
+        "id": "form.infinitive_object_complement.001",
+        "en": "The teacher asked us to wait.",
+        "zh": "老师让我们等一等。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.34: 不带 to 的动词不定式作宾语补足语",
+    "subcategoryKey": "bare_infinitive_object_complement",
+    "typeId": "form.bare_infinitive_object_complement",
+    "tags": [
+      "成分形式",
+      "不带 to 的动词不定式作宾语补足语",
+      "关注：sing a song"
+    ],
+    "examples": [
+      {
+        "id": "form.bare_infinitive_object_complement.001",
+        "en": "I heard him sing a song.",
+        "zh": "我听见他唱了一首歌。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.35: 现在分词作宾语补足语",
+    "subcategoryKey": "present_participle_object_complement",
+    "typeId": "form.present_participle_object_complement",
+    "tags": [
+      "成分形式",
+      "现在分词作宾语补足语",
+      "关注：playing outside"
+    ],
+    "examples": [
+      {
+        "id": "form.present_participle_object_complement.001",
+        "en": "We saw the children playing outside.",
+        "zh": "我们看见孩子们正在外面玩。"
+      }
+    ]
+  },
+  {
+    "category": "3: 成分形式",
+    "categoryKey": "form",
+    "subcategory": "3.36: 过去分词作宾语补足语",
+    "subcategoryKey": "past_participle_object_complement",
+    "typeId": "form.past_participle_object_complement",
+    "tags": [
+      "成分形式",
+      "过去分词作宾语补足语",
+      "关注：broken"
+    ],
+    "examples": [
+      {
+        "id": "form.past_participle_object_complement.001",
+        "en": "I found the window broken.",
+        "zh": "我发现窗户破了。"
+      }
+    ]
+  },
+  {
+    "category": "4: 句子用途",
+    "categoryKey": "purpose",
+    "subcategory": "4.1: 陈述句",
+    "subcategoryKey": "declarative",
+    "typeId": "purpose.declarative",
+    "tags": [
+      "句子用途",
+      "陈述句",
+      "关注：陈述信息"
+    ],
+    "examples": [
+      {
+        "id": "purpose.declarative.001",
+        "en": "The museum opens at nine.",
+        "zh": "博物馆九点开门。"
+      }
+    ]
+  },
+  {
+    "category": "4: 句子用途",
+    "categoryKey": "purpose",
+    "subcategory": "4.2: 一般疑问句",
+    "subcategoryKey": "yes_no_question",
+    "typeId": "purpose.yes_no_question",
+    "tags": [
+      "句子用途",
+      "一般疑问句",
+      "关注：Do you ...?"
+    ],
+    "examples": [
+      {
+        "id": "purpose.yes_no_question.001",
+        "en": "Do you accept credit cards?",
+        "zh": "你们接受信用卡付款吗？"
+      }
+    ]
+  },
+  {
+    "category": "4: 句子用途",
+    "categoryKey": "purpose",
+    "subcategory": "4.3: 特殊疑问句",
+    "subcategoryKey": "wh_question",
+    "typeId": "purpose.wh_question",
+    "tags": [
+      "句子用途",
+      "特殊疑问句",
+      "关注：Where ...?"
+    ],
+    "examples": [
+      {
+        "id": "purpose.wh_question.001",
+        "en": "Where can I buy a ticket?",
+        "zh": "我在哪里可以买票？"
+      }
+    ]
+  },
+  {
+    "category": "4: 句子用途",
+    "categoryKey": "purpose",
+    "subcategory": "4.4: 特殊疑问句：对主语提问",
+    "subcategoryKey": "subject_question",
+    "typeId": "purpose.subject_question",
+    "tags": [
+      "句子用途",
+      "特殊疑问句：对主语提问",
+      "关注：Who 作主语"
+    ],
+    "examples": [
+      {
+        "id": "purpose.subject_question.001",
+        "en": "Who left this bag here?",
+        "zh": "谁把这个包留在这里了？"
+      }
+    ]
+  },
+  {
+    "category": "4: 句子用途",
+    "categoryKey": "purpose",
+    "subcategory": "4.5: 选择疑问句",
+    "subcategoryKey": "alternative_question",
+    "typeId": "purpose.alternative_question",
+    "tags": [
+      "句子用途",
+      "选择疑问句",
+      "关注：tea or coffee"
+    ],
+    "examples": [
+      {
+        "id": "purpose.alternative_question.001",
+        "en": "Would you like tea or coffee?",
+        "zh": "你想喝茶还是咖啡？"
+      }
+    ]
+  },
+  {
+    "category": "4: 句子用途",
+    "categoryKey": "purpose",
+    "subcategory": "4.6: 附加疑问句（反意疑问句）",
+    "subcategoryKey": "tag_question",
+    "typeId": "purpose.tag_question",
+    "tags": [
+      "句子用途",
+      "附加疑问句（反意疑问句）",
+      "关注：didn't you"
+    ],
+    "examples": [
+      {
+        "id": "purpose.tag_question.001",
+        "en": "You booked the hotel, didn't you?",
+        "zh": "你订了酒店，对吧？"
+      }
+    ]
+  },
+  {
+    "category": "4: 句子用途",
+    "categoryKey": "purpose",
+    "subcategory": "4.7: 祈使句",
+    "subcategoryKey": "imperative",
+    "typeId": "purpose.imperative",
+    "tags": [
+      "句子用途",
+      "祈使句",
+      "关注：Please show ..."
+    ],
+    "examples": [
+      {
+        "id": "purpose.imperative.001",
+        "en": "Please show me your ticket.",
+        "zh": "请出示你的票。"
+      }
+    ]
+  },
+  {
+    "category": "4: 句子用途",
+    "categoryKey": "purpose",
+    "subcategory": "4.8: 否定祈使句",
+    "subcategoryKey": "negative_imperative",
+    "typeId": "purpose.negative_imperative",
+    "tags": [
+      "句子用途",
+      "否定祈使句",
+      "关注：Don't touch"
+    ],
+    "examples": [
+      {
+        "id": "purpose.negative_imperative.001",
+        "en": "Don't touch the screen.",
+        "zh": "不要触摸屏幕。"
+      }
+    ]
+  },
+  {
+    "category": "4: 句子用途",
+    "categoryKey": "purpose",
+    "subcategory": "4.9: let's 建议句",
+    "subcategoryKey": "let_us",
+    "typeId": "purpose.let_us",
+    "tags": [
+      "句子用途",
+      "let's 建议句",
+      "关注：Let's take"
+    ],
+    "examples": [
+      {
+        "id": "purpose.let_us.001",
+        "en": "Let's take a short break.",
+        "zh": "我们休息一会儿吧。"
+      }
+    ]
+  },
+  {
+    "category": "4: 句子用途",
+    "categoryKey": "purpose",
+    "subcategory": "4.10: what 感叹句",
+    "subcategoryKey": "what_exclamative",
+    "typeId": "purpose.what_exclamative",
+    "tags": [
+      "句子用途",
+      "what 感叹句",
+      "关注：What a beautiful view"
+    ],
+    "examples": [
+      {
+        "id": "purpose.what_exclamative.001",
+        "en": "What a beautiful view this is!",
+        "zh": "这景色真美！"
+      }
+    ]
+  },
+  {
+    "category": "4: 句子用途",
+    "categoryKey": "purpose",
+    "subcategory": "4.11: how 感叹句",
+    "subcategoryKey": "how_exclamative",
+    "typeId": "purpose.how_exclamative",
+    "tags": [
+      "句子用途",
+      "how 感叹句",
+      "关注：How quickly"
+    ],
+    "examples": [
+      {
+        "id": "purpose.how_exclamative.001",
+        "en": "How quickly time passes!",
+        "zh": "时间过得真快！"
+      }
+    ]
+  },
+  {
+    "category": "4: 句子用途",
+    "categoryKey": "purpose",
+    "subcategory": "4.12: 反问句（语用）",
+    "subcategoryKey": "rhetorical_question",
+    "typeId": "purpose.rhetorical_question",
+    "tags": [
+      "句子用途",
+      "反问句（语用）",
+      "关注：不以索取答案为主要目的"
+    ],
+    "examples": [
+      {
+        "id": "purpose.rhetorical_question.001",
+        "en": "Who doesn't want a better life?",
+        "zh": "谁不想过上更好的生活呢？"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.1: 一般现在时",
+    "subcategoryKey": "present_simple",
+    "typeId": "tense_aspect.present_simple",
+    "tags": [
+      "时态体",
+      "一般现在时",
+      "关注：walk",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.present_simple.001",
+        "en": "I walk to work every day.",
+        "zh": "我每天步行上班。"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.2: 现在进行时",
+    "subcategoryKey": "present_continuous",
+    "typeId": "tense_aspect.present_continuous",
+    "tags": [
+      "时态体",
+      "现在进行时",
+      "关注：is checking",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.present_continuous.001",
+        "en": "She is checking the timetable now.",
+        "zh": "她现在正在查看时刻表。"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.3: 现在完成时",
+    "subcategoryKey": "present_perfect",
+    "typeId": "tense_aspect.present_perfect",
+    "tags": [
+      "时态体",
+      "现在完成时",
+      "关注：have booked",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.present_perfect.001",
+        "en": "We have already booked our flights.",
+        "zh": "我们已经订好了机票。"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.4: 现在完成进行时",
+    "subcategoryKey": "present_perfect_continuous",
+    "typeId": "tense_aspect.present_perfect_continuous",
+    "tags": [
+      "时态体",
+      "现在完成进行时",
+      "关注：have been learning",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.present_perfect_continuous.001",
+        "en": "I have been learning English for two years.",
+        "zh": "我学习英语已经两年了，一直在学。"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.5: 一般过去时",
+    "subcategoryKey": "past_simple",
+    "typeId": "tense_aspect.past_simple",
+    "tags": [
+      "时态体",
+      "一般过去时",
+      "关注：visited",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.past_simple.001",
+        "en": "They visited Rome last summer.",
+        "zh": "他们去年夏天去了罗马。"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.6: 过去进行时",
+    "subcategoryKey": "past_continuous",
+    "typeId": "tense_aspect.past_continuous",
+    "tags": [
+      "时态体",
+      "过去进行时",
+      "关注：was cooking",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.past_continuous.001",
+        "en": "I was cooking when you called.",
+        "zh": "你打电话来时，我正在做饭。"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.7: 过去完成时",
+    "subcategoryKey": "past_perfect",
+    "typeId": "tense_aspect.past_perfect",
+    "tags": [
+      "时态体",
+      "过去完成时",
+      "关注：had left",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.past_perfect.001",
+        "en": "The train had left before we arrived.",
+        "zh": "我们到达之前，火车就已经开走了。"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.8: 过去完成进行时",
+    "subcategoryKey": "past_perfect_continuous",
+    "typeId": "tense_aspect.past_perfect_continuous",
+    "tags": [
+      "时态体",
+      "过去完成进行时",
+      "关注：had been waiting",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.past_perfect_continuous.001",
+        "en": "She had been waiting for an hour when the bus arrived.",
+        "zh": "公交车到达时，她已经等了一个小时。"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.9: 一般将来时",
+    "subcategoryKey": "future_simple",
+    "typeId": "tense_aspect.future_simple",
+    "tags": [
+      "时态体",
+      "一般将来时",
+      "关注：will send",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.future_simple.001",
+        "en": "I will send you the address tonight.",
+        "zh": "我今晚会把地址发给你。"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.10: 将来进行时",
+    "subcategoryKey": "future_continuous",
+    "typeId": "tense_aspect.future_continuous",
+    "tags": [
+      "时态体",
+      "将来进行时",
+      "关注：will be flying",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.future_continuous.001",
+        "en": "At this time tomorrow, we will be flying to Oslo.",
+        "zh": "明天这个时候，我们将正在飞往奥斯陆。"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.11: 将来完成时",
+    "subcategoryKey": "future_perfect",
+    "typeId": "tense_aspect.future_perfect",
+    "tags": [
+      "时态体",
+      "将来完成时",
+      "关注：will have finished",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.future_perfect.001",
+        "en": "By Friday, I will have finished the report.",
+        "zh": "到周五时，我将已经完成这份报告。"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.12: 将来完成进行时",
+    "subcategoryKey": "future_perfect_continuous",
+    "typeId": "tense_aspect.future_perfect_continuous",
+    "tags": [
+      "时态体",
+      "将来完成进行时",
+      "关注：will have been working",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.future_perfect_continuous.001",
+        "en": "By June, she will have been working here for five years.",
+        "zh": "到六月时，她在这里工作就满五年了。"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.13: 过去将来时",
+    "subcategoryKey": "future_in_past_simple",
+    "typeId": "tense_aspect.future_in_past_simple",
+    "tags": [
+      "时态体",
+      "过去将来时",
+      "关注：would call",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.future_in_past_simple.001",
+        "en": "He said he would call me the next day.",
+        "zh": "他说他第二天会给我打电话。"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.14: 过去将来进行时",
+    "subcategoryKey": "future_in_past_continuous",
+    "typeId": "tense_aspect.future_in_past_continuous",
+    "tags": [
+      "时态体",
+      "过去将来进行时",
+      "关注：would be working",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.future_in_past_continuous.001",
+        "en": "She said she would be working at eight that evening.",
+        "zh": "她说那天晚上八点她会正在工作。"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.15: 过去将来完成时",
+    "subcategoryKey": "future_in_past_perfect",
+    "typeId": "tense_aspect.future_in_past_perfect",
+    "tags": [
+      "时态体",
+      "过去将来完成时",
+      "关注：would have finished",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.future_in_past_perfect.001",
+        "en": "He said he would have finished the task by Friday.",
+        "zh": "他说到周五时他会已经完成任务。"
+      }
+    ]
+  },
+  {
+    "category": "5: 时态体",
+    "categoryKey": "tense_aspect",
+    "subcategory": "5.16: 过去将来完成进行时（低频）",
+    "subcategoryKey": "future_in_past_perfect_continuous",
+    "typeId": "tense_aspect.future_in_past_perfect_continuous",
+    "tags": [
+      "时态体",
+      "过去将来完成进行时（低频）",
+      "关注：would have been teaching",
+      "传统教学分类：16种时态体"
+    ],
+    "examples": [
+      {
+        "id": "tense_aspect.future_in_past_perfect_continuous.001",
+        "en": "She said that by June she would have been teaching there for ten years.",
+        "zh": "她说到六月时，她在那里任教就满十年了。"
+      }
+    ]
+  },
+  {
+    "category": "6: 语态",
+    "categoryKey": "voice",
+    "subcategory": "6.1: 主动语态",
+    "subcategoryKey": "active",
+    "typeId": "voice.active",
+    "tags": [
+      "语态",
+      "主动语态",
+      "关注：The technician 执行动作"
+    ],
+    "examples": [
+      {
+        "id": "voice.active.001",
+        "en": "The technician repaired the printer.",
+        "zh": "技术员修好了打印机。"
+      }
+    ]
+  },
+  {
+    "category": "6: 语态",
+    "categoryKey": "voice",
+    "subcategory": "6.2: 被动语态",
+    "subcategoryKey": "passive",
+    "typeId": "voice.passive",
+    "tags": [
+      "语态",
+      "被动语态",
+      "关注：The printer 承受动作"
+    ],
+    "examples": [
+      {
+        "id": "voice.passive.001",
+        "en": "The printer was repaired by the technician.",
+        "zh": "打印机被技术员修好了。"
+      }
+    ]
+  },
+  {
+    "category": "7: 肯定与否定",
+    "categoryKey": "polarity",
+    "subcategory": "7.1: 肯定句",
+    "subcategoryKey": "affirmative",
+    "typeId": "polarity.affirmative",
+    "tags": [
+      "肯定与否定",
+      "肯定句",
+      "关注：Both rooms are available"
+    ],
+    "examples": [
+      {
+        "id": "polarity.affirmative.001",
+        "en": "Both rooms are available.",
+        "zh": "两间房都可以入住。"
+      }
+    ]
+  },
+  {
+    "category": "7: 肯定与否定",
+    "categoryKey": "polarity",
+    "subcategory": "7.2: not 构成的否定",
+    "subcategoryKey": "not_negation",
+    "typeId": "polarity.not_negation",
+    "tags": [
+      "肯定与否定",
+      "not 构成的否定",
+      "关注：do not understand"
+    ],
+    "examples": [
+      {
+        "id": "polarity.not_negation.001",
+        "en": "I do not understand this sentence.",
+        "zh": "我不理解这个句子。"
+      }
+    ]
+  },
+  {
+    "category": "7: 肯定与否定",
+    "categoryKey": "polarity",
+    "subcategory": "7.3: 否定代词构成的否定",
+    "subcategoryKey": "negative_pronoun",
+    "typeId": "polarity.negative_pronoun",
+    "tags": [
+      "肯定与否定",
+      "否定代词构成的否定",
+      "关注：Nobody"
+    ],
+    "examples": [
+      {
+        "id": "polarity.negative_pronoun.001",
+        "en": "Nobody answered the phone.",
+        "zh": "没有人接电话。"
+      }
+    ]
+  },
+  {
+    "category": "7: 肯定与否定",
+    "categoryKey": "polarity",
+    "subcategory": "7.4: no 构成的否定",
+    "subcategoryKey": "negative_determiner",
+    "typeId": "polarity.negative_determiner",
+    "tags": [
+      "肯定与否定",
+      "no 构成的否定",
+      "关注：no seats"
+    ],
+    "examples": [
+      {
+        "id": "polarity.negative_determiner.001",
+        "en": "There are no seats left.",
+        "zh": "已经没有座位了。"
+      }
+    ]
+  },
+  {
+    "category": "7: 肯定与否定",
+    "categoryKey": "polarity",
+    "subcategory": "7.5: never 构成的否定",
+    "subcategoryKey": "negative_adverb",
+    "typeId": "polarity.negative_adverb",
+    "tags": [
+      "肯定与否定",
+      "never 构成的否定",
+      "关注：never"
+    ],
+    "examples": [
+      {
+        "id": "polarity.negative_adverb.001",
+        "en": "He never drinks coffee.",
+        "zh": "他从不喝咖啡。"
+      }
+    ]
+  },
+  {
+    "category": "7: 肯定与否定",
+    "categoryKey": "polarity",
+    "subcategory": "7.6: 部分否定",
+    "subcategoryKey": "partial_negation",
+    "typeId": "polarity.partial_negation",
+    "tags": [
+      "肯定与否定",
+      "部分否定",
+      "关注：Not all"
+    ],
+    "examples": [
+      {
+        "id": "polarity.partial_negation.001",
+        "en": "Not all tickets are refundable.",
+        "zh": "并非所有票都可以退款。"
+      }
+    ]
+  },
+  {
+    "category": "7: 肯定与否定",
+    "categoryKey": "polarity",
+    "subcategory": "7.7: 近否定：hardly",
+    "subcategoryKey": "near_negative",
+    "typeId": "polarity.near_negative",
+    "tags": [
+      "肯定与否定",
+      "近否定：hardly",
+      "关注：hardly"
+    ],
+    "examples": [
+      {
+        "id": "polarity.near_negative.001",
+        "en": "I could hardly hear the announcement.",
+        "zh": "我几乎听不清广播。"
+      }
+    ]
+  },
+  {
+    "category": "7: 肯定与否定",
+    "categoryKey": "polarity",
+    "subcategory": "7.8: 非谓语结构的否定",
+    "subcategoryKey": "nonfinite_negation",
+    "typeId": "polarity.nonfinite_negation",
+    "tags": [
+      "肯定与否定",
+      "非谓语结构的否定",
+      "关注：not to drive"
+    ],
+    "examples": [
+      {
+        "id": "polarity.nonfinite_negation.001",
+        "en": "She decided not to drive tonight.",
+        "zh": "她决定今晚不开车。"
+      }
+    ]
+  },
+  {
+    "category": "7: 肯定与否定",
+    "categoryKey": "polarity",
+    "subcategory": "7.9: 否定转移（传统术语）",
+    "subcategoryKey": "negative_raising",
+    "typeId": "polarity.negative_raising",
+    "tags": [
+      "肯定与否定",
+      "否定转移（传统术语）",
+      "关注：don't think"
+    ],
+    "examples": [
+      {
+        "id": "polarity.negative_raising.001",
+        "en": "I don't think this is the right platform.",
+        "zh": "我认为这不是正确的站台。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.1: can：能力",
+    "subcategoryKey": "can_ability",
+    "typeId": "modality.can_ability",
+    "tags": [
+      "情态",
+      "can：能力",
+      "关注：can"
+    ],
+    "examples": [
+      {
+        "id": "modality.can_ability.001",
+        "en": "I can swim.",
+        "zh": "我会游泳。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.2: can：许可",
+    "subcategoryKey": "can_permission",
+    "typeId": "modality.can_permission",
+    "tags": [
+      "情态",
+      "can：许可",
+      "关注：can"
+    ],
+    "examples": [
+      {
+        "id": "modality.can_permission.001",
+        "en": "You can use my charger.",
+        "zh": "你可以用我的充电器。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.3: can：一般可能性",
+    "subcategoryKey": "can_general_possibility",
+    "typeId": "modality.can_general_possibility",
+    "tags": [
+      "情态",
+      "can：一般可能性",
+      "关注：can"
+    ],
+    "examples": [
+      {
+        "id": "modality.can_general_possibility.001",
+        "en": "Mountain weather can change quickly.",
+        "zh": "山区天气有时会迅速变化。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.4: could：过去的一般能力",
+    "subcategoryKey": "could_past_ability",
+    "typeId": "modality.could_past_ability",
+    "tags": [
+      "情态",
+      "could：过去的一般能力",
+      "关注：could"
+    ],
+    "examples": [
+      {
+        "id": "modality.could_past_ability.001",
+        "en": "I could read simple English when I was six.",
+        "zh": "我六岁时就能读简单的英语。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.5: could：礼貌请求",
+    "subcategoryKey": "could_request",
+    "typeId": "modality.could_request",
+    "tags": [
+      "情态",
+      "could：礼貌请求",
+      "关注：Could you"
+    ],
+    "examples": [
+      {
+        "id": "modality.could_request.001",
+        "en": "Could you speak more slowly?",
+        "zh": "你能说慢一点吗？"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.6: could：可能性",
+    "subcategoryKey": "could_possibility",
+    "typeId": "modality.could_possibility",
+    "tags": [
+      "情态",
+      "could：可能性",
+      "关注：could be"
+    ],
+    "examples": [
+      {
+        "id": "modality.could_possibility.001",
+        "en": "The delay could be caused by fog.",
+        "zh": "这次延误可能是大雾造成的。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.7: may：较正式的许可",
+    "subcategoryKey": "may_permission",
+    "typeId": "modality.may_permission",
+    "tags": [
+      "情态",
+      "may：较正式的许可",
+      "关注：may"
+    ],
+    "examples": [
+      {
+        "id": "modality.may_permission.001",
+        "en": "You may leave when you finish.",
+        "zh": "完成后你可以离开。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.8: may：可能性",
+    "subcategoryKey": "may_possibility",
+    "typeId": "modality.may_possibility",
+    "tags": [
+      "情态",
+      "may：可能性",
+      "关注：may"
+    ],
+    "examples": [
+      {
+        "id": "modality.may_possibility.001",
+        "en": "It may rain this afternoon.",
+        "zh": "今天下午可能会下雨。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.9: might：可能性",
+    "subcategoryKey": "might_possibility",
+    "typeId": "modality.might_possibility",
+    "tags": [
+      "情态",
+      "might：可能性",
+      "关注：might"
+    ],
+    "examples": [
+      {
+        "id": "modality.might_possibility.001",
+        "en": "We might need another battery.",
+        "zh": "我们可能还需要一块电池。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.10: must：必须",
+    "subcategoryKey": "must_obligation",
+    "typeId": "modality.must_obligation",
+    "tags": [
+      "情态",
+      "must：必须",
+      "关注：must"
+    ],
+    "examples": [
+      {
+        "id": "modality.must_obligation.001",
+        "en": "You must wear a seat belt.",
+        "zh": "你必须系安全带。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.11: must：有把握的肯定推断",
+    "subcategoryKey": "must_deduction",
+    "typeId": "modality.must_deduction",
+    "tags": [
+      "情态",
+      "must：有把握的肯定推断",
+      "关注：must still be working"
+    ],
+    "examples": [
+      {
+        "id": "modality.must_deduction.001",
+        "en": "Her office light is on, so she must still be working.",
+        "zh": "她办公室的灯亮着，所以她肯定还在工作。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.12: must not：禁止",
+    "subcategoryKey": "must_not_prohibition",
+    "typeId": "modality.must_not_prohibition",
+    "tags": [
+      "情态",
+      "must not：禁止",
+      "关注：must not"
+    ],
+    "examples": [
+      {
+        "id": "modality.must_not_prohibition.001",
+        "en": "You must not enter this room.",
+        "zh": "你不得进入这个房间。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.13: cannot：有把握的否定推断",
+    "subcategoryKey": "cannot_deduction",
+    "typeId": "modality.cannot_deduction",
+    "tags": [
+      "情态",
+      "cannot：有把握的否定推断",
+      "关注：cannot be"
+    ],
+    "examples": [
+      {
+        "id": "modality.cannot_deduction.001",
+        "en": "That cannot be Maria because she is abroad.",
+        "zh": "那不可能是玛丽亚，因为她在国外。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.14: should：建议",
+    "subcategoryKey": "should_advice",
+    "typeId": "modality.should_advice",
+    "tags": [
+      "情态",
+      "should：建议",
+      "关注：should"
+    ],
+    "examples": [
+      {
+        "id": "modality.should_advice.001",
+        "en": "You should save a copy of the file.",
+        "zh": "你应该保存一份文件副本。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.15: should：预期",
+    "subcategoryKey": "should_expectation",
+    "typeId": "modality.should_expectation",
+    "tags": [
+      "情态",
+      "should：预期",
+      "关注：should"
+    ],
+    "examples": [
+      {
+        "id": "modality.should_expectation.001",
+        "en": "The parcel should arrive tomorrow.",
+        "zh": "包裹按理说会在明天送到。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.16: ought to：劝告或责任",
+    "subcategoryKey": "ought_to",
+    "typeId": "modality.ought_to",
+    "tags": [
+      "情态",
+      "ought to：劝告或责任",
+      "关注：ought to"
+    ],
+    "examples": [
+      {
+        "id": "modality.ought_to.001",
+        "en": "We ought to tell them the truth.",
+        "zh": "我们应该告诉他们真相。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.17: will：意愿",
+    "subcategoryKey": "will_willingness",
+    "typeId": "modality.will_willingness",
+    "tags": [
+      "情态",
+      "will：意愿",
+      "关注：will"
+    ],
+    "examples": [
+      {
+        "id": "modality.will_willingness.001",
+        "en": "I will help you carry that bag.",
+        "zh": "我愿意帮你拿那个包。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.18: would：礼貌请求",
+    "subcategoryKey": "would_request",
+    "typeId": "modality.would_request",
+    "tags": [
+      "情态",
+      "would：礼貌请求",
+      "关注：Would you"
+    ],
+    "examples": [
+      {
+        "id": "modality.would_request.001",
+        "en": "Would you open the window, please?",
+        "zh": "请你打开窗户，好吗？"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.19: would：过去反复发生的动作",
+    "subcategoryKey": "would_past_habit",
+    "typeId": "modality.would_past_habit",
+    "tags": [
+      "情态",
+      "would：过去反复发生的动作",
+      "关注：would play"
+    ],
+    "examples": [
+      {
+        "id": "modality.would_past_habit.001",
+        "en": "When we were children, we would play outside every evening.",
+        "zh": "小时候，我们每天晚上都会在外面玩。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.20: shall：主动提议",
+    "subcategoryKey": "shall_offer",
+    "typeId": "modality.shall_offer",
+    "tags": [
+      "情态",
+      "shall：主动提议",
+      "关注：Shall I"
+    ],
+    "examples": [
+      {
+        "id": "modality.shall_offer.001",
+        "en": "Shall I carry your suitcase?",
+        "zh": "要我帮你拿行李箱吗？"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.21: need not：不必",
+    "subcategoryKey": "need_not",
+    "typeId": "modality.need_not",
+    "tags": [
+      "情态",
+      "need not：不必",
+      "关注：need not"
+    ],
+    "examples": [
+      {
+        "id": "modality.need_not.001",
+        "en": "You need not print the ticket.",
+        "zh": "你不必打印票。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.22: have to：必要性",
+    "subcategoryKey": "have_to",
+    "typeId": "modality.have_to",
+    "tags": [
+      "情态",
+      "have to：必要性",
+      "关注：have to"
+    ],
+    "examples": [
+      {
+        "id": "modality.have_to.001",
+        "en": "I have to leave before six.",
+        "zh": "我得在六点前离开。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.23: don't have to：没有必要",
+    "subcategoryKey": "dont_have_to",
+    "typeId": "modality.dont_have_to",
+    "tags": [
+      "情态",
+      "don't have to：没有必要",
+      "关注：don't have to"
+    ],
+    "examples": [
+      {
+        "id": "modality.dont_have_to.001",
+        "en": "You don't have to answer immediately.",
+        "zh": "你不必马上回答。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.24: had better：强烈建议",
+    "subcategoryKey": "had_better",
+    "typeId": "modality.had_better",
+    "tags": [
+      "情态",
+      "had better：强烈建议",
+      "关注：had better"
+    ],
+    "examples": [
+      {
+        "id": "modality.had_better.001",
+        "en": "You had better charge your phone now.",
+        "zh": "你最好现在给手机充电。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.25: be able to：有能力做到",
+    "subcategoryKey": "be_able_to",
+    "typeId": "modality.be_able_to",
+    "tags": [
+      "情态",
+      "be able to：有能力做到",
+      "关注：was able to"
+    ],
+    "examples": [
+      {
+        "id": "modality.be_able_to.001",
+        "en": "After several attempts, she was able to open the file.",
+        "zh": "尝试了几次后，她成功打开了文件。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.26: be supposed to：约定或要求",
+    "subcategoryKey": "be_supposed_to",
+    "typeId": "modality.be_supposed_to",
+    "tags": [
+      "情态",
+      "be supposed to：约定或要求",
+      "关注：are supposed to"
+    ],
+    "examples": [
+      {
+        "id": "modality.be_supposed_to.001",
+        "en": "We are supposed to meet at the main entrance.",
+        "zh": "我们按约定应在正门见面。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.27: must have done：对过去的肯定推断",
+    "subcategoryKey": "must_have",
+    "typeId": "modality.must_have",
+    "tags": [
+      "情态",
+      "must have done：对过去的肯定推断",
+      "关注：must have missed"
+    ],
+    "examples": [
+      {
+        "id": "modality.must_have.001",
+        "en": "He must have missed the train.",
+        "zh": "他肯定没赶上火车。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.28: cannot have done：对过去的否定推断",
+    "subcategoryKey": "cannot_have",
+    "typeId": "modality.cannot_have",
+    "tags": [
+      "情态",
+      "cannot have done：对过去的否定推断",
+      "关注：cannot have sent"
+    ],
+    "examples": [
+      {
+        "id": "modality.cannot_have.001",
+        "en": "She cannot have sent the email because the computer was off.",
+        "zh": "她不可能已经发了邮件，因为电脑当时关着。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.29: might have done：对过去的可能推断",
+    "subcategoryKey": "might_have",
+    "typeId": "modality.might_have",
+    "tags": [
+      "情态",
+      "might have done：对过去的可能推断",
+      "关注：might have left"
+    ],
+    "examples": [
+      {
+        "id": "modality.might_have.001",
+        "en": "I might have left my keys at the office.",
+        "zh": "我可能把钥匙落在办公室了。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.30: should have done：本该做却未做",
+    "subcategoryKey": "should_have",
+    "typeId": "modality.should_have",
+    "tags": [
+      "情态",
+      "should have done：本该做却未做",
+      "关注：should have booked"
+    ],
+    "examples": [
+      {
+        "id": "modality.should_have.001",
+        "en": "I should have booked earlier.",
+        "zh": "我本该早点预订。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.31: should not have done：本不该做却做了",
+    "subcategoryKey": "should_not_have",
+    "typeId": "modality.should_not_have",
+    "tags": [
+      "情态",
+      "should not have done：本不该做却做了",
+      "关注：should not have shared"
+    ],
+    "examples": [
+      {
+        "id": "modality.should_not_have.001",
+        "en": "You should not have shared that password.",
+        "zh": "你本不该分享那个密码。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.32: need not have done：做了但本无必要",
+    "subcategoryKey": "need_not_have",
+    "typeId": "modality.need_not_have",
+    "tags": [
+      "情态",
+      "need not have done：做了但本无必要",
+      "关注：need not have brought"
+    ],
+    "examples": [
+      {
+        "id": "modality.need_not_have.001",
+        "en": "We need not have brought towels because the hotel provided them.",
+        "zh": "我们本不必带毛巾，因为酒店提供了毛巾。"
+      }
+    ]
+  },
+  {
+    "category": "8: 情态",
+    "categoryKey": "modality",
+    "subcategory": "8.33: could have done：本有能力或机会却未做",
+    "subcategoryKey": "could_have",
+    "typeId": "modality.could_have",
+    "tags": [
+      "情态",
+      "could have done：本有能力或机会却未做",
+      "关注：could have taken"
+    ],
+    "examples": [
+      {
+        "id": "modality.could_have.001",
+        "en": "I could have taken a taxi, but I chose to walk.",
+        "zh": "我本可以打车，但选择了步行。"
+      }
+    ]
+  },
+  {
+    "category": "9: 名词性从句",
+    "categoryKey": "nominal_clause",
+    "subcategory": "9.1: that 引导的主语从句",
+    "subcategoryKey": "subject_that",
+    "typeId": "nominal_clause.subject_that",
+    "tags": [
+      "名词性从句",
+      "that 引导的主语从句",
+      "关注：That she remembered my name"
+    ],
+    "examples": [
+      {
+        "id": "nominal_clause.subject_that.001",
+        "en": "That she remembered my name surprised me.",
+        "zh": "她还记得我的名字，这让我很惊讶。"
+      }
+    ]
+  },
+  {
+    "category": "9: 名词性从句",
+    "categoryKey": "nominal_clause",
+    "subcategory": "9.2: whether 引导的主语从句",
+    "subcategoryKey": "subject_whether",
+    "typeId": "nominal_clause.subject_whether",
+    "tags": [
+      "名词性从句",
+      "whether 引导的主语从句",
+      "关注：Whether we can leave today"
+    ],
+    "examples": [
+      {
+        "id": "nominal_clause.subject_whether.001",
+        "en": "Whether we can leave today depends on the weather.",
+        "zh": "我们今天能否出发取决于天气。"
+      }
+    ]
+  },
+  {
+    "category": "9: 名词性从句",
+    "categoryKey": "nominal_clause",
+    "subcategory": "9.3: what 引导的主语从句",
+    "subcategoryKey": "subject_what",
+    "typeId": "nominal_clause.subject_what",
+    "tags": [
+      "名词性从句",
+      "what 引导的主语从句",
+      "关注：What we need"
+    ],
+    "examples": [
+      {
+        "id": "nominal_clause.subject_what.001",
+        "en": "What we need is more time.",
+        "zh": "我们需要的是更多时间。"
+      }
+    ]
+  },
+  {
+    "category": "9: 名词性从句",
+    "categoryKey": "nominal_clause",
+    "subcategory": "9.4: that 引导的宾语从句",
+    "subcategoryKey": "object_that",
+    "typeId": "nominal_clause.object_that",
+    "tags": [
+      "名词性从句",
+      "that 引导的宾语从句",
+      "关注：that she is right"
+    ],
+    "examples": [
+      {
+        "id": "nominal_clause.object_that.001",
+        "en": "I believe that she is right.",
+        "zh": "我相信她是对的。"
+      }
+    ]
+  },
+  {
+    "category": "9: 名词性从句",
+    "categoryKey": "nominal_clause",
+    "subcategory": "9.5: whether 引导的宾语从句",
+    "subcategoryKey": "object_whether",
+    "typeId": "nominal_clause.object_whether",
+    "tags": [
+      "名词性从句",
+      "whether 引导的宾语从句",
+      "关注：whether breakfast is included"
+    ],
+    "examples": [
+      {
+        "id": "nominal_clause.object_whether.001",
+        "en": "I wonder whether breakfast is included.",
+        "zh": "我想知道是否包含早餐。"
+      }
+    ]
+  },
+  {
+    "category": "9: 名词性从句",
+    "categoryKey": "nominal_clause",
+    "subcategory": "9.6: if 引导的宾语从句",
+    "subcategoryKey": "object_if",
+    "typeId": "nominal_clause.object_if",
+    "tags": [
+      "名词性从句",
+      "if 引导的宾语从句",
+      "关注：if the seat was taken"
+    ],
+    "examples": [
+      {
+        "id": "nominal_clause.object_if.001",
+        "en": "She asked if the seat was taken.",
+        "zh": "她问这个座位是否有人坐。"
+      }
+    ]
+  },
+  {
+    "category": "9: 名词性从句",
+    "categoryKey": "nominal_clause",
+    "subcategory": "9.7: 疑问词引导的宾语从句",
+    "subcategoryKey": "object_wh",
+    "typeId": "nominal_clause.object_wh",
+    "tags": [
+      "名词性从句",
+      "疑问词引导的宾语从句",
+      "关注：where the exit is"
+    ],
+    "examples": [
+      {
+        "id": "nominal_clause.object_wh.001",
+        "en": "Please tell me where the exit is.",
+        "zh": "请告诉我出口在哪里。"
+      }
+    ]
+  },
+  {
+    "category": "9: 名词性从句",
+    "categoryKey": "nominal_clause",
+    "subcategory": "9.8: 介词后的名词性从句",
+    "subcategoryKey": "preposition_object",
+    "typeId": "nominal_clause.preposition_object",
+    "tags": [
+      "名词性从句",
+      "介词后的名词性从句",
+      "关注：what had happened"
+    ],
+    "examples": [
+      {
+        "id": "nominal_clause.preposition_object.001",
+        "en": "We talked about what had happened.",
+        "zh": "我们谈论了发生的事情。"
+      }
+    ]
+  },
+  {
+    "category": "9: 名词性从句",
+    "categoryKey": "nominal_clause",
+    "subcategory": "9.9: that 引导的表语从句",
+    "subcategoryKey": "predicative_that",
+    "typeId": "nominal_clause.predicative_that",
+    "tags": [
+      "名词性从句",
+      "that 引导的表语从句",
+      "关注：that everyone is safe"
+    ],
+    "examples": [
+      {
+        "id": "nominal_clause.predicative_that.001",
+        "en": "The good news is that everyone is safe.",
+        "zh": "好消息是大家都很安全。"
+      }
+    ]
+  },
+  {
+    "category": "9: 名词性从句",
+    "categoryKey": "nominal_clause",
+    "subcategory": "9.10: 疑问词引导的表语从句",
+    "subcategoryKey": "predicative_wh",
+    "typeId": "nominal_clause.predicative_wh",
+    "tags": [
+      "名词性从句",
+      "疑问词引导的表语从句",
+      "关注：how we can reduce the cost"
+    ],
+    "examples": [
+      {
+        "id": "nominal_clause.predicative_wh.001",
+        "en": "The question is how we can reduce the cost.",
+        "zh": "问题是我们怎样才能降低成本。"
+      }
+    ]
+  },
+  {
+    "category": "9: 名词性从句",
+    "categoryKey": "nominal_clause",
+    "subcategory": "9.11: that 引导的同位语从句",
+    "subcategoryKey": "appositive_that",
+    "typeId": "nominal_clause.appositive_that",
+    "tags": [
+      "名词性从句",
+      "that 引导的同位语从句",
+      "关注：that our flight was canceled"
+    ],
+    "examples": [
+      {
+        "id": "nominal_clause.appositive_that.001",
+        "en": "The news that our flight was canceled upset us.",
+        "zh": "航班被取消的消息让我们很沮丧。"
+      }
+    ]
+  },
+  {
+    "category": "9: 名词性从句",
+    "categoryKey": "nominal_clause",
+    "subcategory": "9.12: whether 引导的同位语从句",
+    "subcategoryKey": "appositive_whether",
+    "typeId": "nominal_clause.appositive_whether",
+    "tags": [
+      "名词性从句",
+      "whether 引导的同位语从句",
+      "关注：whether we should cancel the trip"
+    ],
+    "examples": [
+      {
+        "id": "nominal_clause.appositive_whether.001",
+        "en": "The question whether we should cancel the trip remains unanswered.",
+        "zh": "我们是否应该取消行程这个问题仍未得到解答。"
+      }
+    ]
+  },
+  {
+    "category": "10: 定语从句",
+    "categoryKey": "relative_clause",
+    "subcategory": "10.1: 限制性定语从句：who 作主语",
+    "subcategoryKey": "restrictive_who_subject",
+    "typeId": "relative_clause.restrictive_who_subject",
+    "tags": [
+      "定语从句",
+      "限制性定语从句：who 作主语",
+      "关注：who helped me"
+    ],
+    "examples": [
+      {
+        "id": "relative_clause.restrictive_who_subject.001",
+        "en": "The woman who helped me works here.",
+        "zh": "帮助过我的那位女士在这里工作。"
+      }
+    ]
+  },
+  {
+    "category": "10: 定语从句",
+    "categoryKey": "relative_clause",
+    "subcategory": "10.2: 限制性定语从句：whom 作宾语",
+    "subcategoryKey": "restrictive_whom_object",
+    "typeId": "relative_clause.restrictive_whom_object",
+    "tags": [
+      "定语从句",
+      "限制性定语从句：whom 作宾语",
+      "关注：whom we hired"
+    ],
+    "examples": [
+      {
+        "id": "relative_clause.restrictive_whom_object.001",
+        "en": "The guide whom we hired speaks Chinese.",
+        "zh": "我们雇的导游会说中文。"
+      }
+    ]
+  },
+  {
+    "category": "10: 定语从句",
+    "categoryKey": "relative_clause",
+    "subcategory": "10.3: 限制性定语从句：which 作主语",
+    "subcategoryKey": "restrictive_which_subject",
+    "typeId": "relative_clause.restrictive_which_subject",
+    "tags": [
+      "定语从句",
+      "限制性定语从句：which 作主语",
+      "关注：which runs quietly"
+    ],
+    "examples": [
+      {
+        "id": "relative_clause.restrictive_which_subject.001",
+        "en": "I need a laptop which runs quietly.",
+        "zh": "我需要一台运行安静的笔记本电脑。"
+      }
+    ]
+  },
+  {
+    "category": "10: 定语从句",
+    "categoryKey": "relative_clause",
+    "subcategory": "10.4: 限制性定语从句：that 作宾语",
+    "subcategoryKey": "restrictive_that_object",
+    "typeId": "relative_clause.restrictive_that_object",
+    "tags": [
+      "定语从句",
+      "限制性定语从句：that 作宾语",
+      "关注：that you recommended"
+    ],
+    "examples": [
+      {
+        "id": "relative_clause.restrictive_that_object.001",
+        "en": "The restaurant that you recommended was excellent.",
+        "zh": "你推荐的那家餐厅很棒。"
+      }
+    ]
+  },
+  {
+    "category": "10: 定语从句",
+    "categoryKey": "relative_clause",
+    "subcategory": "10.5: 省略作宾语的关系代词",
+    "subcategoryKey": "zero_relative",
+    "typeId": "relative_clause.zero_relative",
+    "tags": [
+      "定语从句",
+      "省略作宾语的关系代词",
+      "关注：I bought"
+    ],
+    "examples": [
+      {
+        "id": "relative_clause.zero_relative.001",
+        "en": "The ticket I bought is non-refundable.",
+        "zh": "我买的票不能退款。"
+      }
+    ]
+  },
+  {
+    "category": "10: 定语从句",
+    "categoryKey": "relative_clause",
+    "subcategory": "10.6: whose 表示人的所属关系",
+    "subcategoryKey": "whose_person",
+    "typeId": "relative_clause.whose_person",
+    "tags": [
+      "定语从句",
+      "whose 表示人的所属关系",
+      "关注：whose passport had been stolen"
+    ],
+    "examples": [
+      {
+        "id": "relative_clause.whose_person.001",
+        "en": "I met a traveler whose passport had been stolen.",
+        "zh": "我遇到了一位护照被偷的旅客。"
+      }
+    ]
+  },
+  {
+    "category": "10: 定语从句",
+    "categoryKey": "relative_clause",
+    "subcategory": "10.7: whose 表示事物的所属关系",
+    "subcategoryKey": "whose_thing",
+    "typeId": "relative_clause.whose_thing",
+    "tags": [
+      "定语从句",
+      "whose 表示事物的所属关系",
+      "关注：whose windows faced the sea"
+    ],
+    "examples": [
+      {
+        "id": "relative_clause.whose_thing.001",
+        "en": "We stayed in a hotel whose windows faced the sea.",
+        "zh": "我们住在一家窗户朝海的酒店。"
+      }
+    ]
+  },
+  {
+    "category": "10: 定语从句",
+    "categoryKey": "relative_clause",
+    "subcategory": "10.8: where 引导的定语从句",
+    "subcategoryKey": "where",
+    "typeId": "relative_clause.where",
+    "tags": [
+      "定语从句",
+      "where 引导的定语从句",
+      "关注：where we first met"
+    ],
+    "examples": [
+      {
+        "id": "relative_clause.where.001",
+        "en": "This is the café where we first met.",
+        "zh": "这是我们第一次见面的咖啡馆。"
+      }
+    ]
+  },
+  {
+    "category": "10: 定语从句",
+    "categoryKey": "relative_clause",
+    "subcategory": "10.9: when 引导的定语从句",
+    "subcategoryKey": "when",
+    "typeId": "relative_clause.when",
+    "tags": [
+      "定语从句",
+      "when 引导的定语从句",
+      "关注：when we moved here"
+    ],
+    "examples": [
+      {
+        "id": "relative_clause.when.001",
+        "en": "I remember the day when we moved here.",
+        "zh": "我记得我们搬到这里的那一天。"
+      }
+    ]
+  },
+  {
+    "category": "10: 定语从句",
+    "categoryKey": "relative_clause",
+    "subcategory": "10.10: why 引导的定语从句",
+    "subcategoryKey": "why",
+    "typeId": "relative_clause.why",
+    "tags": [
+      "定语从句",
+      "why 引导的定语从句",
+      "关注：why the system failed"
+    ],
+    "examples": [
+      {
+        "id": "relative_clause.why.001",
+        "en": "Nobody knows the reason why the system failed.",
+        "zh": "没有人知道系统出故障的原因。"
+      }
+    ]
+  },
+  {
+    "category": "10: 定语从句",
+    "categoryKey": "relative_clause",
+    "subcategory": "10.11: 介词 + 关系代词",
+    "subcategoryKey": "preposition_relative",
+    "typeId": "relative_clause.preposition_relative",
+    "tags": [
+      "定语从句",
+      "介词 + 关系代词",
+      "关注：with whom I traveled"
+    ],
+    "examples": [
+      {
+        "id": "relative_clause.preposition_relative.001",
+        "en": "The colleague with whom I traveled is from Italy.",
+        "zh": "和我一起旅行的同事来自意大利。"
+      }
+    ]
+  },
+  {
+    "category": "10: 定语从句",
+    "categoryKey": "relative_clause",
+    "subcategory": "10.12: 非限制性定语从句：补充说明人",
+    "subcategoryKey": "nonrestrictive_person",
+    "typeId": "relative_clause.nonrestrictive_person",
+    "tags": [
+      "定语从句",
+      "非限制性定语从句：补充说明人",
+      "关注：who lives in Madrid"
+    ],
+    "examples": [
+      {
+        "id": "relative_clause.nonrestrictive_person.001",
+        "en": "My sister, who lives in Madrid, is visiting us.",
+        "zh": "我姐姐住在马德里，她正在我们这里做客。"
+      }
+    ]
+  },
+  {
+    "category": "10: 定语从句",
+    "categoryKey": "relative_clause",
+    "subcategory": "10.13: 非限制性定语从句：补充说明事物",
+    "subcategoryKey": "nonrestrictive_thing",
+    "typeId": "relative_clause.nonrestrictive_thing",
+    "tags": [
+      "定语从句",
+      "非限制性定语从句：补充说明事物",
+      "关注：which I bought last year"
+    ],
+    "examples": [
+      {
+        "id": "relative_clause.nonrestrictive_thing.001",
+        "en": "My camera, which I bought last year, still works well.",
+        "zh": "我的相机是去年买的，现在仍然很好用。"
+      }
+    ]
+  },
+  {
+    "category": "10: 定语从句",
+    "categoryKey": "relative_clause",
+    "subcategory": "10.14: which 指代前面整件事",
+    "subcategoryKey": "sentential_which",
+    "typeId": "relative_clause.sentential_which",
+    "tags": [
+      "定语从句",
+      "which 指代前面整件事",
+      "关注：which meant he had to walk home"
+    ],
+    "examples": [
+      {
+        "id": "relative_clause.sentential_which.001",
+        "en": "He missed the last bus, which meant he had to walk home.",
+        "zh": "他错过了末班公交车，这意味着他得步行回家。"
+      }
+    ]
+  },
+  {
+    "category": "10: 定语从句",
+    "categoryKey": "relative_clause",
+    "subcategory": "10.15: 数量词 + of + 关系代词",
+    "subcategoryKey": "quantifier_relative",
+    "typeId": "relative_clause.quantifier_relative",
+    "tags": [
+      "定语从句",
+      "数量词 + of + 关系代词",
+      "关注：three of which were out of focus"
+    ],
+    "examples": [
+      {
+        "id": "relative_clause.quantifier_relative.001",
+        "en": "She took ten photos, three of which were out of focus.",
+        "zh": "她拍了十张照片，其中三张失焦了。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.1: 时间：when",
+    "subcategoryKey": "time_when",
+    "typeId": "adverbial_clause.time_when",
+    "tags": [
+      "状语从句",
+      "时间：when",
+      "关注：when you arrive"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.time_when.001",
+        "en": "Call me when you arrive.",
+        "zh": "你到了以后给我打电话。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.2: 时间：while",
+    "subcategoryKey": "time_while",
+    "typeId": "adverbial_clause.time_while",
+    "tags": [
+      "状语从句",
+      "时间：while",
+      "关注：while she cooked"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.time_while.001",
+        "en": "I read while she cooked.",
+        "zh": "她做饭时，我在看书。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.3: 时间：before",
+    "subcategoryKey": "time_before",
+    "typeId": "adverbial_clause.time_before",
+    "tags": [
+      "状语从句",
+      "时间：before",
+      "关注：before you leave"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.time_before.001",
+        "en": "Check the address before you leave.",
+        "zh": "出发前核对一下地址。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.4: 时间：after",
+    "subcategoryKey": "time_after",
+    "typeId": "adverbial_clause.time_after",
+    "tags": [
+      "状语从句",
+      "时间：after",
+      "关注：after the rain stopped"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.time_after.001",
+        "en": "We went for a walk after the rain stopped.",
+        "zh": "雨停后，我们出去散步了。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.5: 时间：until",
+    "subcategoryKey": "time_until",
+    "typeId": "adverbial_clause.time_until",
+    "tags": [
+      "状语从句",
+      "时间：until",
+      "关注：until I return"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.time_until.001",
+        "en": "Wait here until I return.",
+        "zh": "在这里等到我回来。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.6: 时间：since",
+    "subcategoryKey": "time_since",
+    "typeId": "adverbial_clause.time_since",
+    "tags": [
+      "状语从句",
+      "时间：since",
+      "关注：since we were children"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.time_since.001",
+        "en": "I have known her since we were children.",
+        "zh": "我们从小就认识。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.7: 时间：as soon as",
+    "subcategoryKey": "time_as_soon_as",
+    "typeId": "adverbial_clause.time_as_soon_as",
+    "tags": [
+      "状语从句",
+      "时间：as soon as",
+      "关注：as soon as I land"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.time_as_soon_as.001",
+        "en": "I will message you as soon as I land.",
+        "zh": "我一落地就给你发消息。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.8: 时间：by the time",
+    "subcategoryKey": "time_by_the_time",
+    "typeId": "adverbial_clause.time_by_the_time",
+    "tags": [
+      "状语从句",
+      "时间：by the time",
+      "关注：By the time we reached the station"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.time_by_the_time.001",
+        "en": "By the time we reached the station, the train had left.",
+        "zh": "等我们到达车站时，火车已经开走了。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.9: 地点：where",
+    "subcategoryKey": "place_where",
+    "typeId": "adverbial_clause.place_where",
+    "tags": [
+      "状语从句",
+      "地点：where",
+      "关注：where you can see the screen"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.place_where.001",
+        "en": "Sit where you can see the screen.",
+        "zh": "坐在能看清屏幕的地方。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.10: 地点：wherever",
+    "subcategoryKey": "place_wherever",
+    "typeId": "adverbial_clause.place_wherever",
+    "tags": [
+      "状语从句",
+      "地点：wherever",
+      "关注：wherever you like"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.place_wherever.001",
+        "en": "You can sit wherever you like.",
+        "zh": "你想坐哪里都可以。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.11: 原因：because",
+    "subcategoryKey": "reason_because",
+    "typeId": "adverbial_clause.reason_because",
+    "tags": [
+      "状语从句",
+      "原因：because",
+      "关注：because it was raining"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.reason_because.001",
+        "en": "We stayed inside because it was raining.",
+        "zh": "因为在下雨，我们待在了室内。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.12: 原因：since",
+    "subcategoryKey": "reason_since",
+    "typeId": "adverbial_clause.reason_since",
+    "tags": [
+      "状语从句",
+      "原因：since",
+      "关注：Since everyone is here"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.reason_since.001",
+        "en": "Since everyone is here, we can begin.",
+        "zh": "既然大家都到了，我们就可以开始了。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.13: 目的：so that",
+    "subcategoryKey": "purpose_so_that",
+    "typeId": "adverbial_clause.purpose_so_that",
+    "tags": [
+      "状语从句",
+      "目的：so that",
+      "关注：so that I would not forget it"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.purpose_so_that.001",
+        "en": "I wrote it down so that I would not forget it.",
+        "zh": "我把它写下来，以免忘记。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.14: 结果：so ... that",
+    "subcategoryKey": "result_so_that",
+    "typeId": "adverbial_clause.result_so_that",
+    "tags": [
+      "状语从句",
+      "结果：so ... that",
+      "关注：so noisy that I could not sleep"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.result_so_that.001",
+        "en": "The street was so noisy that I could not sleep.",
+        "zh": "街上太吵了，我无法入睡。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.15: 结果：such ... that",
+    "subcategoryKey": "result_such_that",
+    "typeId": "adverbial_clause.result_such_that",
+    "tags": [
+      "状语从句",
+      "结果：such ... that",
+      "关注：such a long queue that we decided to leave"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.result_such_that.001",
+        "en": "It was such a long queue that we decided to leave.",
+        "zh": "队伍太长了，我们决定离开。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.16: 条件：if",
+    "subcategoryKey": "condition_if",
+    "typeId": "adverbial_clause.condition_if",
+    "tags": [
+      "状语从句",
+      "条件：if",
+      "关注：If it rains"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.condition_if.001",
+        "en": "If it rains, we will take the bus.",
+        "zh": "如果下雨，我们就坐公交车。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.17: 条件：unless",
+    "subcategoryKey": "condition_unless",
+    "typeId": "adverbial_clause.condition_unless",
+    "tags": [
+      "状语从句",
+      "条件：unless",
+      "关注：unless the weather gets worse"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.condition_unless.001",
+        "en": "We will leave at eight unless the weather gets worse.",
+        "zh": "除非天气变差，否则我们八点出发。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.18: 条件：provided that",
+    "subcategoryKey": "condition_provided",
+    "typeId": "adverbial_clause.condition_provided",
+    "tags": [
+      "状语从句",
+      "条件：provided that",
+      "关注：provided that you return it tomorrow"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.condition_provided.001",
+        "en": "You can borrow my camera provided that you return it tomorrow.",
+        "zh": "只要你明天归还，就可以借我的相机。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.19: 让步：although",
+    "subcategoryKey": "concession_although",
+    "typeId": "adverbial_clause.concession_although",
+    "tags": [
+      "状语从句",
+      "让步：although",
+      "关注：Although I was tired"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.concession_although.001",
+        "en": "Although I was tired, I finished the report.",
+        "zh": "虽然很累，我还是完成了报告。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.20: 让步条件：even if",
+    "subcategoryKey": "concession_even_if",
+    "typeId": "adverbial_clause.concession_even_if",
+    "tags": [
+      "状语从句",
+      "让步条件：even if",
+      "关注：even if it rains"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.concession_even_if.001",
+        "en": "I will go even if it rains.",
+        "zh": "即使下雨，我也会去。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.21: 让步：no matter + 疑问词",
+    "subcategoryKey": "concession_no_matter",
+    "typeId": "adverbial_clause.concession_no_matter",
+    "tags": [
+      "状语从句",
+      "让步：no matter + 疑问词",
+      "关注：No matter how busy she is"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.concession_no_matter.001",
+        "en": "No matter how busy she is, she calls her parents every week.",
+        "zh": "无论多忙，她每周都会给父母打电话。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.22: 方式：as",
+    "subcategoryKey": "manner_as",
+    "typeId": "adverbial_clause.manner_as",
+    "tags": [
+      "状语从句",
+      "方式：as",
+      "关注：as I showed you"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.manner_as.001",
+        "en": "Please do as I showed you.",
+        "zh": "请按照我演示的方法做。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.23: 方式：as if",
+    "subcategoryKey": "manner_as_if",
+    "typeId": "adverbial_clause.manner_as_if",
+    "tags": [
+      "状语从句",
+      "方式：as if",
+      "关注：as if he knew everything"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.manner_as_if.001",
+        "en": "He talks as if he knew everything.",
+        "zh": "他说话的样子仿佛什么都知道。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.24: 比较：than",
+    "subcategoryKey": "comparison_than",
+    "typeId": "adverbial_clause.comparison_than",
+    "tags": [
+      "状语从句",
+      "比较：than",
+      "关注：than we expected"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.comparison_than.001",
+        "en": "The trip took longer than we expected.",
+        "zh": "这趟行程比我们预期的时间更长。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.25: 比较：as ... as",
+    "subcategoryKey": "comparison_as_as",
+    "typeId": "adverbial_clause.comparison_as_as",
+    "tags": [
+      "状语从句",
+      "比较：as ... as",
+      "关注：as I had feared"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.comparison_as_as.001",
+        "en": "The task was not as difficult as I had feared.",
+        "zh": "这项任务没有我原先担心的那么难。"
+      }
+    ]
+  },
+  {
+    "category": "11: 状语从句",
+    "categoryKey": "adverbial_clause",
+    "subcategory": "11.26: 对比：while",
+    "subcategoryKey": "contrast_while",
+    "typeId": "adverbial_clause.contrast_while",
+    "tags": [
+      "状语从句",
+      "对比：while",
+      "关注：while my brother prefers planes"
+    ],
+    "examples": [
+      {
+        "id": "adverbial_clause.contrast_while.001",
+        "en": "I prefer trains, while my brother prefers planes.",
+        "zh": "我更喜欢坐火车，而我哥哥更喜欢坐飞机。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.1: 动词不定式：一般式",
+    "subcategoryKey": "infinitive_simple",
+    "typeId": "nonfinite.infinitive_simple",
+    "tags": [
+      "非谓语",
+      "动词不定式：一般式",
+      "关注：to see"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.infinitive_simple.001",
+        "en": "I hope to see you soon.",
+        "zh": "我希望很快见到你。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.2: 动词不定式：进行式",
+    "subcategoryKey": "infinitive_continuous",
+    "typeId": "nonfinite.infinitive_continuous",
+    "tags": [
+      "非谓语",
+      "动词不定式：进行式",
+      "关注：to be waiting"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.infinitive_continuous.001",
+        "en": "He seems to be waiting for someone.",
+        "zh": "他似乎正在等人。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.3: 动词不定式：完成式",
+    "subcategoryKey": "infinitive_perfect",
+    "typeId": "nonfinite.infinitive_perfect",
+    "tags": [
+      "非谓语",
+      "动词不定式：完成式",
+      "关注：to have forgotten"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.infinitive_perfect.001",
+        "en": "She seems to have forgotten the meeting.",
+        "zh": "她似乎忘了这次会议。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.4: 动词不定式：完成进行式",
+    "subcategoryKey": "infinitive_perfect_continuous",
+    "typeId": "nonfinite.infinitive_perfect_continuous",
+    "tags": [
+      "非谓语",
+      "动词不定式：完成进行式",
+      "关注：to have been working"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.infinitive_perfect_continuous.001",
+        "en": "He seems to have been working all night.",
+        "zh": "他似乎工作了一整夜。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.5: 动词不定式：被动式",
+    "subcategoryKey": "infinitive_passive",
+    "typeId": "nonfinite.infinitive_passive",
+    "tags": [
+      "非谓语",
+      "动词不定式：被动式",
+      "关注：to be updated"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.infinitive_passive.001",
+        "en": "The file needs to be updated.",
+        "zh": "这个文件需要更新。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.6: 动词不定式：完成被动式",
+    "subcategoryKey": "infinitive_perfect_passive",
+    "typeId": "nonfinite.infinitive_perfect_passive",
+    "tags": [
+      "非谓语",
+      "动词不定式：完成被动式",
+      "关注：to have been delivered"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.infinitive_perfect_passive.001",
+        "en": "The package appears to have been delivered to the wrong address.",
+        "zh": "包裹似乎被送到了错误的地址。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.7: 动词不定式：否定式",
+    "subcategoryKey": "infinitive_negative",
+    "typeId": "nonfinite.infinitive_negative",
+    "tags": [
+      "非谓语",
+      "动词不定式：否定式",
+      "关注：not to be late"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.infinitive_negative.001",
+        "en": "I promised not to be late.",
+        "zh": "我答应不迟到。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.8: for + 名词或代词 + 动词不定式",
+    "subcategoryKey": "infinitive_for_subject",
+    "typeId": "nonfinite.infinitive_for_subject",
+    "tags": [
+      "非谓语",
+      "for + 名词或代词 + 动词不定式",
+      "关注：for beginners to understand this rule"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.infinitive_for_subject.001",
+        "en": "It is difficult for beginners to understand this rule.",
+        "zh": "初学者很难理解这条规则。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.9: of + 人：评价人的行为",
+    "subcategoryKey": "infinitive_of_person",
+    "typeId": "nonfinite.infinitive_of_person",
+    "tags": [
+      "非谓语",
+      "of + 人：评价人的行为",
+      "关注：of you to help me"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.infinitive_of_person.001",
+        "en": "It was kind of you to help me.",
+        "zh": "你帮助了我，真是太好了。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.10: 疑问词 + 动词不定式",
+    "subcategoryKey": "infinitive_wh",
+    "typeId": "nonfinite.infinitive_wh",
+    "tags": [
+      "非谓语",
+      "疑问词 + 动词不定式",
+      "关注：which train to take"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.infinitive_wh.001",
+        "en": "I don't know which train to take.",
+        "zh": "我不知道该坐哪班火车。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.11: 情态动词后的不带 to 的动词不定式",
+    "subcategoryKey": "bare_infinitive_modal",
+    "typeId": "nonfinite.bare_infinitive_modal",
+    "tags": [
+      "非谓语",
+      "情态动词后的不带 to 的动词不定式",
+      "关注：leave"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.bare_infinitive_modal.001",
+        "en": "We must leave now.",
+        "zh": "我们现在必须离开。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.12: let 后的不带 to 的动词不定式",
+    "subcategoryKey": "bare_infinitive_let",
+    "typeId": "nonfinite.bare_infinitive_let",
+    "tags": [
+      "非谓语",
+      "let 后的不带 to 的动词不定式",
+      "关注：explain the problem"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.bare_infinitive_let.001",
+        "en": "Let me explain the problem.",
+        "zh": "让我解释一下这个问题。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.13: make 后的不带 to 的动词不定式",
+    "subcategoryKey": "bare_infinitive_make",
+    "typeId": "nonfinite.bare_infinitive_make",
+    "tags": [
+      "非谓语",
+      "make 后的不带 to 的动词不定式",
+      "关注：laugh"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.bare_infinitive_make.001",
+        "en": "The joke made everyone laugh.",
+        "zh": "这个笑话让大家都笑了。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.14: make 的被动结构中恢复 to",
+    "subcategoryKey": "infinitive_passive_make",
+    "typeId": "nonfinite.infinitive_passive_make",
+    "tags": [
+      "非谓语",
+      "make 的被动结构中恢复 to",
+      "关注：to wait"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.infinitive_passive_make.001",
+        "en": "We were made to wait outside.",
+        "zh": "我们被要求在外面等候。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.15: 动词不定式表示意外结果",
+    "subcategoryKey": "infinitive_result",
+    "typeId": "nonfinite.infinitive_result",
+    "tags": [
+      "非谓语",
+      "动词不定式表示意外结果",
+      "关注：only to miss the last train"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.infinitive_result.001",
+        "en": "He hurried to the station, only to miss the last train.",
+        "zh": "他匆忙赶到车站，却还是错过了末班火车。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.16: 动名词作介词宾语",
+    "subcategoryKey": "gerund_preposition",
+    "typeId": "nonfinite.gerund_preposition",
+    "tags": [
+      "非谓语",
+      "动名词作介词宾语",
+      "关注：helping me"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.gerund_preposition.001",
+        "en": "Thank you for helping me.",
+        "zh": "谢谢你帮助我。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.17: 动名词的逻辑主语：所有格",
+    "subcategoryKey": "gerund_possessive_subject",
+    "typeId": "nonfinite.gerund_possessive_subject",
+    "tags": [
+      "非谓语",
+      "动名词的逻辑主语：所有格",
+      "关注：your taking the time to explain"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.gerund_possessive_subject.001",
+        "en": "I appreciate your taking the time to explain.",
+        "zh": "感谢你花时间解释。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.18: 动名词：否定式",
+    "subcategoryKey": "gerund_negative",
+    "typeId": "nonfinite.gerund_negative",
+    "tags": [
+      "非谓语",
+      "动名词：否定式",
+      "关注：Not getting enough sleep"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.gerund_negative.001",
+        "en": "Not getting enough sleep affects my concentration.",
+        "zh": "睡眠不足会影响我的注意力。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.19: 动名词：被动式",
+    "subcategoryKey": "gerund_passive",
+    "typeId": "nonfinite.gerund_passive",
+    "tags": [
+      "非谓语",
+      "动名词：被动式",
+      "关注：being interrupted"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.gerund_passive.001",
+        "en": "She dislikes being interrupted.",
+        "zh": "她不喜欢被打断。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.20: 动名词：完成式",
+    "subcategoryKey": "gerund_perfect",
+    "typeId": "nonfinite.gerund_perfect",
+    "tags": [
+      "非谓语",
+      "动名词：完成式",
+      "关注：having copied the answer"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.gerund_perfect.001",
+        "en": "He admitted having copied the answer.",
+        "zh": "他承认抄了答案。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.21: 动名词：完成被动式",
+    "subcategoryKey": "gerund_perfect_passive",
+    "typeId": "nonfinite.gerund_perfect_passive",
+    "tags": [
+      "非谓语",
+      "动名词：完成被动式",
+      "关注：having been charged twice"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.gerund_perfect_passive.001",
+        "en": "She complained about having been charged twice.",
+        "zh": "她抱怨自己被收了两次费。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.22: 现在分词：同时发生的动作",
+    "subcategoryKey": "participle_simultaneous",
+    "typeId": "nonfinite.participle_simultaneous",
+    "tags": [
+      "非谓语",
+      "现在分词：同时发生的动作",
+      "关注：reading a book"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.participle_simultaneous.001",
+        "en": "She sat by the window, reading a book.",
+        "zh": "她坐在窗边看书。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.23: 现在分词：原因",
+    "subcategoryKey": "participle_reason",
+    "typeId": "nonfinite.participle_reason",
+    "tags": [
+      "非谓语",
+      "现在分词：原因",
+      "关注：Knowing the road was closed"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.participle_reason.001",
+        "en": "Knowing the road was closed, we took another route.",
+        "zh": "知道那条路封闭了，我们改走了另一条路线。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.24: 现在分词：结果",
+    "subcategoryKey": "participle_result",
+    "typeId": "nonfinite.participle_result",
+    "tags": [
+      "非谓语",
+      "现在分词：结果",
+      "关注：blocking the main road"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.participle_result.001",
+        "en": "The storm damaged the bridge, blocking the main road.",
+        "zh": "暴风雨损坏了桥梁，导致主路受阻。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.25: 现在分词：完成式",
+    "subcategoryKey": "participle_perfect",
+    "typeId": "nonfinite.participle_perfect",
+    "tags": [
+      "非谓语",
+      "现在分词：完成式",
+      "关注：Having finished the test"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.participle_perfect.001",
+        "en": "Having finished the test, she checked her answers.",
+        "zh": "做完试卷后，她检查了答案。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.26: 现在分词：被动式",
+    "subcategoryKey": "participle_passive",
+    "typeId": "nonfinite.participle_passive",
+    "tags": [
+      "非谓语",
+      "现在分词：被动式",
+      "关注：being repaired"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.participle_passive.001",
+        "en": "The bridge being repaired is closed to traffic.",
+        "zh": "正在维修的那座桥禁止车辆通行。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.27: 现在分词：完成被动式",
+    "subcategoryKey": "participle_perfect_passive",
+    "typeId": "nonfinite.participle_perfect_passive",
+    "tags": [
+      "非谓语",
+      "现在分词：完成被动式",
+      "关注：Having been warned about the ice"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.participle_perfect_passive.001",
+        "en": "Having been warned about the ice, we drove slowly.",
+        "zh": "得知路面结冰的警告后，我们放慢了车速。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.28: 现在分词：否定式",
+    "subcategoryKey": "participle_negative",
+    "typeId": "nonfinite.participle_negative",
+    "tags": [
+      "非谓语",
+      "现在分词：否定式",
+      "关注：Not knowing the answer"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.participle_negative.001",
+        "en": "Not knowing the answer, I asked for help.",
+        "zh": "由于不知道答案，我请求了帮助。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.29: 过去分词：条件",
+    "subcategoryKey": "past_participle_condition",
+    "typeId": "nonfinite.past_participle_condition",
+    "tags": [
+      "非谓语",
+      "过去分词：条件",
+      "关注：Used correctly"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.past_participle_condition.001",
+        "en": "Used correctly, this tool can save time.",
+        "zh": "使用得当的话，这个工具可以节省时间。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.30: 过去分词：让步",
+    "subcategoryKey": "past_participle_concession",
+    "typeId": "nonfinite.past_participle_concession",
+    "tags": [
+      "非谓语",
+      "过去分词：让步",
+      "关注：Although warned about the delay"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.past_participle_concession.001",
+        "en": "Although warned about the delay, we still arrived early.",
+        "zh": "虽然事先获知会延误，我们还是早早到了。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.31: 独立主格：名词 + 现在分词",
+    "subcategoryKey": "absolute_participle",
+    "typeId": "nonfinite.absolute_participle",
+    "tags": [
+      "非谓语",
+      "独立主格：名词 + 现在分词",
+      "关注：Weather permitting"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.absolute_participle.001",
+        "en": "Weather permitting, we will eat outside.",
+        "zh": "天气允许的话，我们就在外面吃饭。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.32: with 复合结构：现在分词",
+    "subcategoryKey": "with_participle",
+    "typeId": "nonfinite.with_participle",
+    "tags": [
+      "非谓语",
+      "with 复合结构：现在分词",
+      "关注：With the rain falling heavily"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.with_participle.001",
+        "en": "With the rain falling heavily, we decided to stay indoors.",
+        "zh": "雨下得很大，我们决定待在室内。"
+      }
+    ]
+  },
+  {
+    "category": "12: 非谓语",
+    "categoryKey": "nonfinite",
+    "subcategory": "12.33: with 复合结构：过去分词",
+    "subcategoryKey": "with_past_participle",
+    "typeId": "nonfinite.with_past_participle",
+    "tags": [
+      "非谓语",
+      "with 复合结构：过去分词",
+      "关注：With all the tickets sold"
+    ],
+    "examples": [
+      {
+        "id": "nonfinite.with_past_participle.001",
+        "en": "With all the tickets sold, the theater was full.",
+        "zh": "票已全部售出，剧院座无虚席。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.1: there be 存在句",
+    "subcategoryKey": "existential_there",
+    "typeId": "special.existential_there",
+    "tags": [
+      "特殊结构",
+      "there be 存在句",
+      "关注：There is"
+    ],
+    "examples": [
+      {
+        "id": "special.existential_there.001",
+        "en": "There is a pharmacy across the street.",
+        "zh": "街对面有一家药店。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.2: it 作句式主语：不定式后置",
+    "subcategoryKey": "anticipatory_it_subject",
+    "typeId": "special.anticipatory_it_subject",
+    "tags": [
+      "特殊结构",
+      "it 作句式主语：不定式后置",
+      "关注：句式主语 it；被评价的内容 to learn a few local phrases"
+    ],
+    "examples": [
+      {
+        "id": "special.anticipatory_it_subject.001",
+        "en": "It is useful to learn a few local phrases.",
+        "zh": "学几句当地用语很有用。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.3: it 作句式主语：从句后置",
+    "subcategoryKey": "anticipatory_it_clause",
+    "typeId": "special.anticipatory_it_clause",
+    "tags": [
+      "特殊结构",
+      "it 作句式主语：从句后置",
+      "关注：句式主语 it；被判断的内容 that we need more practice"
+    ],
+    "examples": [
+      {
+        "id": "special.anticipatory_it_clause.001",
+        "en": "It is clear that we need more practice.",
+        "zh": "很明显，我们需要更多练习。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.4: it 作句式宾语：不定式后置",
+    "subcategoryKey": "anticipatory_it_object",
+    "typeId": "special.anticipatory_it_object",
+    "tags": [
+      "特殊结构",
+      "it 作句式宾语：不定式后置",
+      "关注：句式宾语 it；被评价的内容 to hear you"
+    ],
+    "examples": [
+      {
+        "id": "special.anticipatory_it_object.001",
+        "en": "I find it difficult to hear you.",
+        "zh": "我觉得很难听清你说话。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.5: 无人称 it：天气",
+    "subcategoryKey": "weather_it",
+    "typeId": "special.weather_it",
+    "tags": [
+      "特殊结构",
+      "无人称 it：天气",
+      "关注：it 不指具体事物"
+    ],
+    "examples": [
+      {
+        "id": "special.weather_it.001",
+        "en": "It is snowing outside.",
+        "zh": "外面正在下雪。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.6: 无人称 it：时间",
+    "subcategoryKey": "time_it",
+    "typeId": "special.time_it",
+    "tags": [
+      "特殊结构",
+      "无人称 it：时间",
+      "关注：it 用于报时"
+    ],
+    "examples": [
+      {
+        "id": "special.time_it.001",
+        "en": "It is already midnight.",
+        "zh": "已经午夜了。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.7: it 强调句：强调主语",
+    "subcategoryKey": "it_cleft_subject",
+    "typeId": "special.it_cleft_subject",
+    "tags": [
+      "特殊结构",
+      "it 强调句：强调主语",
+      "关注：It was Anna who ..."
+    ],
+    "examples": [
+      {
+        "id": "special.it_cleft_subject.001",
+        "en": "It was Anna who found my passport.",
+        "zh": "是安娜找到了我的护照。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.8: it 强调句：强调状语",
+    "subcategoryKey": "it_cleft_adverbial",
+    "typeId": "special.it_cleft_adverbial",
+    "tags": [
+      "特殊结构",
+      "it 强调句：强调状语",
+      "关注：It was at the airport that ..."
+    ],
+    "examples": [
+      {
+        "id": "special.it_cleft_adverbial.001",
+        "en": "It was at the airport that I lost my wallet.",
+        "zh": "我是在机场丢了钱包的。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.9: what 分裂句",
+    "subcategoryKey": "what_cleft",
+    "typeId": "special.what_cleft",
+    "tags": [
+      "特殊结构",
+      "what 分裂句",
+      "关注：What I need is ..."
+    ],
+    "examples": [
+      {
+        "id": "special.what_cleft.001",
+        "en": "What I need is a quiet place to work.",
+        "zh": "我需要的是一个安静的工作场所。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.10: do 强调谓语",
+    "subcategoryKey": "emphatic_do",
+    "typeId": "special.emphatic_do",
+    "tags": [
+      "特殊结构",
+      "do 强调谓语",
+      "关注：do understand"
+    ],
+    "examples": [
+      {
+        "id": "special.emphatic_do.001",
+        "en": "I do understand your concern.",
+        "zh": "我确实理解你的担忧。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.11: 否定副词置首引起的部分倒装",
+    "subcategoryKey": "negative_inversion",
+    "typeId": "special.negative_inversion",
+    "tags": [
+      "特殊结构",
+      "否定副词置首引起的部分倒装",
+      "关注：Never have I seen"
+    ],
+    "examples": [
+      {
+        "id": "special.negative_inversion.001",
+        "en": "Never have I seen such clear water.",
+        "zh": "我从未见过如此清澈的水。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.12: only + 状语置首引起的部分倒装",
+    "subcategoryKey": "only_inversion",
+    "typeId": "special.only_inversion",
+    "tags": [
+      "特殊结构",
+      "only + 状语置首引起的部分倒装",
+      "关注：Only then did I realize"
+    ],
+    "examples": [
+      {
+        "id": "special.only_inversion.001",
+        "en": "Only then did I realize my mistake.",
+        "zh": "直到那时，我才意识到自己的错误。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.13: hardly ... when 倒装结构",
+    "subcategoryKey": "hardly_when",
+    "typeId": "special.hardly_when",
+    "tags": [
+      "特殊结构",
+      "hardly ... when 倒装结构",
+      "关注：Hardly had ... when"
+    ],
+    "examples": [
+      {
+        "id": "special.hardly_when.001",
+        "en": "Hardly had we sat down when the phone rang.",
+        "zh": "我们刚坐下，电话就响了。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.14: no sooner ... than 倒装结构",
+    "subcategoryKey": "no_sooner_than",
+    "typeId": "special.no_sooner_than",
+    "tags": [
+      "特殊结构",
+      "no sooner ... than 倒装结构",
+      "关注：No sooner had ... than"
+    ],
+    "examples": [
+      {
+        "id": "special.no_sooner_than.001",
+        "en": "No sooner had I opened the door than the dog ran out.",
+        "zh": "我刚打开门，狗就跑了出去。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.15: not until 置首引起的部分倒装",
+    "subcategoryKey": "not_until_inversion",
+    "typeId": "special.not_until_inversion",
+    "tags": [
+      "特殊结构",
+      "not until 置首引起的部分倒装",
+      "关注：Not until ... did we stop"
+    ],
+    "examples": [
+      {
+        "id": "special.not_until_inversion.001",
+        "en": "Not until the bus arrived did we stop worrying.",
+        "zh": "直到公交车到达，我们才不再担心。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.16: 地点状语置首引起的完全倒装",
+    "subcategoryKey": "place_inversion",
+    "typeId": "special.place_inversion",
+    "tags": [
+      "特殊结构",
+      "地点状语置首引起的完全倒装",
+      "关注：On the hill stood"
+    ],
+    "examples": [
+      {
+        "id": "special.place_inversion.001",
+        "en": "On the hill stood an old castle.",
+        "zh": "山上矗立着一座古堡。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.17: so + 助动词 + 主语：也一样",
+    "subcategoryKey": "so_agreement",
+    "typeId": "special.so_agreement",
+    "tags": [
+      "特殊结构",
+      "so + 助动词 + 主语：也一样",
+      "关注：so do I"
+    ],
+    "examples": [
+      {
+        "id": "special.so_agreement.001",
+        "en": "Anna likes hiking, and so do I.",
+        "zh": "安娜喜欢徒步，我也喜欢。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.18: neither + 助动词 + 主语：也不",
+    "subcategoryKey": "neither_agreement",
+    "typeId": "special.neither_agreement",
+    "tags": [
+      "特殊结构",
+      "neither + 助动词 + 主语：也不",
+      "关注：neither can I"
+    ],
+    "examples": [
+      {
+        "id": "special.neither_agreement.001",
+        "en": "Tom cannot swim, and neither can I.",
+        "zh": "汤姆不会游泳，我也不会。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.19: 虚拟条件：与现在事实相反",
+    "subcategoryKey": "if_second",
+    "typeId": "special.if_second",
+    "tags": [
+      "特殊结构",
+      "虚拟条件：与现在事实相反",
+      "关注：If I were ... would take"
+    ],
+    "examples": [
+      {
+        "id": "special.if_second.001",
+        "en": "If I were you, I would take the train.",
+        "zh": "如果我是你，我会坐火车。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.20: 虚拟条件：与过去事实相反",
+    "subcategoryKey": "if_third",
+    "typeId": "special.if_third",
+    "tags": [
+      "特殊结构",
+      "虚拟条件：与过去事实相反",
+      "关注：If ... had left ... would have caught"
+    ],
+    "examples": [
+      {
+        "id": "special.if_third.001",
+        "en": "If we had left earlier, we would have caught the train.",
+        "zh": "如果我们早点出发，就赶上火车了。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.21: 混合时间虚拟条件",
+    "subcategoryKey": "if_mixed",
+    "typeId": "special.if_mixed",
+    "tags": [
+      "特殊结构",
+      "混合时间虚拟条件",
+      "关注：过去条件 had accepted；现在结果 would live"
+    ],
+    "examples": [
+      {
+        "id": "special.if_mixed.001",
+        "en": "If I had accepted that job, I would live in London now.",
+        "zh": "如果当时接受了那份工作，我现在就住在伦敦了。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.22: 虚拟条件：对将来的假设",
+    "subcategoryKey": "if_were_to",
+    "typeId": "special.if_were_to",
+    "tags": [
+      "特殊结构",
+      "虚拟条件：对将来的假设",
+      "关注：were to fail"
+    ],
+    "examples": [
+      {
+        "id": "special.if_were_to.001",
+        "en": "If the system were to fail, we would switch to the backup.",
+        "zh": "假如系统发生故障，我们会切换到备用系统。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.23: 省略 if 的条件倒装：had",
+    "subcategoryKey": "conditional_had_inversion",
+    "typeId": "special.conditional_had_inversion",
+    "tags": [
+      "特殊结构",
+      "省略 if 的条件倒装：had",
+      "关注：Had I known"
+    ],
+    "examples": [
+      {
+        "id": "special.conditional_had_inversion.001",
+        "en": "Had I known about the strike, I would have changed my plans.",
+        "zh": "如果早知道要罢工，我就会改变计划了。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.24: 省略 if 的条件倒装：should",
+    "subcategoryKey": "conditional_should_inversion",
+    "typeId": "special.conditional_should_inversion",
+    "tags": [
+      "特殊结构",
+      "省略 if 的条件倒装：should",
+      "关注：Should you need"
+    ],
+    "examples": [
+      {
+        "id": "special.conditional_should_inversion.001",
+        "en": "Should you need help, please call this number.",
+        "zh": "如果你需要帮助，请拨打这个号码。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.25: 省略 if 的条件倒装：were",
+    "subcategoryKey": "conditional_were_inversion",
+    "typeId": "special.conditional_were_inversion",
+    "tags": [
+      "特殊结构",
+      "省略 if 的条件倒装：were",
+      "关注：Were I in charge"
+    ],
+    "examples": [
+      {
+        "id": "special.conditional_were_inversion.001",
+        "en": "Were I in charge, I would simplify the process.",
+        "zh": "如果由我负责，我会简化流程。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.26: wish：对现在的非现实愿望",
+    "subcategoryKey": "wish_present",
+    "typeId": "special.wish_present",
+    "tags": [
+      "特殊结构",
+      "wish：对现在的非现实愿望",
+      "关注：wish I knew"
+    ],
+    "examples": [
+      {
+        "id": "special.wish_present.001",
+        "en": "I wish I knew the answer.",
+        "zh": "真希望我知道答案。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.27: wish：对过去的遗憾",
+    "subcategoryKey": "wish_past",
+    "typeId": "special.wish_past",
+    "tags": [
+      "特殊结构",
+      "wish：对过去的遗憾",
+      "关注：wish I had brought"
+    ],
+    "examples": [
+      {
+        "id": "special.wish_past.001",
+        "en": "I wish I had brought my camera.",
+        "zh": "真希望我当时带了相机。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.28: wish + would：希望情况改变",
+    "subcategoryKey": "wish_would",
+    "typeId": "special.wish_would",
+    "tags": [
+      "特殊结构",
+      "wish + would：希望情况改变",
+      "关注：wish ... would turn down"
+    ],
+    "examples": [
+      {
+        "id": "special.wish_would.001",
+        "en": "I wish the neighbors would turn down the music.",
+        "zh": "我希望邻居把音乐声调低。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.29: if only：强烈愿望",
+    "subcategoryKey": "if_only",
+    "typeId": "special.if_only",
+    "tags": [
+      "特殊结构",
+      "if only：强烈愿望",
+      "关注：If only"
+    ],
+    "examples": [
+      {
+        "id": "special.if_only.001",
+        "en": "If only I had more time!",
+        "zh": "要是我有更多时间就好了！"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.30: 建议或要求后的虚拟语气",
+    "subcategoryKey": "mandative_subjunctive",
+    "typeId": "special.mandative_subjunctive",
+    "tags": [
+      "特殊结构",
+      "建议或要求后的虚拟语气",
+      "关注：suggested that we test"
+    ],
+    "examples": [
+      {
+        "id": "special.mandative_subjunctive.001",
+        "en": "The manager suggested that we test the system again.",
+        "zh": "经理建议我们再测试一次系统。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.31: It is time + 过去式",
+    "subcategoryKey": "it_time",
+    "typeId": "special.it_time",
+    "tags": [
+      "特殊结构",
+      "It is time + 过去式",
+      "关注：It is time we went"
+    ],
+    "examples": [
+      {
+        "id": "special.it_time.001",
+        "en": "It is time we went home.",
+        "zh": "我们该回家了。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.32: would rather + 从句",
+    "subcategoryKey": "would_rather_clause",
+    "typeId": "special.would_rather_clause",
+    "tags": [
+      "特殊结构",
+      "would rather + 从句",
+      "关注：would rather you stayed"
+    ],
+    "examples": [
+      {
+        "id": "special.would_rather_clause.001",
+        "en": "I would rather you stayed here tonight.",
+        "zh": "我更希望你今晚留在这里。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.33: would rather ... than",
+    "subcategoryKey": "would_rather_than",
+    "typeId": "special.would_rather_than",
+    "tags": [
+      "特殊结构",
+      "would rather ... than",
+      "关注：would rather walk than wait"
+    ],
+    "examples": [
+      {
+        "id": "special.would_rather_than.001",
+        "en": "I would rather walk than wait for another bus.",
+        "zh": "我宁愿步行，也不愿等下一班公交车。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.34: prefer ... to ...",
+    "subcategoryKey": "prefer_to",
+    "typeId": "special.prefer_to",
+    "tags": [
+      "特殊结构",
+      "prefer ... to ...",
+      "关注：prefer traveling by train to flying"
+    ],
+    "examples": [
+      {
+        "id": "special.prefer_to.001",
+        "en": "I prefer traveling by train to flying.",
+        "zh": "比起坐飞机，我更喜欢坐火车旅行。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.35: used to：过去的习惯或状态",
+    "subcategoryKey": "used_to",
+    "typeId": "special.used_to",
+    "tags": [
+      "特殊结构",
+      "used to：过去的习惯或状态",
+      "关注：used to live"
+    ],
+    "examples": [
+      {
+        "id": "special.used_to.001",
+        "en": "I used to live near the beach.",
+        "zh": "我以前住在海滩附近。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.36: be used to + 动名词：习惯于",
+    "subcategoryKey": "be_used_to",
+    "typeId": "special.be_used_to",
+    "tags": [
+      "特殊结构",
+      "be used to + 动名词：习惯于",
+      "关注：am used to getting up"
+    ],
+    "examples": [
+      {
+        "id": "special.be_used_to.001",
+        "en": "I am used to getting up early.",
+        "zh": "我习惯早起。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.37: get used to + 动名词：逐渐习惯",
+    "subcategoryKey": "get_used_to",
+    "typeId": "special.get_used_to",
+    "tags": [
+      "特殊结构",
+      "get used to + 动名词：逐渐习惯",
+      "关注：getting used to driving"
+    ],
+    "examples": [
+      {
+        "id": "special.get_used_to.001",
+        "en": "She is getting used to driving on the left.",
+        "zh": "她正在逐渐习惯靠左行驶。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.38: be going to：计划或意图",
+    "subcategoryKey": "be_going_to",
+    "typeId": "special.be_going_to",
+    "tags": [
+      "特殊结构",
+      "be going to：计划或意图",
+      "关注：are going to visit"
+    ],
+    "examples": [
+      {
+        "id": "special.be_going_to.001",
+        "en": "We are going to visit the museum tomorrow.",
+        "zh": "我们打算明天参观博物馆。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.39: be about to：即将发生",
+    "subcategoryKey": "be_about_to",
+    "typeId": "special.be_about_to",
+    "tags": [
+      "特殊结构",
+      "be about to：即将发生",
+      "关注：is about to leave"
+    ],
+    "examples": [
+      {
+        "id": "special.be_about_to.001",
+        "en": "The train is about to leave.",
+        "zh": "火车马上就要开了。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.40: be to：正式安排",
+    "subcategoryKey": "be_to",
+    "typeId": "special.be_to",
+    "tags": [
+      "特殊结构",
+      "be to：正式安排",
+      "关注：are to meet"
+    ],
+    "examples": [
+      {
+        "id": "special.be_to.001",
+        "en": "The two teams are to meet on Monday.",
+        "zh": "两支团队定于周一会面。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.41: get 被动结构",
+    "subcategoryKey": "get_passive",
+    "typeId": "special.get_passive",
+    "tags": [
+      "特殊结构",
+      "get 被动结构",
+      "关注：got stolen"
+    ],
+    "examples": [
+      {
+        "id": "special.get_passive.001",
+        "en": "My phone got stolen on the bus.",
+        "zh": "我的手机在公交车上被偷了。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.42: have + 宾语 + 过去分词",
+    "subcategoryKey": "have_something_done",
+    "typeId": "special.have_something_done",
+    "tags": [
+      "特殊结构",
+      "have + 宾语 + 过去分词",
+      "关注：had my laptop repaired"
+    ],
+    "examples": [
+      {
+        "id": "special.have_something_done.001",
+        "en": "I had my laptop repaired yesterday.",
+        "zh": "我昨天找人修了笔记本电脑。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.43: get + 宾语 + to do",
+    "subcategoryKey": "get_someone_to",
+    "typeId": "special.get_someone_to",
+    "tags": [
+      "特殊结构",
+      "get + 宾语 + to do",
+      "关注：got the technician to check"
+    ],
+    "examples": [
+      {
+        "id": "special.get_someone_to.001",
+        "en": "We got the technician to check the cable.",
+        "zh": "我们请技术员检查了电缆。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.44: have + 宾语 + 不带 to 的动词不定式",
+    "subcategoryKey": "have_someone_do",
+    "typeId": "special.have_someone_do",
+    "tags": [
+      "特殊结构",
+      "have + 宾语 + 不带 to 的动词不定式",
+      "关注：had me rewrite"
+    ],
+    "examples": [
+      {
+        "id": "special.have_someone_do.001",
+        "en": "The manager had me rewrite the report.",
+        "zh": "经理让我重写报告。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.45: 被动报道结构：be said to",
+    "subcategoryKey": "passive_reporting",
+    "typeId": "special.passive_reporting",
+    "tags": [
+      "特殊结构",
+      "被动报道结构：be said to",
+      "关注：is said to perform"
+    ],
+    "examples": [
+      {
+        "id": "special.passive_reporting.001",
+        "en": "The new camera is said to perform well in low light.",
+        "zh": "据说这款新相机在弱光下表现很好。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.46: It is reported that ...",
+    "subcategoryKey": "it_reported",
+    "typeId": "special.it_reported",
+    "tags": [
+      "特殊结构",
+      "It is reported that ...",
+      "关注：It is reported that"
+    ],
+    "examples": [
+      {
+        "id": "special.it_reported.001",
+        "en": "It is reported that the bridge will reopen tomorrow.",
+        "zh": "据报道，这座桥将于明天重新开放。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.47: 中动结构：主动形式表示事物特性",
+    "subcategoryKey": "middle_construction",
+    "typeId": "special.middle_construction",
+    "tags": [
+      "特殊结构",
+      "中动结构：主动形式表示事物特性",
+      "关注：sells well"
+    ],
+    "examples": [
+      {
+        "id": "special.middle_construction.001",
+        "en": "This book sells well.",
+        "zh": "这本书很畅销。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.48: not only ... but also 并列结构",
+    "subcategoryKey": "not_only_but_also",
+    "typeId": "special.not_only_but_also",
+    "tags": [
+      "特殊结构",
+      "not only ... but also 并列结构",
+      "关注：not only English but also Spanish"
+    ],
+    "examples": [
+      {
+        "id": "special.not_only_but_also.001",
+        "en": "She speaks not only English but also Spanish.",
+        "zh": "她不仅说英语，还说西班牙语。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.49: both ... and 并列结构",
+    "subcategoryKey": "both_and",
+    "typeId": "special.both_and",
+    "tags": [
+      "特殊结构",
+      "both ... and 并列结构",
+      "关注：Both the camera and the lens"
+    ],
+    "examples": [
+      {
+        "id": "special.both_and.001",
+        "en": "Both the camera and the lens are new.",
+        "zh": "相机和镜头都是新的。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.50: either ... or 并列结构",
+    "subcategoryKey": "either_or",
+    "typeId": "special.either_or",
+    "tags": [
+      "特殊结构",
+      "either ... or 并列结构",
+      "关注：either by card or in cash"
+    ],
+    "examples": [
+      {
+        "id": "special.either_or.001",
+        "en": "You can pay either by card or in cash.",
+        "zh": "你可以刷卡，也可以付现金。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.51: neither ... nor 并列结构",
+    "subcategoryKey": "neither_nor",
+    "typeId": "special.neither_nor",
+    "tags": [
+      "特殊结构",
+      "neither ... nor 并列结构",
+      "关注：Neither the key nor the spare"
+    ],
+    "examples": [
+      {
+        "id": "special.neither_nor.001",
+        "en": "Neither the key nor the spare works.",
+        "zh": "原钥匙和备用钥匙都打不开。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.52: as well as 连接附加成分",
+    "subcategoryKey": "as_well_as",
+    "typeId": "special.as_well_as",
+    "tags": [
+      "特殊结构",
+      "as well as 连接附加成分",
+      "关注：主语中心语 teacher 决定 was"
+    ],
+    "examples": [
+      {
+        "id": "special.as_well_as.001",
+        "en": "The teacher, as well as the students, was waiting outside.",
+        "zh": "老师和学生们都在外面等候。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.53: the + 比较级 ... the + 比较级",
+    "subcategoryKey": "comparative_correlative",
+    "typeId": "special.comparative_correlative",
+    "tags": [
+      "特殊结构",
+      "the + 比较级 ... the + 比较级",
+      "关注：The more ... the more"
+    ],
+    "examples": [
+      {
+        "id": "special.comparative_correlative.001",
+        "en": "The more you practice, the more confident you become.",
+        "zh": "你练习得越多，就越自信。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.54: 比较级 + and + 比较级",
+    "subcategoryKey": "comparative_progressive",
+    "typeId": "special.comparative_progressive",
+    "tags": [
+      "特殊结构",
+      "比较级 + and + 比较级",
+      "关注：darker and darker"
+    ],
+    "examples": [
+      {
+        "id": "special.comparative_progressive.001",
+        "en": "The sky grew darker and darker.",
+        "zh": "天空变得越来越暗。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.55: too ... to",
+    "subcategoryKey": "too_to",
+    "typeId": "special.too_to",
+    "tags": [
+      "特殊结构",
+      "too ... to",
+      "关注：too heavy ... to carry"
+    ],
+    "examples": [
+      {
+        "id": "special.too_to.001",
+        "en": "The bag is too heavy for me to carry.",
+        "zh": "这个包太重了，我拿不动。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.56: 形容词 + enough + to",
+    "subcategoryKey": "enough_to",
+    "typeId": "special.enough_to",
+    "tags": [
+      "特殊结构",
+      "形容词 + enough + to",
+      "关注：large enough to hold"
+    ],
+    "examples": [
+      {
+        "id": "special.enough_to.001",
+        "en": "The room is large enough to hold twenty people.",
+        "zh": "这个房间够大，能容纳二十个人。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.57: so as to 表示目的",
+    "subcategoryKey": "so_as_to",
+    "typeId": "special.so_as_to",
+    "tags": [
+      "特殊结构",
+      "so as to 表示目的",
+      "关注：so as to avoid"
+    ],
+    "examples": [
+      {
+        "id": "special.so_as_to.001",
+        "en": "We left early so as to avoid the traffic.",
+        "zh": "我们早点出发，以避开拥堵。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.58: not so much ... as",
+    "subcategoryKey": "not_so_much_as",
+    "typeId": "special.not_so_much_as",
+    "tags": [
+      "特殊结构",
+      "not so much ... as",
+      "关注：not so much the price as the quality"
+    ],
+    "examples": [
+      {
+        "id": "special.not_so_much_as.001",
+        "en": "The problem is not so much the price as the quality.",
+        "zh": "问题与其说在价格，不如说在质量。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.59: 状语从句中的省略",
+    "subcategoryKey": "clausal_ellipsis",
+    "typeId": "special.clausal_ellipsis",
+    "tags": [
+      "特殊结构",
+      "状语从句中的省略",
+      "关注：When in doubt = When you are in doubt"
+    ],
+    "examples": [
+      {
+        "id": "special.clausal_ellipsis.001",
+        "en": "When in doubt, ask for help.",
+        "zh": "有疑问时就寻求帮助。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.60: 动词短语省略",
+    "subcategoryKey": "verb_phrase_ellipsis",
+    "typeId": "special.verb_phrase_ellipsis",
+    "tags": [
+      "特殊结构",
+      "动词短语省略",
+      "关注：can 后省略 attend the meeting"
+    ],
+    "examples": [
+      {
+        "id": "special.verb_phrase_ellipsis.001",
+        "en": "I cannot attend the meeting, but Sarah can.",
+        "zh": "我不能参加会议，但萨拉可以。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.61: 并列结构中的谓语省略",
+    "subcategoryKey": "gapping",
+    "typeId": "special.gapping",
+    "tags": [
+      "特殊结构",
+      "并列结构中的谓语省略",
+      "关注：Ben 后省略 ordered"
+    ],
+    "examples": [
+      {
+        "id": "special.gapping.001",
+        "en": "Anna ordered tea, and Ben coffee.",
+        "zh": "安娜点了茶，本点了咖啡。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.62: one 替代可数名词",
+    "subcategoryKey": "substitution_one",
+    "typeId": "special.substitution_one",
+    "tags": [
+      "特殊结构",
+      "one 替代可数名词",
+      "关注：one 替代 suitcase"
+    ],
+    "examples": [
+      {
+        "id": "special.substitution_one.001",
+        "en": "This suitcase is too small, so I need a larger one.",
+        "zh": "这个行李箱太小，所以我需要一个更大的。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.63: so 替代从句内容",
+    "subcategoryKey": "substitution_so",
+    "typeId": "special.substitution_so",
+    "tags": [
+      "特殊结构",
+      "so 替代从句内容",
+      "关注：so 替代 the train will be late 的内容"
+    ],
+    "examples": [
+      {
+        "id": "special.substitution_so.001",
+        "en": "She said the train would be late, and I think so too.",
+        "zh": "她说火车会晚点，我也这么认为。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.64: 宾语前置",
+    "subcategoryKey": "fronted_object",
+    "typeId": "special.fronted_object",
+    "tags": [
+      "特殊结构",
+      "宾语前置",
+      "关注：That part of the story"
+    ],
+    "examples": [
+      {
+        "id": "special.fronted_object.001",
+        "en": "That part of the story I remember clearly.",
+        "zh": "故事的那一部分，我记得很清楚。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.65: 并列句",
+    "subcategoryKey": "compound_sentence",
+    "typeId": "special.compound_sentence",
+    "tags": [
+      "特殊结构",
+      "并列句",
+      "关注：but 连接两个并列分句"
+    ],
+    "examples": [
+      {
+        "id": "special.compound_sentence.001",
+        "en": "I wanted to stay, but the others wanted to leave.",
+        "zh": "我想留下，但其他人想离开。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.66: 并列复合句",
+    "subcategoryKey": "compound_complex",
+    "typeId": "special.compound_complex",
+    "tags": [
+      "特殊结构",
+      "并列复合句",
+      "关注：because 从属；but 并列"
+    ],
+    "examples": [
+      {
+        "id": "special.compound_complex.001",
+        "en": "I stayed inside because it was raining, but Anna went out.",
+        "zh": "因为在下雨，我待在室内，但安娜出去了。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.67: 间接问句中的陈述语序",
+    "subcategoryKey": "indirect_question",
+    "typeId": "special.indirect_question",
+    "tags": [
+      "特殊结构",
+      "间接问句中的陈述语序",
+      "关注：what time the train leaves"
+    ],
+    "examples": [
+      {
+        "id": "special.indirect_question.001",
+        "en": "Could you tell me what time the train leaves?",
+        "zh": "你能告诉我火车几点出发吗？"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.68: 间接引语：转述命令",
+    "subcategoryKey": "reported_command",
+    "typeId": "special.reported_command",
+    "tags": [
+      "特殊结构",
+      "间接引语：转述命令",
+      "关注：told us not to enter"
+    ],
+    "examples": [
+      {
+        "id": "special.reported_command.001",
+        "en": "The guard told us not to enter.",
+        "zh": "警卫叫我们不要进去。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.69: 间接引语：转述问题",
+    "subcategoryKey": "reported_question",
+    "typeId": "special.reported_question",
+    "tags": [
+      "特殊结构",
+      "间接引语：转述问题",
+      "关注：asked me where I lived"
+    ],
+    "examples": [
+      {
+        "id": "special.reported_question.001",
+        "en": "She asked me where I lived.",
+        "zh": "她问我住在哪里。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.70: It takes + 人 + 时间 + to do",
+    "subcategoryKey": "it_takes",
+    "typeId": "special.it_takes",
+    "tags": [
+      "特殊结构",
+      "It takes + 人 + 时间 + to do",
+      "关注：It takes me twenty minutes to walk"
+    ],
+    "examples": [
+      {
+        "id": "special.it_takes.001",
+        "en": "It takes me twenty minutes to walk to work.",
+        "zh": "我步行上班需要二十分钟。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.71: there seems to be",
+    "subcategoryKey": "there_seems",
+    "typeId": "special.there_seems",
+    "tags": [
+      "特殊结构",
+      "there seems to be",
+      "关注：There seems to be"
+    ],
+    "examples": [
+      {
+        "id": "special.there_seems.001",
+        "en": "There seems to be a problem with the connection.",
+        "zh": "连接似乎出了问题。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.72: be worth + 动名词",
+    "subcategoryKey": "be_worth",
+    "typeId": "special.be_worth",
+    "tags": [
+      "特殊结构",
+      "be worth + 动名词",
+      "关注：worth visiting"
+    ],
+    "examples": [
+      {
+        "id": "special.be_worth.001",
+        "en": "This small museum is worth visiting.",
+        "zh": "这家小博物馆值得参观。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.73: cannot help + 动名词",
+    "subcategoryKey": "cannot_help",
+    "typeId": "special.cannot_help",
+    "tags": [
+      "特殊结构",
+      "cannot help + 动名词",
+      "关注：couldn't help laughing"
+    ],
+    "examples": [
+      {
+        "id": "special.cannot_help.001",
+        "en": "I couldn't help laughing at his expression.",
+        "zh": "看到他的表情，我忍不住笑了。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.74: stop doing：停止正在做的事",
+    "subcategoryKey": "stop_doing",
+    "typeId": "special.stop_doing",
+    "tags": [
+      "特殊结构",
+      "stop doing：停止正在做的事",
+      "关注：stopped talking"
+    ],
+    "examples": [
+      {
+        "id": "special.stop_doing.001",
+        "en": "He stopped talking when the film started.",
+        "zh": "电影开始时，他停止了说话。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.75: stop to do：停下来做另一件事",
+    "subcategoryKey": "stop_to_do",
+    "typeId": "special.stop_to_do",
+    "tags": [
+      "特殊结构",
+      "stop to do：停下来做另一件事",
+      "关注：stopped to take"
+    ],
+    "examples": [
+      {
+        "id": "special.stop_to_do.001",
+        "en": "We stopped to take some photos.",
+        "zh": "我们停下来拍了些照片。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.76: remember doing：记得做过",
+    "subcategoryKey": "remember_doing",
+    "typeId": "special.remember_doing",
+    "tags": [
+      "特殊结构",
+      "remember doing：记得做过",
+      "关注：remember locking"
+    ],
+    "examples": [
+      {
+        "id": "special.remember_doing.001",
+        "en": "I remember locking the door before leaving.",
+        "zh": "我记得离开前锁了门。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.77: remember to do：记得去做",
+    "subcategoryKey": "remember_to_do",
+    "typeId": "special.remember_to_do",
+    "tags": [
+      "特殊结构",
+      "remember to do：记得去做",
+      "关注：remember to lock"
+    ],
+    "examples": [
+      {
+        "id": "special.remember_to_do.001",
+        "en": "Please remember to lock the door.",
+        "zh": "请记得锁门。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.78: try doing：尝试一种方法",
+    "subcategoryKey": "try_doing",
+    "typeId": "special.try_doing",
+    "tags": [
+      "特殊结构",
+      "try doing：尝试一种方法",
+      "关注：Try restarting"
+    ],
+    "examples": [
+      {
+        "id": "special.try_doing.001",
+        "en": "Try restarting the app if the screen freezes.",
+        "zh": "如果画面卡住，试试重启应用。"
+      }
+    ]
+  },
+  {
+    "category": "13: 特殊结构",
+    "categoryKey": "special",
+    "subcategory": "13.79: try to do：努力做",
+    "subcategoryKey": "try_to_do",
+    "typeId": "special.try_to_do",
+    "tags": [
+      "特殊结构",
+      "try to do：努力做",
+      "关注：tried to open"
+    ],
+    "examples": [
+      {
+        "id": "special.try_to_do.001",
+        "en": "I tried to open the window, but it was stuck.",
+        "zh": "我试着打开窗户，但它卡住了。"
+      }
+    ]
+  }
+]

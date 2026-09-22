@@ -163,6 +163,15 @@ const fallbackSentences = [
       grammarVisible: false,
       grammarExpansionMode: "main",
       grammarExpandedNodeIds: new Set(),
+      library: {
+        manifest: null,
+        items: [],
+        filteredItems: [],
+        query: "",
+        page: 0,
+        pageSize: 50,
+        loading: false
+      },
       speaking: {
         isRecognizing: false,
         isRecording: false,
@@ -230,13 +239,15 @@ const fallbackSentences = [
     function normalizeSentenceItem(item) {
       if (item && typeof item === "object") {
         return {
+          id: String(item.id || "").trim(),
+          libraryId: String(item.libraryId || "").trim(),
           text: String(item.text || item.sentence || item.english || "").trim(),
           translation: String(item.translation || item.zh || item.cn || "").trim(),
           grammar: String(item.grammar || item.grammarAnalysis || "").trim(),
           grammarRaw: String(item.grammarRaw || item.aiGrammarResponse || item.grammar || item.grammarAnalysis || "").trim()
         };
       }
-      return { text: String(item || "").trim(), translation: "", grammar: "", grammarRaw: "" };
+      return { id: "", libraryId: "", text: String(item || "").trim(), translation: "", grammar: "", grammarRaw: "" };
     }
 
     function sentenceText(item) {
@@ -554,6 +565,112 @@ const fallbackSentences = [
         seen.add(key);
         return true;
       });
+    }
+
+    const commonLibraryManifestUrl = "assets/libraries/common-english-30150/manifest.json";
+
+    function closeLibraryModal() {
+      $("libraryModal").hidden = true;
+    }
+
+    function libraryFilteredItems() {
+      const query = state.library.query.toLocaleLowerCase();
+      if (!query) return state.library.items;
+      return state.library.items.filter((item) => (
+        item.id.toLocaleLowerCase().includes(query)
+        || item.text.toLocaleLowerCase().includes(query)
+        || item.translation.toLocaleLowerCase().includes(query)
+      ));
+    }
+
+    function renderLibraryPage() {
+      const library = state.library;
+      const items = library.filteredItems;
+      const pageCount = items.length ? Math.ceil(items.length / library.pageSize) : 0;
+      library.page = pageCount ? Math.min(library.page, pageCount - 1) : 0;
+      const start = library.page * library.pageSize;
+      const visibleItems = items.slice(start, start + library.pageSize);
+
+      $("librarySentenceList").innerHTML = visibleItems.length
+        ? visibleItems.map((item) => `
+          <div class="library-sentence-row">
+            <span class="library-sentence-id">${escapeHtml(item.id)}</span>
+            <span class="library-sentence-english">${escapeHtml(item.text)}</span>
+            <span class="library-sentence-translation">${escapeHtml(item.translation)}</span>
+          </div>
+        `).join("")
+        : '<div class="empty">没有找到匹配的句子。</div>';
+      $("libraryStatus").textContent = library.query
+        ? `找到 ${items.length.toLocaleString()} 条，显示第 ${items.length ? start + 1 : 0}-${Math.min(start + library.pageSize, items.length)} 条`
+        : `共 ${items.length.toLocaleString()} 条，显示第 ${items.length ? start + 1 : 0}-${Math.min(start + library.pageSize, items.length)} 条`;
+      $("libraryPageInput").value = pageCount ? library.page + 1 : 0;
+      $("libraryPageInput").max = Math.max(1, pageCount);
+      $("libraryPageInput").disabled = !pageCount;
+      $("libraryPageCount").textContent = `/ ${pageCount} 页`;
+      $("libraryFirstPageBtn").disabled = library.page <= 0;
+      $("libraryPreviousPageBtn").disabled = library.page <= 0;
+      $("libraryNextPageBtn").disabled = !pageCount || library.page >= pageCount - 1;
+      $("libraryLastPageBtn").disabled = !pageCount || library.page >= pageCount - 1;
+    }
+
+    function goToLibraryPage(pageIndex) {
+      const pageCount = Math.ceil(state.library.filteredItems.length / state.library.pageSize);
+      if (!pageCount) return;
+      state.library.page = Math.max(0, Math.min(Number(pageIndex) || 0, pageCount - 1));
+      renderLibraryPage();
+      $("librarySentenceList").scrollTop = 0;
+    }
+
+    function goToEnteredLibraryPage() {
+      const enteredPage = Number.parseInt($("libraryPageInput").value, 10);
+      goToLibraryPage(Number.isFinite(enteredPage) ? enteredPage - 1 : state.library.page);
+    }
+
+    function filterLibrary() {
+      state.library.query = $("librarySearchInput").value.trim();
+      state.library.page = 0;
+      state.library.filteredItems = libraryFilteredItems();
+      renderLibraryPage();
+    }
+
+    async function loadCommonLibrary() {
+      if (state.library.items.length || state.library.loading) return;
+      state.library.loading = true;
+      $("libraryStatus").textContent = "正在加载常用句库...";
+      $("librarySentenceList").innerHTML = '<div class="empty">正在读取 30,150 条双语句子...</div>';
+      try {
+        const result = await window.langLSRWLibrary.load(commonLibraryManifestUrl);
+        state.library.manifest = result.manifest;
+        state.library.items = result.items;
+        state.library.filteredItems = result.items;
+        $("libraryName").textContent = result.manifest.name;
+        $("libraryMeta").textContent = `${result.items.length.toLocaleString()} 条 · 英文原句 + 中文翻译 · v${result.manifest.version}`;
+        $("useLibraryBtn").disabled = false;
+        renderLibraryPage();
+      } catch (error) {
+        $("libraryStatus").textContent = `加载失败：${error.message || error}`;
+        $("librarySentenceList").innerHTML = '<div class="empty">请确认通过本地服务器打开网页，且句库文件完整。</div>';
+      } finally {
+        state.library.loading = false;
+      }
+    }
+
+    async function openLibraryModal() {
+      closeTopMenus();
+      clearPeekedWord();
+      if (state.speaking.holdActive) scheduleStopSpeakingPractice();
+      $("libraryModal").hidden = false;
+      await loadCommonLibrary();
+      $("librarySearchInput").focus();
+    }
+
+    function useCommonLibrary() {
+      if (!state.library.items.length || !state.library.manifest) return;
+      state.sentences = normalizeSentenceList(state.library.items);
+      state.index = 0;
+      $("sourceStatus").textContent = `当前句库：${state.library.manifest.name}（${state.sentences.length.toLocaleString()}句）`;
+      closeLibraryModal();
+      resetCurrent(true);
     }
 
     async function importSentenceFile(file) {
@@ -1246,8 +1363,8 @@ const fallbackSentences = [
 
     function runSpeakingShortcut(actionId) {
       const actions = {
-        previousSentence: () => switchSpeakingSentence(state.index - 1),
-        nextSentence: () => switchSpeakingSentence(state.index + 1),
+        previousSentence: () => switchSpeakingSentence(pickSentenceIndex(-1)),
+        nextSentence: () => switchSpeakingSentence(pickSentenceIndex(1)),
         speakModel: () => speakText(currentSentence()),
         togglePractice: () => {
           if (state.speaking.isRecognizing || state.speaking.isRecording) {
@@ -1274,7 +1391,10 @@ const fallbackSentences = [
     }
 
     function isTopMenuOpen() {
-      return Boolean(document.querySelector(".source-menu[open], .shortcut-menu[open], .font-menu[open], .user-menu[open]"));
+      return Boolean(
+        document.querySelector(".source-menu[open], .shortcut-menu[open], .font-menu[open], .user-menu[open]")
+        || !$("libraryModal").hidden
+      );
     }
 
     function handleGlobalShortcut(event) {
@@ -2217,7 +2337,16 @@ const fallbackSentences = [
       if (shouldSpeak) autoSpeakCurrentSentence();
     }
 
-    function pickNextIndex() {
+    function mistakeSentenceIndices() {
+      const mistakenSentences = new Set(state.history
+        .filter((item) => item.errorCount > 0)
+        .map((item) => item.sentence));
+      return state.sentences
+        .map((item, index) => mistakenSentences.has(sentenceText(item)) ? index : -1)
+        .filter((index) => index >= 0);
+    }
+
+    function pickSentenceIndex(direction = 1) {
       const mode = $("modeSelect").value;
       if (mode === "random") {
         if (state.sentences.length <= 1) return 0;
@@ -2229,14 +2358,19 @@ const fallbackSentences = [
       }
 
       if (mode === "mistakes") {
-        const mistake = state.history.find((item) => item.errorCount > 0);
-        if (mistake) {
-          const found = state.sentences.findIndex((item) => sentenceText(item) === mistake.sentence);
-          if (found >= 0) return found;
+        const indices = mistakeSentenceIndices();
+        if (indices.length) {
+          const currentPosition = indices.indexOf(state.index);
+          if (currentPosition < 0) return direction < 0 ? indices[indices.length - 1] : indices[0];
+          return indices[(currentPosition + direction + indices.length) % indices.length];
         }
       }
 
-      return (state.index + 1) % state.sentences.length;
+      return (state.index + direction + state.sentences.length) % state.sentences.length;
+    }
+
+    function pickNextIndex() {
+      return pickSentenceIndex(1);
     }
 
     function toggleSourceVisibility() {
@@ -2257,7 +2391,7 @@ const fallbackSentences = [
     }
 
     function goPreviousSentence() {
-      state.index = (state.index - 1 + state.sentences.length) % state.sentences.length;
+      state.index = pickSentenceIndex(-1);
       resetCurrent(true);
     }
 
@@ -2358,6 +2492,24 @@ const fallbackSentences = [
 
     $("saveTranslationBtn").addEventListener("click", saveCurrentTranslation);
     $("saveAiSettingsBtn").addEventListener("click", saveAiSettings);
+    $("openLibraryBtn").addEventListener("click", openLibraryModal);
+    $("closeLibraryBtn").addEventListener("click", closeLibraryModal);
+    $("libraryModal").addEventListener("pointerdown", (event) => {
+      if (event.target === $("libraryModal")) closeLibraryModal();
+    });
+    $("librarySearchInput").addEventListener("input", filterLibrary);
+    $("libraryFirstPageBtn").addEventListener("click", () => goToLibraryPage(0));
+    $("libraryPreviousPageBtn").addEventListener("click", () => goToLibraryPage(state.library.page - 1));
+    $("libraryNextPageBtn").addEventListener("click", () => goToLibraryPage(state.library.page + 1));
+    $("libraryLastPageBtn").addEventListener("click", () => goToLibraryPage(Number.MAX_SAFE_INTEGER));
+    $("libraryPageInput").addEventListener("change", goToEnteredLibraryPage);
+    $("libraryPageInput").addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      goToEnteredLibraryPage();
+      $("libraryPageInput").select();
+    });
+    $("useLibraryBtn").addEventListener("click", useCommonLibrary);
     $("analyzeGrammarBtn").addEventListener("click", () => analyzeCurrentGrammar());
     $("analyzeGrammarBtn").addEventListener("contextmenu", openGrammarContextMenu);
     $("reanalyzeGrammarBtn").addEventListener("click", () => {
@@ -2400,10 +2552,10 @@ const fallbackSentences = [
     });
     holdSpeakBtn.addEventListener("click", (event) => event.preventDefault());
     $("previousUnifiedBtn").addEventListener("click", () => {
-      switchSpeakingSentence(state.index - 1, true);
+      switchSpeakingSentence(pickSentenceIndex(-1), true);
     });
     $("nextUnifiedBtn").addEventListener("click", () => {
-      switchSpeakingSentence(state.index + 1, true);
+      switchSpeakingSentence(pickSentenceIndex(1), true);
     });
 
     targetEl.addEventListener("mousedown", (event) => {
@@ -2623,6 +2775,7 @@ const fallbackSentences = [
 
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
+        closeLibraryModal();
         closeAiTextModal();
         closeTopMenus();
         closeGrammarContextMenu();

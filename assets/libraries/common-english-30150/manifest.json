@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "common-english-30150",
+  "name": "常用英语句库",
+  "type": "common",
+  "version": "1.0.0",
+  "language": "en",
+  "translationLanguage": "zh-CN",
+  "format": "tsv",
+  "file": "sentences.tsv",
+  "count": 30150,
+  "columns": ["id", "text", "translation"]
+}
