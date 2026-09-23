@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260923-6">
+  <link rel="stylesheet" href="src/styles.css?v=20260923-17">
 
 </head>
 <body data-theme="black" data-active-page="listenPage">
@@ -49,55 +49,9 @@
           <button class="page-tab" type="button" data-page-target="writePage">写</button>
         </nav>
       </div>
-      <div class="module-tools" aria-label="当前页面工具">
-        <button id="openLibraryBtn" type="button">句库</button>
-        <details class="shortcut-menu">
-          <summary>快捷键</summary>
-          <div class="shortcut-popover settings">
-            <div id="shortcutList" class="shortcut-list"></div>
-            <div class="button-row">
-              <button id="resetShortcutsBtn" type="button">恢复默认</button>
-              <button id="clearShortcutFocusBtn" type="button">完成设置</button>
-            </div>
-            <div class="small-note">点击按键框后，按下你想设置的组合键。</div>
-          </div>
-        </details>
-        <details class="source-menu">
-          <summary>源文件</summary>
-          <div class="source-popover settings">
-            <label>
-              导入 txt / lrc 句库
-              <input id="fileInput" type="file" accept=".txt,.lrc,text/plain">
-            </label>
-            <div id="sourceStatus" class="source-status">当前句库：默认示例</div>
-            <label>
-              粘贴句子（一行一句）
-              <textarea id="sentenceInput" class="sentence-list" spellcheck="false"></textarea>
-            </label>
-            <button id="useTextBtn" type="button">使用粘贴内容</button>
-            <label>
-              当前句翻译
-              <textarea id="translationInput" class="sentence-list" spellcheck="false" placeholder="没有翻译时，可以在这里补充当前句中文提示。"></textarea>
-            </label>
-            <button id="saveTranslationBtn" type="button">保存当前句翻译</button>
-            <label>
-              AI 接口地址
-              <input id="aiBaseUrlInput" type="text" placeholder="https://api.openai.com/v1">
-            </label>
-            <label>
-              AI 模型
-              <input id="aiModelInput" type="text" placeholder="gpt-5.6-luna">
-            </label>
-            <label>
-              API Key
-              <input id="aiApiKeyInput" type="password" autocomplete="off" placeholder="只保存在当前浏览器">
-            </label>
-            <button id="saveAiSettingsBtn" type="button">保存 AI 设置</button>
-          </div>
-        </details>
-      </div>
       <div class="toolbar">
         <button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="切换背景模式">黑夜</button>
+        <button id="openLibraryBtn" type="button">句库</button>
         <details class="font-menu">
           <summary>设置</summary>
           <div class="font-popover settings">
@@ -121,6 +75,32 @@
               </select>
             </label>
             <button id="resetFontSettingsBtn" type="button">恢复默认字体</button>
+            <div class="settings-section">
+              <div class="settings-section-title">快捷键</div>
+              <div id="shortcutList" class="shortcut-list"></div>
+              <div class="button-row">
+                <button id="resetShortcutsBtn" type="button">恢复默认</button>
+                <button id="clearShortcutFocusBtn" type="button">完成设置</button>
+              </div>
+              <div class="small-note">点击按键框后，按下你想设置的组合键。</div>
+            </div>
+            <div class="settings-section">
+              <div class="settings-section-title">AI 接口</div>
+              <label>
+                接口地址
+                <input id="aiBaseUrlInput" type="text" placeholder="https://api.openai.com/v1">
+              </label>
+              <label>
+                模型
+                <input id="aiModelInput" type="text" placeholder="gpt-5.6-luna">
+              </label>
+              <label>
+                API Key
+                <input id="aiApiKeyInput" type="password" autocomplete="off" placeholder="只保存在当前浏览器">
+              </label>
+              <button id="saveAiSettingsBtn" type="button">保存 AI 设置</button>
+              <div id="aiSettingsStatus" class="small-note" aria-live="polite"></div>
+            </div>
             <div class="settings-section">
               <div class="settings-section-title">句子成分颜色</div>
               <div id="grammarColorGrid" class="grammar-color-grid">
@@ -179,7 +159,7 @@
             <div class="sentence-tool-row">
               <select id="modeSelect" class="compact-select" aria-label="练习模式">
                 <option value="ordered">顺序</option>
-                <option value="random">随机</option>
+                <option value="random" selected>随机</option>
                 <option value="mistakes">错句</option>
               </select>
               <button id="previousUnifiedBtn" class="sentence-nav-button" type="button" aria-label="上一句">◀</button>
@@ -207,14 +187,9 @@
                 <strong>1.00x</strong><span>原速</span>
               </div>
               <button id="speakBtn" type="button">朗读</button>
-              <select id="grammarFrameworkSelect" class="grammar-framework-select" aria-label="语法分析体系">
-                <option value="traditional" selected>传统语法</option>
-                <option value="sieg2" disabled>SIEG2</option>
-              </select>
               <button id="analyzeGrammarBtn" type="button">Ai语法分析</button>
-              <button id="showAiPromptBtn" type="button">查看Ai询问</button>
-              <button id="showAiResponseBtn" type="button">查看Ai回复</button>
               <div class="sentence-tool-end">
+                <div id="currentLibraryIndicator" class="current-library-indicator">句库：示例句库</div>
                 <div id="counter" class="counter"></div>
                 <details class="help-popover">
                   <summary>?</summary>
@@ -318,13 +293,14 @@
       </div>
       <div class="library-layout">
         <aside class="library-sidebar" aria-label="句库分类">
-          <button class="library-type-button is-active" type="button" aria-current="true">常用句库</button>
+          <button id="librarySettingsTabBtn" class="library-type-button library-settings-button" type="button">自定义句库</button>
+          <button id="commonLibraryTabBtn" class="library-type-button is-active" type="button" aria-current="true">常用句库</button>
           <button class="library-type-button" type="button" disabled>情景句库</button>
           <button class="library-type-button" type="button" disabled>语法句库</button>
           <button class="library-type-button" type="button" disabled>等级句库</button>
           <button class="library-type-button" type="button" disabled>短语句库</button>
         </aside>
-        <section class="library-content">
+        <section id="commonLibraryPanel" class="library-content">
           <div class="library-summary">
             <div class="library-title-line">
               <h3 id="libraryName">常用英语句库</h3>
@@ -347,6 +323,21 @@
             <span id="libraryStatus" class="library-status" aria-live="polite">尚未加载</span>
           </div>
         </section>
+        <section id="librarySettingsPanel" class="library-settings-panel" hidden>
+          <div>
+            <h3>自定义句库</h3>
+            <div id="sourceStatus" class="source-status">当前句库：默认示例</div>
+          </div>
+          <label>
+            导入 txt / lrc 句库
+            <input id="fileInput" type="file" accept=".txt,.lrc,text/plain">
+          </label>
+          <label>
+            粘贴句子（一行一句）
+            <textarea id="sentenceInput" class="sentence-list" spellcheck="false"></textarea>
+          </label>
+          <button id="useTextBtn" type="button">使用粘贴内容</button>
+        </section>
       </div>
     </div>
   </div>
@@ -363,14 +354,17 @@
     </div>
   </div>
   <div id="grammarContextMenu" class="grammar-context-menu" role="menu" hidden>
+    <button id="traditionalGrammarMenuBtn" class="is-selected" type="button" role="menuitemradio" aria-checked="true">✓ 传统语法</button>
+    <button type="button" role="menuitemradio" aria-checked="false" disabled>SIEG2（未启用）</button>
+    <div class="grammar-context-separator"></div>
+    <button id="showAiPromptMenuBtn" type="button" role="menuitem">查看 Ai 询问</button>
+    <button id="showAiResponseMenuBtn" type="button" role="menuitem">查看 Ai 回复</button>
+    <div class="grammar-context-separator"></div>
     <button id="reanalyzeGrammarBtn" type="button" role="menuitem">重新分析</button>
-  </div>
-  <div id="aiTextContextMenu" class="grammar-context-menu" role="menu" hidden>
-    <button id="copyAiContextBtn" type="button" role="menuitem">复制</button>
   </div>
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
-  <script src="src/app.js?v=20260923-2"></script>
+  <script src="src/app.js?v=20260923-12"></script>
 </body>
 </html>
 

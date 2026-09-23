@@ -111,6 +111,11 @@ const fallbackSentences = [
       { id: "holdSpeaking", label: "按住说话" }
     ];
 
+    const fixedMouseActions = [
+      { label: "朗读所点单词", control: "鼠标中键" },
+      { label: "临时查看隐藏单词", control: "按住左键" }
+    ];
+
     function loadShortcutSettings() {
       const saved = JSON.parse(localStorage.getItem("langLSRWShortcuts") || "null") || {};
       if (saved.peekCurrentWord === "[" && saved.speakCurrentWord === "]") {
@@ -159,8 +164,11 @@ const fallbackSentences = [
       grammarColors: loadStoredGrammarColors(),
       theme: localStorage.getItem("langLSRWTheme") || "black",
       activePage: loadActiveLearningPage(),
+      currentLibraryLabel: "示例句库",
       grammarLoading: false,
       grammarVisible: false,
+      translationEditing: false,
+      translationDraft: "",
       grammarExpansionMode: "main",
       grammarExpandedNodeIds: new Set(),
       library: {
@@ -204,6 +212,13 @@ const fallbackSentences = [
     const counterEl = $("counter");
     const errorsEl = $("errors");
     const historyEl = $("history");
+
+    function setCurrentLibrary(label, statusText = "") {
+      state.currentLibraryLabel = label || "自定义句库";
+      $("currentLibraryIndicator").textContent = `句库：${state.currentLibraryLabel}`;
+      $("currentLibraryIndicator").title = `当前使用：${state.currentLibraryLabel}`;
+      if (statusText) $("sourceStatus").textContent = statusText;
+    }
 
     function normalizeUsername(name) {
       return name.trim().replace(/\s+/g, " ").slice(0, 24);
@@ -378,6 +393,7 @@ const fallbackSentences = [
           ? [state.currentUser, ...users]
           : users,
         currentIndex: state.index,
+        currentLibraryLabel: state.currentLibraryLabel,
         sentences: normalizeSentenceList(state.sentences).map(sentenceWithCachedGrammar),
         histories
       };
@@ -427,13 +443,16 @@ const fallbackSentences = [
 
       state.sentences = normalizeSentenceList(data.sentences);
       if (!state.sentences.length) state.sentences = normalizeSentenceList(fallbackSentences);
+      setCurrentLibrary(
+        typeof data.currentLibraryLabel === "string" ? data.currentLibraryLabel : "备份句库",
+        `当前句库：备份数据（${state.sentences.length}句）`
+      );
       state.sentences.forEach((item) => {
         if (item.grammar) saveGrammarCache(item.text, item.grammar, item.grammarRaw || item.grammar);
       });
       state.index = Number.isInteger(data.currentIndex)
         ? Math.min(Math.max(0, data.currentIndex), state.sentences.length - 1)
         : 0;
-      $("sourceStatus").textContent = `当前句库：备份数据（${state.sentences.length}句）`;
       loadUserHistory();
       $("userBadge").textContent = state.currentUser ? `用户：${state.currentUser}` : "未登录";
       resetCurrent();
@@ -573,6 +592,17 @@ const fallbackSentences = [
       $("libraryModal").hidden = true;
     }
 
+    function setLibraryView(view) {
+      const showSettings = view === "settings";
+      $("commonLibraryPanel").hidden = showSettings;
+      $("librarySettingsPanel").hidden = !showSettings;
+      $("commonLibraryTabBtn").classList.toggle("is-active", !showSettings);
+      $("librarySettingsTabBtn").classList.toggle("is-active", showSettings);
+      $("commonLibraryTabBtn").setAttribute("aria-current", showSettings ? "false" : "true");
+      $("librarySettingsTabBtn").setAttribute("aria-current", showSettings ? "true" : "false");
+      if (!showSettings) $("librarySearchInput").focus();
+    }
+
     function libraryFilteredItems() {
       const query = state.library.query.toLocaleLowerCase();
       if (!query) return state.library.items;
@@ -660,6 +690,7 @@ const fallbackSentences = [
       clearPeekedWord();
       if (state.speaking.holdActive) scheduleStopSpeakingPractice();
       $("libraryModal").hidden = false;
+      setLibraryView("common");
       await loadCommonLibrary();
       $("librarySearchInput").focus();
     }
@@ -668,7 +699,7 @@ const fallbackSentences = [
       if (!state.library.items.length || !state.library.manifest) return;
       state.sentences = normalizeSentenceList(state.library.items);
       state.index = 0;
-      $("sourceStatus").textContent = `当前句库：${state.library.manifest.name}（${state.sentences.length.toLocaleString()}句）`;
+      setCurrentLibrary("常用句库", `当前句库：${state.library.manifest.name}（${state.sentences.length.toLocaleString()}句）`);
       closeLibraryModal();
       resetCurrent(true);
     }
@@ -687,26 +718,19 @@ const fallbackSentences = [
       }
       state.sentences = sentences;
       state.index = 0;
-      $("sourceStatus").textContent = sentenceSourceLabel(file.name, sentences);
+      setCurrentLibrary("自定义句库", sentenceSourceLabel(file.name, sentences));
       resetCurrent(true);
       closeTopMenus();
       return true;
     }
 
-    async function tryLoadDefaultFile() {
-      try {
-        const response = await fetch("assets/materials/default-bilingual.lrc", { cache: "no-store" });
-        if (!response.ok) return;
-        const text = await response.text();
-        const sentences = parseSentences(text, "assets/materials/default-bilingual.lrc");
-        if (sentences.length) {
-          state.sentences = sentences;
-          $("sourceStatus").textContent = sentenceSourceLabel("assets/materials/default-bilingual.lrc", sentences);
-          render();
-        }
-      } catch {
-        // Direct file opening may block fetch; import and paste still work.
-      }
+    async function tryLoadDefaultLibrary() {
+      await loadCommonLibrary();
+      if (!state.library.items.length || !state.library.manifest) return;
+      state.sentences = normalizeSentenceList(state.library.items);
+      state.index = 0;
+      setCurrentLibrary("常用句库", `当前句库：${state.library.manifest.name}（${state.sentences.length.toLocaleString()}句）`);
+      render();
     }
 
     function currentSentence() {
@@ -717,12 +741,30 @@ const fallbackSentences = [
       return sentenceTranslation(state.sentences[state.index]);
     }
 
+    function beginTranslationEdit() {
+      state.translationEditing = true;
+      state.translationDraft = currentTranslation();
+      renderTarget();
+      const editor = $("translationInlineInput");
+      if (editor) {
+        editor.focus();
+        editor.select();
+      }
+    }
+
+    function cancelTranslationEdit() {
+      state.translationEditing = false;
+      state.translationDraft = "";
+      renderTarget();
+    }
+
     function saveCurrentTranslation() {
       const item = normalizeSentenceItem(state.sentences[state.index]);
-      item.translation = $("translationInput").value.trim();
+      item.translation = state.translationDraft.trim();
       state.sentences[state.index] = item;
+      state.translationEditing = false;
+      state.translationDraft = "";
       renderTarget();
-      $("sourceStatus").textContent = `当前句库：已更新当前句翻译（${state.sentences.length}句）`;
     }
 
     function currentGrammar() {
@@ -795,49 +837,6 @@ const fallbackSentences = [
         return;
       }
       openAiTextModal("Ai询问", buildGrammarPrompt(sentence, currentTranslation()));
-    }
-
-    let aiTextContextKind = "";
-
-    function closeAiTextContextMenu() {
-      $("aiTextContextMenu").hidden = true;
-      aiTextContextKind = "";
-    }
-
-    function openAiTextContextMenu(event, kind) {
-      event.preventDefault();
-      closeGrammarContextMenu();
-      closeTopMenus();
-      aiTextContextKind = kind;
-      const menu = $("aiTextContextMenu");
-      const buttonRect = event.currentTarget.getBoundingClientRect();
-      menu.hidden = false;
-      const menuRect = menu.getBoundingClientRect();
-      const requestedX = event.clientX || buttonRect.left;
-      const requestedY = event.clientY || buttonRect.bottom;
-      menu.style.left = `${Math.max(8, Math.min(requestedX, window.innerWidth - menuRect.width - 8))}px`;
-      menu.style.top = `${Math.max(8, Math.min(requestedY, window.innerHeight - menuRect.height - 8))}px`;
-      $("copyAiContextBtn").focus();
-    }
-
-    async function copyAiContextText() {
-      const kind = aiTextContextKind;
-      closeAiTextContextMenu();
-      const sentence = currentSentence();
-      const raw = kind === "prompt"
-        ? (sentence ? buildGrammarPrompt(sentence, currentTranslation()) : "")
-        : currentGrammarRaw();
-      if (!raw) {
-        alert(kind === "prompt" ? "当前没有可复制的 Ai 询问。" : "当前句还没有 Ai 语法分析回复。");
-        return;
-      }
-      const text = kind === "response" ? formatAiResponseForDisplay(raw) : raw;
-      try {
-        await navigator.clipboard.writeText(text);
-        $("sourceStatus").textContent = kind === "prompt" ? "已复制 Ai 询问。" : "已复制 Ai 回复。";
-      } catch {
-        openAiTextModal(kind === "prompt" ? "Ai询问" : "Ai回复", text);
-      }
     }
 
     function renderGrammarAnalysis() {
@@ -1043,7 +1042,7 @@ const fallbackSentences = [
       }
       const settings = mergedAiSettings();
       if (!settings.apiKey) {
-        alert("请先在“源文件”里填写并保存 API Key。");
+        alert("请先在“设置”的“AI 接口”中填写并保存 API Key。");
         return;
       }
       state.grammarLoading = true;
@@ -1101,7 +1100,6 @@ const fallbackSentences = [
     function openGrammarContextMenu(event) {
       event.preventDefault();
       if (state.grammarLoading || !currentSentence()) return;
-      closeAiTextContextMenu();
       closeTopMenus();
       const menu = $("grammarContextMenu");
       const buttonRect = $("analyzeGrammarBtn").getBoundingClientRect();
@@ -1111,7 +1109,7 @@ const fallbackSentences = [
       const requestedY = event.clientY || buttonRect.bottom;
       menu.style.left = `${Math.max(8, Math.min(requestedX, window.innerWidth - menuRect.width - 8))}px`;
       menu.style.top = `${Math.max(8, Math.min(requestedY, window.innerHeight - menuRect.height - 8))}px`;
-      $("reanalyzeGrammarBtn").focus();
+      $("traditionalGrammarMenuBtn").focus();
     }
 
     function sentenceSourceLabel(name, sentences) {
@@ -1163,7 +1161,7 @@ const fallbackSentences = [
       };
       state.aiSettings = settings;
       localStorage.setItem("langLSRWAISettings", JSON.stringify(settings));
-      $("sourceStatus").textContent = "AI 设置已保存。";
+      $("aiSettingsStatus").textContent = "AI 设置已保存。";
     }
 
     function applyTheme(theme) {
@@ -1337,12 +1335,19 @@ const fallbackSentences = [
     }
 
     function renderShortcutSettings() {
-      $("shortcutList").innerHTML = shortcutActions.map((action) => `
+      const keyboardRows = shortcutActions.map((action) => `
         <label class="shortcut-row">
           <span>${escapeHtml(action.label)}</span>
           <input class="shortcut-input" type="text" readonly data-shortcut="${escapeHtml(action.id)}" value="${escapeHtml(state.shortcuts[action.id] || "")}" placeholder="未设置">
         </label>
       `).join("");
+      const mouseRows = fixedMouseActions.map((action) => `
+        <div class="shortcut-row">
+          <span>${escapeHtml(action.label)}</span>
+          <span class="shortcut-input shortcut-fixed">${escapeHtml(action.control)}</span>
+        </div>
+      `).join("");
+      $("shortcutList").innerHTML = keyboardRows + mouseRows;
     }
 
     function runShortcutAction(actionId) {
@@ -1392,7 +1397,7 @@ const fallbackSentences = [
 
     function isTopMenuOpen() {
       return Boolean(
-        document.querySelector(".source-menu[open], .shortcut-menu[open], .font-menu[open], .user-menu[open]")
+        document.querySelector(".font-menu[open], .user-menu[open]")
         || !$("libraryModal").hidden
       );
     }
@@ -2171,11 +2176,22 @@ const fallbackSentences = [
       const hasGrammarCache = Boolean(currentGrammar());
       $("analyzeGrammarBtn").classList.toggle("has-cache", hasGrammarCache);
       $("analyzeGrammarBtn").title = hasGrammarCache
-        ? "当前句已有缓存：左键查看，右键重新分析"
-        : "左键分析当前句，右键重新分析";
+        ? "当前句已有缓存：左键查看，右键更多选项"
+        : "左键分析当前句，右键更多选项";
       const showTranslation = $("showTranslationToggle").checked;
       const translationText = translation ? escapeHtml(translation) : "暂无翻译";
-      const translationHtml = `<div class="translation-prompt ${showTranslation ? "" : "is-hidden"}">${showTranslation ? translationText : "&nbsp;"}</div>`;
+      const translationHtml = state.translationEditing
+        ? `<div class="translation-prompt translation-editor">
+            <textarea id="translationInlineInput" spellcheck="false" aria-label="编辑当前句翻译">${escapeHtml(state.translationDraft)}</textarea>
+            <div class="translation-editor-actions">
+              <button type="button" data-translation-action="save">保存</button>
+              <button type="button" data-translation-action="cancel">取消</button>
+            </div>
+          </div>`
+        : `<div class="translation-prompt ${showTranslation ? "" : "is-hidden"}">
+            <span aria-hidden="${showTranslation ? "false" : "true"}">${translationText}</span>
+            <button class="translation-edit-button" type="button" data-translation-action="edit">编辑</button>
+          </div>`;
       const grammarHtml = renderGrammarAnalysis();
       const input = typingBox.value;
       const inputChars = getCheckChars(input);
@@ -2198,7 +2214,6 @@ const fallbackSentences = [
         }).join("");
         targetEl.innerHTML = `<span class="target-english">${html || "&nbsp;"}</span>${translationHtml}${grammarHtml}`;
         counterEl.textContent = `${state.index + 1} / ${state.sentences.length}`;
-        $("translationInput").value = translation;
         return;
       }
 
@@ -2228,7 +2243,6 @@ const fallbackSentences = [
 
       targetEl.innerHTML = `<span class="target-english">${html || "&nbsp;"}</span>${translationHtml}${grammarHtml}`;
       counterEl.textContent = `${state.index + 1} / ${state.sentences.length}`;
-      $("translationInput").value = translation;
     }
 
     function renderTypedPreview() {
@@ -2309,6 +2323,8 @@ const fallbackSentences = [
     function switchSpeakingSentence(nextIndex, shouldSpeak = false) {
       stopSpeakingPractice();
       state.index = (nextIndex + state.sentences.length) % state.sentences.length;
+      state.translationEditing = false;
+      state.translationDraft = "";
       state.grammarVisible = false;
       resetGrammarInteraction();
       typingBox.value = "";
@@ -2324,6 +2340,8 @@ const fallbackSentences = [
     }
 
     function resetCurrent(shouldSpeak = false) {
+      state.translationEditing = false;
+      state.translationDraft = "";
       state.grammarVisible = false;
       resetGrammarInteraction();
       typingBox.value = "";
@@ -2400,7 +2418,7 @@ const fallbackSentences = [
     }
 
     function closeTopMenus(exceptMenu = null) {
-      document.querySelectorAll(".source-menu, .shortcut-menu, .font-menu, .user-menu").forEach((menu) => {
+      document.querySelectorAll(".font-menu, .user-menu").forEach((menu) => {
         if (menu !== exceptMenu) menu.removeAttribute("open");
       });
     }
@@ -2486,14 +2504,15 @@ const fallbackSentences = [
       if (!sentences.length) return;
       state.sentences = sentences;
       state.index = 0;
-      $("sourceStatus").textContent = sentenceSourceLabel("粘贴内容", sentences);
+      setCurrentLibrary("自定义句库", sentenceSourceLabel("粘贴内容", sentences));
       resetCurrent(true);
     });
 
-    $("saveTranslationBtn").addEventListener("click", saveCurrentTranslation);
     $("saveAiSettingsBtn").addEventListener("click", saveAiSettings);
     $("openLibraryBtn").addEventListener("click", openLibraryModal);
     $("closeLibraryBtn").addEventListener("click", closeLibraryModal);
+    $("commonLibraryTabBtn").addEventListener("click", () => setLibraryView("common"));
+    $("librarySettingsTabBtn").addEventListener("click", () => setLibraryView("settings"));
     $("libraryModal").addEventListener("pointerdown", (event) => {
       if (event.target === $("libraryModal")) closeLibraryModal();
     });
@@ -2512,15 +2531,19 @@ const fallbackSentences = [
     $("useLibraryBtn").addEventListener("click", useCommonLibrary);
     $("analyzeGrammarBtn").addEventListener("click", () => analyzeCurrentGrammar());
     $("analyzeGrammarBtn").addEventListener("contextmenu", openGrammarContextMenu);
+    $("traditionalGrammarMenuBtn").addEventListener("click", closeGrammarContextMenu);
+    $("showAiPromptMenuBtn").addEventListener("click", () => {
+      closeGrammarContextMenu();
+      showCurrentAiPrompt();
+    });
+    $("showAiResponseMenuBtn").addEventListener("click", () => {
+      closeGrammarContextMenu();
+      showCurrentAiResponse();
+    });
     $("reanalyzeGrammarBtn").addEventListener("click", () => {
       closeGrammarContextMenu();
       analyzeCurrentGrammar({ force: true });
     });
-    $("showAiPromptBtn").addEventListener("click", showCurrentAiPrompt);
-    $("showAiResponseBtn").addEventListener("click", showCurrentAiResponse);
-    $("showAiPromptBtn").addEventListener("contextmenu", (event) => openAiTextContextMenu(event, "prompt"));
-    $("showAiResponseBtn").addEventListener("contextmenu", (event) => openAiTextContextMenu(event, "response"));
-    $("copyAiContextBtn").addEventListener("click", copyAiContextText);
     $("copyAiTextBtn").addEventListener("click", copyAiText);
     $("closeAiTextModalBtn").addEventListener("click", closeAiTextModal);
     $("aiTextModal").addEventListener("pointerdown", (event) => {
@@ -2576,6 +2599,15 @@ const fallbackSentences = [
     });
 
     targetEl.addEventListener("click", (event) => {
+      const translationAction = event.target.closest("[data-translation-action]");
+      if (translationAction) {
+        const action = translationAction.dataset.translationAction;
+        if (action === "edit") beginTranslationEdit();
+        if (action === "save") saveCurrentTranslation();
+        if (action === "cancel") cancelTranslationEdit();
+        return;
+      }
+
       const levelButton = event.target.closest("[data-grammar-level]");
       if (levelButton) {
         setGrammarExpansion(levelButton.dataset.grammarLevel);
@@ -2592,6 +2624,21 @@ const fallbackSentences = [
         return;
       }
 
+    });
+
+    targetEl.addEventListener("input", (event) => {
+      if (event.target.id === "translationInlineInput") state.translationDraft = event.target.value;
+    });
+
+    targetEl.addEventListener("keydown", (event) => {
+      if (event.target.id !== "translationInlineInput") return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        cancelTranslationEdit();
+      } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        saveCurrentTranslation();
+      }
     });
 
     targetEl.addEventListener("auxclick", (event) => {
@@ -2751,7 +2798,7 @@ const fallbackSentences = [
       showLogin();
     });
 
-    document.querySelectorAll(".source-menu, .shortcut-menu, .font-menu, .user-menu").forEach((menu) => {
+    document.querySelectorAll(".font-menu, .user-menu").forEach((menu) => {
       menu.addEventListener("toggle", () => {
         if (menu.open) {
           closeTopMenus(menu);
@@ -2762,14 +2809,11 @@ const fallbackSentences = [
     });
 
     document.addEventListener("pointerdown", (event) => {
-      if (!event.target.closest(".source-menu, .shortcut-menu, .font-menu, .user-menu")) {
+      if (!event.target.closest(".font-menu, .user-menu")) {
         closeTopMenus();
       }
       if (!event.target.closest(".grammar-context-menu, #analyzeGrammarBtn")) {
         closeGrammarContextMenu();
-      }
-      if (!event.target.closest("#aiTextContextMenu, #showAiPromptBtn, #showAiResponseBtn")) {
-        closeAiTextContextMenu();
       }
     });
 
@@ -2779,14 +2823,11 @@ const fallbackSentences = [
         closeAiTextModal();
         closeTopMenus();
         closeGrammarContextMenu();
-        closeAiTextContextMenu();
       }
     });
 
     window.addEventListener("resize", closeGrammarContextMenu);
     window.addEventListener("scroll", closeGrammarContextMenu, true);
-    window.addEventListener("resize", closeAiTextContextMenu);
-    window.addEventListener("scroll", closeAiTextContextMenu, true);
 
     let dragDepth = 0;
 
@@ -2843,7 +2884,7 @@ const fallbackSentences = [
       showLogin();
     }
 
-    tryLoadDefaultFile();
+    tryLoadDefaultLibrary();
     render();
 
 
