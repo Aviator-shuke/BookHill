@@ -16,9 +16,14 @@
         stored = {};
       }
       const bundled = window.langLSRWCloudConfig || {};
+      const bundledConfig = {
+        supabaseUrl: String(bundled.supabaseUrl || "").trim().replace(/\/$/, ""),
+        supabaseAnonKey: String(bundled.supabaseAnonKey || "").trim()
+      };
+      if (bundledConfig.supabaseUrl && bundledConfig.supabaseAnonKey) return bundledConfig;
       return {
-        supabaseUrl: String(stored.supabaseUrl || bundled.supabaseUrl || "").trim().replace(/\/$/, ""),
-        supabaseAnonKey: String(stored.supabaseAnonKey || bundled.supabaseAnonKey || "").trim()
+        supabaseUrl: String(stored.supabaseUrl || "").trim().replace(/\/$/, ""),
+        supabaseAnonKey: String(stored.supabaseAnonKey || "").trim()
       };
     }
 

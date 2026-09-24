@@ -159,7 +159,9 @@ const fallbackSentences = [
       cloudUser: null,
       cloudSyncing: false,
       cloudLastSyncedAt: "",
+      cloudSwitchingToLocal: false,
       history: [],
+      learnedCount: 0,
       voices: [],
       lastSpokenWordKey: "",
       replaySlowStep: 0,
@@ -231,8 +233,20 @@ const fallbackSentences = [
       return name.trim().replace(/\s+/g, " ").slice(0, 24);
     }
 
-    function userStorageKey(name = state.currentUser) {
-      return `langLSRWHistory:${name}`;
+    function userStorageKey(name) {
+      if (name !== undefined) return `langLSRWHistory:${name}`;
+      if (state.cloudUser?.id) return `langLSRWHistory:cloud:${state.cloudUser.id}`;
+      return `langLSRWHistory:${state.currentUser}`;
+    }
+
+    function learnedCountStorageKey(name) {
+      if (name !== undefined) return `langLSRWLearnedCount:${name}`;
+      if (state.cloudUser?.id) return `langLSRWLearnedCount:cloud:${state.cloudUser.id}`;
+      return `langLSRWLearnedCount:${state.currentUser || "guest"}`;
+    }
+
+    function hasActiveIdentity() {
+      return Boolean(state.cloudUser?.id || state.currentUser);
     }
 
     function getKnownUsers() {
@@ -246,15 +260,31 @@ const fallbackSentences = [
     }
 
     function loadUserHistory() {
-      if (!state.currentUser) {
+      if (!hasActiveIdentity()) {
         state.history = [];
         return;
       }
       state.history = JSON.parse(localStorage.getItem(userStorageKey()) || "[]");
     }
 
+    function loadLearnedCount() {
+      const stored = Number(localStorage.getItem(learnedCountStorageKey()));
+      state.learnedCount = Number.isFinite(stored) && stored >= 0 ? Math.floor(stored) : 0;
+    }
+
+    function saveLearnedCount() {
+      localStorage.setItem(learnedCountStorageKey(), String(state.learnedCount));
+      scheduleCloudSync();
+    }
+
+    function incrementLearnedCount() {
+      state.learnedCount += 1;
+      saveLearnedCount();
+      renderLearnedCount();
+    }
+
     function saveUserHistory() {
-      if (!state.currentUser) return;
+      if (!hasActiveIdentity()) return;
       localStorage.setItem(userStorageKey(), JSON.stringify(state.history));
       scheduleCloudSync();
     }
@@ -269,15 +299,18 @@ const fallbackSentences = [
     function renderCloudAuthState(message = "") {
       const configured = Boolean(window.langLSRWCloudAuth?.isConfigured());
       const signedIn = Boolean(state.cloudUser);
+      $("cloudUserMenuSection").hidden = !signedIn;
+      $("localUserMenuSection").hidden = signedIn || !state.currentUser;
       $("googleLoginBtn").disabled = !configured || signedIn;
       $("openCloudSettingsBtn").hidden = configured;
-      $("syncCloudBtn").disabled = !signedIn || state.cloudSyncing;
       $("cloudLogoutBtn").disabled = !signedIn || state.cloudSyncing;
+      $("clearUserBtn").disabled = signedIn || !state.currentUser;
+      $("clearUserBtn").title = signedIn ? "请先退出 Google 登录" : "删除当前浏览器中的本机用户和练习记录";
       $("cloudLoginStatus").textContent = message || (signedIn
         ? `已登录：${cloudDisplayName()}`
-        : configured ? "可使用 Google 登录" : "请先在设置中配置 Supabase");
+        : configured ? "" : "请先在设置中配置 Supabase");
       $("cloudAccountStatus").textContent = signedIn
-        ? `${cloudDisplayName()}${state.cloudLastSyncedAt ? ` · 已同步 ${new Date(state.cloudLastSyncedAt).toLocaleString()}` : " · 等待同步"}`
+        ? `${cloudDisplayName()}${state.cloudLastSyncedAt ? ` · 云端保存 ${new Date(state.cloudLastSyncedAt).toLocaleString()}` : " · 尚未保存"}`
         : "未登录云账号";
       if (signedIn) $("userBadge").textContent = `用户：${cloudDisplayName()}`;
     }
@@ -314,6 +347,7 @@ const fallbackSentences = [
           grammarColors: state.grammarColors
         },
         history: state.history.slice(0, 500),
+        learnedCount: state.learnedCount,
         customLibrary
       };
     }
@@ -344,6 +378,8 @@ const fallbackSentences = [
         }
         state.history = Array.isArray(payload.history) ? payload.history.slice(0, 500) : [];
         localStorage.setItem(userStorageKey(), JSON.stringify(state.history));
+        state.learnedCount = Math.max(0, Math.floor(Number(payload.learnedCount) || 0));
+        localStorage.setItem(learnedCountStorageKey(), String(state.learnedCount));
         if (payload.customLibrary?.sentences?.length) {
           state.sentences = normalizeSentenceList(payload.customLibrary.sentences);
           state.index = Math.min(Math.max(0, Number(payload.customLibrary.index) || 0), state.sentences.length - 1);
@@ -358,12 +394,12 @@ const fallbackSentences = [
     async function pushCloudState() {
       if (!state.cloudUser || state.cloudSyncing) return;
       state.cloudSyncing = true;
-      renderCloudAuthState("正在同步...");
+      renderCloudAuthState("正在保存到云端...");
       try {
         state.cloudLastSyncedAt = await window.langLSRWCloudAuth.saveState(state.cloudUser.id, collectCloudPayload());
-        renderCloudAuthState("同步完成");
+        renderCloudAuthState("已保存到云端");
       } catch (error) {
-        renderCloudAuthState(`同步失败：${error.message || error}`);
+        renderCloudAuthState(`云端保存失败：${error.message || error}`);
       } finally {
         state.cloudSyncing = false;
         renderCloudAuthState();
@@ -376,23 +412,45 @@ const fallbackSentences = [
       cloudSyncTimer = setTimeout(pushCloudState, 1200);
     }
 
+    async function resetWorkspaceForCloudIdentity() {
+      await loadCommonLibrary();
+      if (!state.library.items.length || !state.library.manifest) return;
+      state.sentences = normalizeSentenceList(state.library.items);
+      state.index = 0;
+      state.currentLibraryLabel = "常用句库";
+      $("currentLibraryIndicator").textContent = "句库：常用句库";
+      $("currentLibraryIndicator").title = "当前使用：常用句库";
+      $("sourceStatus").textContent = `当前句库：${state.library.manifest.name}（${state.sentences.length.toLocaleString()}句）`;
+    }
+
+    function completeCloudSignOut(message = "已退出 Google") {
+      state.cloudUser = null;
+      state.cloudLastSyncedAt = "";
+      state.currentUser = "";
+      state.history = [];
+      state.learnedCount = 0;
+      localStorage.removeItem("langLSRWCurrentUser");
+      $("userBadge").textContent = "未登录";
+      renderCloudAuthState(message);
+      render();
+      showLogin();
+    }
+
     async function activateCloudUser(user) {
       if (!user || state.cloudUser?.id === user.id) return;
-      const localSeed = collectCloudPayload();
       state.cloudUser = user;
-      const localName = normalizeUsername(user.email || cloudDisplayName(user) || user.id);
-      state.currentUser = localName;
-      localStorage.setItem("langLSRWCurrentUser", localName);
-      saveKnownUser(localName);
-      localStorage.setItem(userStorageKey(), JSON.stringify(localSeed.history || []));
+      state.currentUser = "";
+      localStorage.removeItem("langLSRWCurrentUser");
+      loadUserHistory();
+      loadLearnedCount();
       renderCloudAuthState("正在读取云端数据...");
       try {
+        await resetWorkspaceForCloudIdentity();
         const remote = await window.langLSRWCloudAuth.loadState(user.id);
         if (remote?.payload) {
           state.cloudLastSyncedAt = remote.updated_at || remote.payload.savedAt || "";
           applyCloudPayload(remote.payload);
         } else {
-          state.history = localSeed.history || [];
           await pushCloudState();
         }
         hideLogin();
@@ -411,8 +469,8 @@ const fallbackSentences = [
           if (event === "SIGNED_OUT") {
             state.cloudUser = null;
             state.cloudLastSyncedAt = "";
-            $("userBadge").textContent = state.currentUser ? `用户：${state.currentUser}` : "未登录";
-            renderCloudAuthState("已退出云账号，本机数据仍然保留");
+            if (state.cloudSwitchingToLocal) return;
+            completeCloudSignOut();
           }
         });
         const user = await window.langLSRWCloudAuth.getUser();
@@ -447,7 +505,10 @@ const fallbackSentences = [
 
     async function signOutCloudUser() {
       try {
+        clearTimeout(cloudSyncTimer);
+        await pushCloudState();
         await window.langLSRWCloudAuth.signOut();
+        if (state.cloudUser) completeCloudSignOut();
       } catch (error) {
         renderCloudAuthState(`退出失败：${error.message || error}`);
       }
@@ -579,11 +640,14 @@ const fallbackSentences = [
     function collectBackupData() {
       const users = getKnownUsers();
       const histories = {};
+      const learnedCounts = {};
       users.forEach((user) => {
         histories[user] = JSON.parse(localStorage.getItem(userStorageKey(user)) || "[]");
+        learnedCounts[user] = Math.max(0, Math.floor(Number(localStorage.getItem(learnedCountStorageKey(user))) || 0));
       });
       if (state.currentUser && !users.includes(state.currentUser)) {
         histories[state.currentUser] = state.history;
+        learnedCounts[state.currentUser] = state.learnedCount;
       }
 
       return {
@@ -597,7 +661,8 @@ const fallbackSentences = [
         currentIndex: state.index,
         currentLibraryLabel: state.currentLibraryLabel,
         sentences: normalizeSentenceList(state.sentences).map(sentenceWithCachedGrammar),
-        histories
+        histories,
+        learnedCounts
       };
     }
 
@@ -635,6 +700,8 @@ const fallbackSentences = [
       uniqueUsers.forEach((user) => {
         const history = Array.isArray(data.histories[user]) ? data.histories[user] : [];
         localStorage.setItem(userStorageKey(user), JSON.stringify(history.slice(0, 500)));
+        const learnedCount = Math.max(0, Math.floor(Number(data.learnedCounts?.[user]) || 0));
+        localStorage.setItem(learnedCountStorageKey(user), String(learnedCount));
       });
 
       localStorage.setItem("langLSRWKnownUsers", JSON.stringify(uniqueUsers));
@@ -656,7 +723,9 @@ const fallbackSentences = [
         ? Math.min(Math.max(0, data.currentIndex), state.sentences.length - 1)
         : 0;
       loadUserHistory();
+      loadLearnedCount();
       $("userBadge").textContent = state.currentUser ? `用户：${state.currentUser}` : "未登录";
+      renderCloudAuthState();
       resetCurrent();
       hideLogin();
       alert("数据已导入。");
@@ -678,7 +747,7 @@ const fallbackSentences = [
       $("loginScreen").classList.add("active");
       $("usernameInput").value = state.currentUser || "";
       renderLoginUsers();
-      setTimeout(() => $("usernameInput").focus(), 0);
+      $("loginScreen").focus({ preventScroll: true });
     }
 
     function hideLogin() {
@@ -690,13 +759,16 @@ const fallbackSentences = [
       if (!username) return;
       if (state.cloudUser) {
         clearTimeout(cloudSyncTimer);
+        state.cloudSwitchingToLocal = true;
         try {
+          await pushCloudState();
           await window.langLSRWCloudAuth.signOut();
         } catch {
           // Local mode remains available even if the remote session cannot be closed.
         }
         state.cloudUser = null;
         state.cloudLastSyncedAt = "";
+        state.cloudSwitchingToLocal = false;
       }
       const isNewUser = !getKnownUsers().includes(username);
       if (isNewUser) resetSettingsToDefault();
@@ -704,8 +776,10 @@ const fallbackSentences = [
       localStorage.setItem("langLSRWCurrentUser", username);
       saveKnownUser(username);
       loadUserHistory();
+      loadLearnedCount();
       resetCurrent();
       $("userBadge").textContent = `用户：${username}`;
+      renderCloudAuthState();
       hideLogin();
     }
 
@@ -719,13 +793,16 @@ const fallbackSentences = [
       if (!confirmed) return;
 
       localStorage.removeItem(userStorageKey(username));
+      localStorage.removeItem(learnedCountStorageKey(username));
       const users = getKnownUsers().filter((user) => user !== username);
       localStorage.setItem("langLSRWKnownUsers", JSON.stringify(users));
       localStorage.removeItem("langLSRWCurrentUser");
       state.currentUser = "";
       state.history = [];
+      state.learnedCount = 0;
       resetSettingsToDefault();
       $("userBadge").textContent = "未登录";
+      renderCloudAuthState();
       renderHistory();
       closeTopMenus();
       showLogin();
@@ -1691,7 +1768,10 @@ const fallbackSentences = [
     function runSpeakingShortcut(actionId) {
       const actions = {
         previousSentence: () => switchSpeakingSentence(pickSentenceIndex(-1)),
-        nextSentence: () => switchSpeakingSentence(pickSentenceIndex(1)),
+        nextSentence: () => {
+          incrementLearnedCount();
+          switchSpeakingSentence(pickSentenceIndex(1));
+        },
         speakModel: () => speakText(currentSentence()),
         togglePractice: () => {
           if (state.speaking.isRecognizing || state.speaking.isRecording) {
@@ -2767,7 +2847,12 @@ const fallbackSentences = [
       renderTypedPreview();
       renderErrors();
       renderHistory();
+      renderLearnedCount();
       renderSpeakingPage();
+    }
+
+    function renderLearnedCount() {
+      $("learnedCount").textContent = `已学习：${state.learnedCount}`;
     }
 
     function switchSpeakingSentence(nextIndex, shouldSpeak = false) {
@@ -2855,6 +2940,7 @@ const fallbackSentences = [
     }
 
     function goNextSentence() {
+      incrementLearnedCount();
       state.index = pickNextIndex();
       resetCurrent(true);
     }
@@ -2890,6 +2976,7 @@ const fallbackSentences = [
       state.history.unshift(record);
       state.history = state.history.slice(0, 80);
       saveUserHistory();
+      incrementLearnedCount();
       state.index = pickNextIndex();
       resetCurrent(true);
     }
@@ -2969,7 +3056,6 @@ const fallbackSentences = [
       settingsMenu.open = true;
       setTimeout(() => $("supabaseUrlInput").focus(), 0);
     });
-    $("syncCloudBtn").addEventListener("click", pushCloudState);
     $("cloudLogoutBtn").addEventListener("click", signOutCloudUser);
     $("installDictionaryBtn").addEventListener("click", installDictionary);
     $("testDictionaryBtn").addEventListener("click", testDictionary);
@@ -3043,6 +3129,7 @@ const fallbackSentences = [
       switchSpeakingSentence(pickSentenceIndex(-1), true);
     });
     $("nextUnifiedBtn").addEventListener("click", () => {
+      incrementLearnedCount();
       switchSpeakingSentence(pickSentenceIndex(1), true);
     });
 
@@ -3274,7 +3361,11 @@ const fallbackSentences = [
       loginAs(button.dataset.user);
     });
 
-    $("switchUserBtn").addEventListener("click", () => {
+    $("switchUserBtn").addEventListener("click", async () => {
+      if (state.cloudUser) {
+        await signOutCloudUser();
+        return;
+      }
       showLogin();
     });
 
@@ -3358,6 +3449,7 @@ const fallbackSentences = [
 
     if (state.currentUser) {
       loadUserHistory();
+      loadLearnedCount();
       $("userBadge").textContent = `用户：${state.currentUser}`;
       $("loginScreen").classList.remove("active");
     } else {

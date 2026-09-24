@@ -4,37 +4,44 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260924-19">
+  <link rel="stylesheet" href="src/styles.css?v=20260925-20">
 
 </head>
 <body data-theme="black" data-active-page="listenPage">
-  <section id="loginScreen" class="login-screen active" aria-label="登录">
+  <section id="loginScreen" class="login-screen active" aria-label="登录" tabindex="-1">
     <div class="login-card">
-      <h1>进入练习</h1>
-      <p>登录云账号以跨设备同步，或继续使用本机用户。</p>
-      <button id="googleLoginBtn" class="google-login-button" type="button" disabled>
-        <span class="google-mark" aria-hidden="true">G</span>
-        使用 Google 登录
-      </button>
-      <div id="cloudLoginStatus" class="cloud-login-status" aria-live="polite">尚未配置云登录</div>
-      <button id="openCloudSettingsBtn" class="login-settings-button" type="button">配置云登录</button>
-      <div class="login-divider"><span>本机用户</span></div>
-      <ul class="login-tips">
-        <li>输入已有用户名，会载入当前浏览器中的该用户记录。</li>
-        <li>本机用户不会自动跨设备同步。</li>
-      </ul>
-      <form id="loginForm" class="login-form">
-        <label>
-          用户
-          <input id="usernameInput" type="text" autocomplete="username" maxlength="24" placeholder="例如: Shuke">
-        </label>
-        <button class="primary" type="submit">开始练习</button>
-        <button id="loginImportDataBtn" type="button">导入用户</button>
-        <div>
-          <div class="small-note">最近用户</div>
-          <div id="loginUsers" class="login-users"></div>
-        </div>
-      </form>
+      <h1>langLSRW</h1>
+      <div class="login-options">
+        <section class="login-option" aria-labelledby="cloudLoginTitle">
+          <h2 id="cloudLoginTitle" class="login-option-description">登录账号·云端同步</h2>
+          <div class="login-option-content cloud-login-content">
+            <button id="googleLoginBtn" class="google-login-button" type="button" disabled>
+              <span class="google-mark" aria-hidden="true">G</span>
+              使用 Google 登录
+            </button>
+            <div id="cloudLoginStatus" class="cloud-login-status" aria-live="polite">尚未配置云登录</div>
+            <button id="openCloudSettingsBtn" class="login-settings-button" type="button">配置云登录</button>
+          </div>
+        </section>
+        <div class="login-choice-or" aria-hidden="true">or</div>
+        <section class="login-option" aria-labelledby="localLoginTitle">
+          <h2 id="localLoginTitle" class="login-option-description">本机用户·离线保存</h2>
+          <div class="login-option-content">
+            <form id="loginForm" class="login-form">
+              <label>
+                用户
+                <input id="usernameInput" type="text" autocomplete="username" maxlength="24" placeholder="例如: Shuke">
+              </label>
+              <button class="primary" type="submit">开始练习</button>
+              <button id="loginImportDataBtn" type="button">导入用户</button>
+              <div>
+                <div class="small-note">最近用户</div>
+                <div id="loginUsers" class="login-users"></div>
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
     </div>
   </section>
 
@@ -162,26 +169,32 @@
               </div>
               <button id="resetGrammarColorsBtn" type="button">恢复默认颜色</button>
             </div>
+            <div class="settings-section">
+              <div class="settings-section-title">设置管理</div>
+              <button id="resetSettingsBtn" type="button">重置全部设置</button>
+            </div>
           </div>
         </details>
         <details class="user-menu">
           <summary id="userBadge">未登录</summary>
-          <div class="user-popover settings">
-            <div id="cloudAccountStatus" class="cloud-account-status">未登录云账号</div>
-            <div class="button-row">
-              <button id="syncCloudBtn" type="button" disabled>立即同步</button>
-              <button id="cloudLogoutBtn" type="button" disabled>退出云账号</button>
-            </div>
-            <div class="settings-separator"></div>
-            <button id="switchUserBtn" type="button">切换用户</button>
-            <div class="button-row">
-              <button id="exportDataBtn" type="button">导出数据</button>
-              <button id="importDataBtn" type="button">导入数据</button>
-            </div>
-            <button id="resetSettingsBtn" type="button">重置设置</button>
-            <button id="clearUserBtn" type="button">清除用户</button>
-            <input id="dataImportInput" type="file" accept=".json,application/json" hidden>
-            <div class="small-note">备份会包含当前用户和练习记录。</div>
+          <div class="user-popover">
+            <section id="cloudUserMenuSection" class="account-menu-section" hidden>
+              <div class="account-menu-title">登录账户</div>
+              <div id="cloudAccountStatus" class="cloud-account-status">未登录云账号</div>
+              <button id="cloudLogoutBtn" type="button" disabled>退出 Google</button>
+              <div class="small-note">登录时读取云端数据；练习记录或设置变化后自动保存。</div>
+            </section>
+            <section id="localUserMenuSection" class="account-menu-section" hidden>
+              <div class="account-menu-title">本机用户</div>
+              <button id="switchUserBtn" type="button">切换本机用户</button>
+              <div class="account-menu-actions">
+                <button id="exportDataBtn" type="button">导出数据</button>
+                <button id="importDataBtn" type="button">导入数据</button>
+              </div>
+              <input id="dataImportInput" type="file" accept=".json,application/json" hidden>
+              <div class="small-note">数据以 JSON 文件保存在本机，不会上传到云端。</div>
+              <button id="clearUserBtn" class="danger-button" type="button">删除当前本机用户</button>
+            </section>
           </div>
         </details>
       </div>
@@ -226,6 +239,7 @@
               <button id="analyzeGrammarBtn" type="button">Ai语法分析</button>
               <div class="sentence-tool-end">
                 <div id="currentLibraryIndicator" class="current-library-indicator">句库：示例句库</div>
+                <div id="learnedCount" class="learned-count">已学习：0</div>
                 <div id="counter" class="counter"></div>
                 <details class="help-popover">
                   <summary>?</summary>
@@ -399,16 +413,12 @@
     <button id="reanalyzeGrammarBtn" type="button" role="menuitem">重新分析</button>
   </div>
   <div id="dictionaryLookupPopover" class="dictionary-lookup-popover" role="dialog" aria-label="单词查询" hidden></div>
-  <script src="src/cloud-config.js?v=20260924-1"></script>
+  <script src="src/cloud-config.js?v=20260925-1"></script>
   <script src="src/vendor/supabase/supabase-2.117.1.js"></script>
-  <script src="src/auth/supabase-auth-service.js?v=20260924-2"></script>
+  <script src="src/auth/supabase-auth-service.js?v=20260925-1"></script>
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
   <script src="src/dictionary/dictionary-service.js?v=20260924-1"></script>
-  <script src="src/app.js?v=20260924-5"></script>
+  <script src="src/app.js?v=20260925-1"></script>
 </body>
 </html>
-
-
-
-

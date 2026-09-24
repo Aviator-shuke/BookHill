@@ -18,9 +18,11 @@ Local testing remains the default development workflow. Run `tools/start-langlsr
 - Separate English-content and Chinese UI/translation font settings.
 - Configurable colors for all grammar roles, with a color picker, editable HEX value, common color palette, local persistence, and reset defaults.
 - Installable local ECDICT foundation using SQLite WASM in a dedicated Worker and browser OPFS persistence. The page accesses it through a storage-independent dictionary service rather than issuing SQL from UI code.
-- Supabase Google authentication and first-stage cross-device sync are implemented. The Supabase SDK is pinned locally, production public configuration is supplied by Vercel environment variables, and deployed Google sign-in has been verified.
+- Supabase Google authentication and first-stage cross-device sync are implemented. The Supabase SDK is pinned locally, localhost has a browser-safe default project URL and publishable key, production public configuration is supplied by Vercel environment variables, and deployed Google sign-in has been verified.
 - `npm run build` creates a disposable `dist/` containing only browser runtime files and injects public Supabase configuration from Vercel build environment variables.
 - Top controls for theme, library, settings, and users. Shortcut configuration lives inside Settings, and learning shortcuts are suspended while Settings, the user menu, or the library dialog is open.
+- The user menu is identity-specific: a Google session shows only account status and sign-out, while a local session shows only local-user switching, JSON import/export, and deletion. Local backup controls no longer appear in global Settings or in cloud-account mode. Global reset remains under Settings.
+- The streamlined login screen centers the `langLSRW` name above `登录账号·云端同步` and `本机用户·离线保存`, presented as two distinct choices separated by a prominent `or`. Opening the screen moves focus to the neutral login container so browser-restored input focus cannot preselect either choice. Once the user hovers or focuses a choice, it gains a restrained lift and strongly softens the inactive choice; pointer hover takes precedence over retained input focus. Google login, local practice, and user import use the same outlined hover, keyboard-focus, and pressed feedback. Narrow screens stack the choices vertically.
 - Independent sentence-library dialog with library categories, search, paginated preview, and a direct practice action.
 - Local static server launcher that resolves the project directory from the BAT file location and only stops a Python `http.server` occupying port 8848.
 
@@ -54,9 +56,10 @@ Local testing remains the default development workflow. Run `tools/start-langlsr
 - Source-file import and pasted sentence input are grouped under Library > Custom Library; current-sentence translations are edited directly in the practice translation area, and AI provider settings are grouped under the global Settings menu.
 - The practice toolbar always shows the active sentence-library type (`常用句库`, `自定义句库`, or a restored backup label), and backup files retain that provenance.
 - Previous/next sentence navigation, British English as the default accent, voice selection, normal and slower replay, word replay, and automatic reading.
+- Per-user learned count increments whenever the learner advances to the next sentence, including the next button, listening or speaking shortcuts, and completion-driven advancement. Repeated or randomly revisited sentences count again; previous-sentence navigation and passive sentence changes do not count. The value persists locally and participates in backup/restore and Supabase sync.
 - Dictation input with accuracy, speed, pause, fluency, and error statistics plus recent records.
 - Configurable keyboard shortcuts.
-- Google cloud accounts coexist with local-only users. Initial cloud sync covers settings, the signed-in user's practice history, and a current custom sentence library; the built-in common library and AI API key are excluded.
+- Google cloud accounts and local-only users are separate identity types. Cloud caches are keyed by the immutable Supabase user ID and are never registered as email-named local users. Signing out clears the active identity and returns to user selection; choosing a local user is always explicit. Initial cloud persistence covers settings, the signed-in user's practice history, learned count, and a current custom sentence library; the built-in common library and AI API key are excluded.
 
 ### Speaking
 
@@ -154,7 +157,9 @@ Verified on 2026-09-25:
 
 - The production Vercel deployment is configured with the Supabase project URL and publishable key.
 - Supabase Google OAuth returns successfully to `https://book-hill.vercel.app/`, and production Google login works.
+- The local site at `http://localhost:8848/` receives the same Supabase public client configuration; its redirect URL is registered in Supabase Auth for local Google-login testing.
 - Cross-device state synchronization remains to be tested independently of authentication.
+- The learned-count implementation passes JavaScript syntax validation, clean-diff validation, and the production `npm run build` flow.
 
 ## Next Priorities
 

@@ -2,6 +2,30 @@
       scrollbar-gutter: stable;
     }
 
+    .login-option button {
+      transition:
+        color 150ms ease,
+        background-color 150ms ease,
+        border-color 150ms ease,
+        box-shadow 150ms ease,
+        transform 150ms ease;
+    }
+
+    .login-screen .login-option button:not(:disabled):hover,
+    .login-screen .login-option button:not(:disabled):focus-visible {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 16%, var(--panel));
+      color: var(--ink);
+      box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 20%, transparent);
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .login-screen .login-option button:not(:disabled):active {
+      box-shadow: none;
+      transform: translateY(0);
+    }
+
     @supports not (scrollbar-gutter: stable) {
       html {
         overflow-y: scroll;
@@ -295,6 +319,10 @@
       display: flex;
     }
 
+    .login-screen:focus {
+      outline: none;
+    }
+
     .drop-overlay {
       position: fixed;
       inset: 0;
@@ -302,7 +330,7 @@
       display: none;
       align-items: center;
       justify-content: center;
-      padding: 24px;
+      padding: 28px;
       background: rgba(15, 23, 42, 0.56);
       backdrop-filter: blur(4px);
     }
@@ -333,7 +361,7 @@
     }
 
     .login-card {
-      width: min(420px, 100%);
+      width: min(860px, 100%);
       border: 1px solid #e5e7eb;
       border-radius: 8px;
       background: var(--panel);
@@ -342,26 +370,87 @@
     }
 
     .login-card h1 {
-      font-size: 28px;
-      margin-bottom: 8px;
+      margin: 0 0 34px;
+      font-size: 30px;
+      text-align: center;
     }
 
     .login-card p {
-      margin: 0 0 8px;
-      color: var(--muted);
-      line-height: 1.55;
-    }
-
-    .login-tips {
       margin: 0 0 18px;
-      padding-left: 18px;
       color: var(--muted);
-      font-size: 14px;
       line-height: 1.55;
     }
 
-    .login-tips li + li {
-      margin-top: 4px;
+    .login-options {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      align-items: stretch;
+      gap: 16px;
+    }
+
+    .login-choice-or {
+      align-self: center;
+      color: var(--muted);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1;
+      text-transform: lowercase;
+      transition: color 180ms ease, transform 180ms ease;
+    }
+
+    .login-option {
+      min-width: 0;
+      border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+      border-radius: 8px;
+      padding: 18px;
+      background: color-mix(in srgb, var(--panel) 94%, var(--ink) 6%);
+      transition:
+        opacity 180ms ease,
+        filter 180ms ease,
+        border-color 180ms ease,
+        box-shadow 180ms ease,
+        transform 180ms ease;
+    }
+
+    .login-option h2.login-option-description {
+      margin: 0 0 20px;
+      color: var(--ink);
+      font-size: 17px;
+      font-weight: 650;
+      text-align: center;
+    }
+
+    .login-options:has(.login-option:hover) .login-option:not(:hover),
+    .login-options:not(:has(.login-option:hover)):has(.login-option:focus-within) .login-option:not(:focus-within) {
+      opacity: 0.18;
+      filter: blur(3px);
+    }
+
+    .login-option:hover,
+    .login-option:focus-within {
+      border-color: color-mix(in srgb, var(--accent) 70%, var(--line));
+      box-shadow: 0 12px 30px color-mix(in srgb, var(--accent) 14%, transparent);
+      transform: translateY(-3px);
+    }
+
+    .login-option:active {
+      transform: translateY(-1px);
+    }
+
+    .login-options:has(.login-option:hover, .login-option:focus-within) .login-choice-or {
+      color: var(--ink);
+      transform: scale(1.08);
+    }
+
+    .login-option-content {
+      min-height: 220px;
+    }
+
+    .cloud-login-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
 
     .login-form {
@@ -623,7 +712,46 @@
     }
 
     .user-popover {
-      width: 290px;
+      width: 320px;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .account-menu-section {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .account-menu-section[hidden] {
+      display: none;
+    }
+
+    .account-menu-section + .account-menu-section {
+      border-top: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+    }
+
+    .account-menu-title {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .account-menu-actions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 8px;
+    }
+
+    .account-menu-section > button,
+    .account-menu-actions > button {
+      width: 100%;
+      min-height: 36px;
+    }
+
+    .danger-button:not(:disabled) {
+      border-color: color-mix(in srgb, #ef4444 48%, var(--line));
+      color: #ef4444;
     }
 
     .google-login-button {
@@ -633,7 +761,6 @@
       gap: 9px;
       width: 100%;
       min-height: 42px;
-      margin-top: 12px;
       font-weight: 650;
     }
 
@@ -658,8 +785,12 @@
       overflow-wrap: anywhere;
     }
 
+    .cloud-login-status:empty {
+      display: none;
+    }
+
     .cloud-account-status {
-      margin: 0 0 8px;
+      margin: 0;
     }
 
     .login-settings-button {
@@ -787,6 +918,7 @@
     }
 
     .counter,
+    .learned-count,
     .current-library-indicator {
       box-sizing: border-box;
       flex: 0 0 auto;
@@ -2353,6 +2485,25 @@
     }
 
     @media (max-width: 700px) {
+      .login-screen {
+        align-items: flex-start;
+        overflow-y: auto;
+      }
+
+      .login-options {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .login-choice-or {
+        justify-self: center;
+        font-size: 30px;
+      }
+
+      .login-option-content {
+        min-height: 0;
+      }
+
       .library-modal {
         padding: 8px;
       }
@@ -2630,6 +2781,7 @@
     }
 
     body[data-theme="gray"] .counter,
+    body[data-theme="gray"] .learned-count,
     body[data-theme="gray"] .current-library-indicator,
     body[data-theme="gray"] .inline-metrics,
     body[data-theme="gray"] .volume-meter,
@@ -2644,6 +2796,7 @@
     body[data-theme="gray"] .speech-result,
     body[data-theme="gray"] .kbd,
     body[data-theme="black"] .counter,
+    body[data-theme="black"] .learned-count,
     body[data-theme="black"] .current-library-indicator,
     body[data-theme="black"] .inline-metrics,
     body[data-theme="black"] .volume-meter,
@@ -2762,6 +2915,7 @@
     body[data-theme="black"] .login-card,
     body[data-theme="black"] .drop-card,
     body[data-theme="black"] .counter,
+    body[data-theme="black"] .learned-count,
     body[data-theme="black"] .current-library-indicator,
     body[data-theme="black"] .inline-metrics,
     body[data-theme="black"] .translation-prompt,
@@ -2829,6 +2983,7 @@
     body[data-theme="eye"] textarea,
     body[data-theme="eye"] .sentence-list,
     body[data-theme="eye"] .counter,
+    body[data-theme="eye"] .learned-count,
     body[data-theme="eye"] .current-library-indicator,
     body[data-theme="eye"] .inline-metrics,
     body[data-theme="eye"] .translation-prompt,
