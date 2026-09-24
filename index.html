@@ -4,18 +4,24 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260923-17">
+  <link rel="stylesheet" href="src/styles.css?v=20260924-19">
 
 </head>
 <body data-theme="black" data-active-page="listenPage">
   <section id="loginScreen" class="login-screen active" aria-label="登录">
     <div class="login-card">
       <h1>进入练习</h1>
-      <p>创建新用户，或导入已有用户，开始听说读写练习。</p>
+      <p>登录云账号以跨设备同步，或继续使用本机用户。</p>
+      <button id="googleLoginBtn" class="google-login-button" type="button" disabled>
+        <span class="google-mark" aria-hidden="true">G</span>
+        使用 Google 登录
+      </button>
+      <div id="cloudLoginStatus" class="cloud-login-status" aria-live="polite">尚未配置云登录</div>
+      <button id="openCloudSettingsBtn" class="login-settings-button" type="button">配置云登录</button>
+      <div class="login-divider"><span>本机用户</span></div>
       <ul class="login-tips">
-        <li>用户名是唯一的，区分大小写。</li>
         <li>输入已有用户名，会载入当前浏览器中的该用户记录。</li>
-        <li>换浏览器、换打开地址或换电脑前，请先导出数据，再通过导入用户恢复。</li>
+        <li>本机用户不会自动跨设备同步。</li>
       </ul>
       <form id="loginForm" class="login-form">
         <label>
@@ -84,6 +90,19 @@
               </div>
               <div class="small-note">点击按键框后，按下你想设置的组合键。</div>
             </div>
+            <div id="cloudConfigSection" class="settings-section">
+              <div class="settings-section-title">云账号</div>
+              <label>
+                Supabase URL
+                <input id="supabaseUrlInput" type="url" autocomplete="off" placeholder="https://项目.supabase.co">
+              </label>
+              <label>
+                Supabase publishable key
+                <input id="supabaseAnonKeyInput" type="password" autocomplete="off" placeholder="sb_publishable_...">
+              </label>
+              <button id="saveCloudSettingsBtn" type="button">保存云账号设置</button>
+              <div id="cloudSettingsStatus" class="small-note" aria-live="polite"></div>
+            </div>
             <div class="settings-section">
               <div class="settings-section-title">AI 接口</div>
               <label>
@@ -148,6 +167,12 @@
         <details class="user-menu">
           <summary id="userBadge">未登录</summary>
           <div class="user-popover settings">
+            <div id="cloudAccountStatus" class="cloud-account-status">未登录云账号</div>
+            <div class="button-row">
+              <button id="syncCloudBtn" type="button" disabled>立即同步</button>
+              <button id="cloudLogoutBtn" type="button" disabled>退出云账号</button>
+            </div>
+            <div class="settings-separator"></div>
             <button id="switchUserBtn" type="button">切换用户</button>
             <div class="button-row">
               <button id="exportDataBtn" type="button">导出数据</button>
@@ -374,10 +399,13 @@
     <button id="reanalyzeGrammarBtn" type="button" role="menuitem">重新分析</button>
   </div>
   <div id="dictionaryLookupPopover" class="dictionary-lookup-popover" role="dialog" aria-label="单词查询" hidden></div>
+  <script src="src/cloud-config.js?v=20260924-1"></script>
+  <script src="src/vendor/supabase/supabase-2.117.1.js"></script>
+  <script src="src/auth/supabase-auth-service.js?v=20260924-2"></script>
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
   <script src="src/dictionary/dictionary-service.js?v=20260924-1"></script>
-  <script src="src/app.js?v=20260924-3"></script>
+  <script src="src/app.js?v=20260924-5"></script>
 </body>
 </html>
 

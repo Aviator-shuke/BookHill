@@ -1,0 +1,4 @@
+window.langLSRWCloudConfig = {
+  supabaseUrl: "",
+  supabaseAnonKey: ""
+};

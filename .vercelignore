@@ -1,5 +1,4 @@
 node_modules/
-tools/
 .agents/
-assets/dictionaries/source/
+tools/__pycache__/
 assets/dictionaries/runtime/ecdict/*.sqlite

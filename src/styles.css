@@ -623,7 +623,74 @@
     }
 
     .user-popover {
-      width: 240px;
+      width: 290px;
+    }
+
+    .google-login-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      width: 100%;
+      min-height: 42px;
+      margin-top: 12px;
+      font-weight: 650;
+    }
+
+    .google-mark {
+      display: inline-grid;
+      width: 22px;
+      height: 22px;
+      place-items: center;
+      border-radius: 50%;
+      background: #fff;
+      color: #4285f4;
+      font-family: Arial, sans-serif;
+      font-weight: 700;
+    }
+
+    .cloud-login-status,
+    .cloud-account-status {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .cloud-account-status {
+      margin: 0 0 8px;
+    }
+
+    .login-settings-button {
+      width: 100%;
+      min-height: 34px;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .login-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 14px 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .login-divider::before,
+    .login-divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: color-mix(in srgb, var(--ink) 16%, transparent);
+    }
+
+    .settings-separator {
+      height: 1px;
+      margin: 8px 0;
+      background: color-mix(in srgb, var(--ink) 16%, transparent);
     }
 
     .font-popover {

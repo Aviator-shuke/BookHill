@@ -1,16 +1,15 @@
 # Dictionary assets
 
-## `source/ECDICT-master/`
+## Source location
 
-Upstream ECDICT source files used to maintain and rebuild the local dictionary.
-The initial langLSRW build uses only `ecdict.csv` as its word data and keeps the
-upstream README, license, tools, and auxiliary linguistic data for provenance.
-The larger `stardict.7z` dataset remains untouched as part of the upstream
-ECDICT package, but the initial langLSRW build does not use it.
+The untouched upstream ECDICT checkout lives outside the web project at
+`../third-party/ECDICT-master/` relative to the `langLSRW` repository. Keeping
+it outside this directory prevents source datasets and maintenance tools from
+entering website deployments.
 
-`source/ECDICT-master.zip` is the downloaded upstream archive. It is retained
-alongside the extracted source so its provenance stays explicit; neither the
-archive nor the extracted source is included in the website deployment.
+The initial dictionary build uses only `ecdict.csv`. The larger `stardict.7z`
+dataset remains untouched but is not used by the runtime build. Set the
+`ECDICT_SOURCE_DIR` environment variable to override the default source path.
 
 ## `runtime/ecdict/`
 

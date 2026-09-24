@@ -4,9 +4,9 @@ Last updated: 2026-09-24
 
 ## Current Stage
 
-langLSRW is currently a personal, local-first language-learning prototype. The listening and speaking workflow is usable for daily local testing. Reading, writing, review pools, article generation, and cloud data are still future work.
+langLSRW is currently a personal, local-first language-learning prototype. The listening and speaking workflow is usable for daily local testing. Reading, writing, review pools, and article generation are still future work. An optional cloud client exists, but no Supabase project is connected yet.
 
-Local testing is the default workflow. Run `tools/start-langlsrw-server.bat`, then open `http://localhost:8848/`. A Sites hosting configuration exists, but deployment must only happen after the owner explicitly requests it.
+Local testing is the default workflow. Run `tools/start-langlsrw-server.bat`, then open `http://localhost:8848/`. A clean Vercel build is prepared, but no GitHub repository, Vercel project, or production deployment is connected yet. The public deployment direction is Vercel for hosting plus Supabase for authentication and synchronized data, and deployment must only happen after the owner explicitly requests it.
 
 ## Implemented
 
@@ -18,6 +18,8 @@ Local testing is the default workflow. Run `tools/start-langlsrw-server.bat`, th
 - Separate English-content and Chinese UI/translation font settings.
 - Configurable colors for all grammar roles, with a color picker, editable HEX value, common color palette, local persistence, and reset defaults.
 - Installable local ECDICT foundation using SQLite WASM in a dedicated Worker and browser OPFS persistence. The page accesses it through a storage-independent dictionary service rather than issuing SQL from UI code.
+- Optional Supabase Google authentication and first-stage cross-device sync are implemented. The Supabase SDK is pinned locally; a project URL and publishable key must be configured before real sign-in is enabled.
+- `npm run build` creates a disposable `dist/` containing only browser runtime files and injects public Supabase configuration from Vercel build environment variables.
 - Top controls for theme, library, settings, and users. Shortcut configuration lives inside Settings, and learning shortcuts are suspended while Settings, the user menu, or the library dialog is open.
 - Independent sentence-library dialog with library categories, search, paginated preview, and a direct practice action.
 - Local static server launcher that resolves the project directory from the BAT file location and only stops a Python `http.server` occupying port 8848.
@@ -35,6 +37,7 @@ Local testing is the default workflow. Run `tools/start-langlsrw-server.bat`, th
 ### Local dictionary
 
 - ECDICT's basic `ecdict.csv` is the fixed source for the initial dictionary build; the larger `stardict.7z` data is not used by the runtime build.
+- The untouched ECDICT upstream source is kept outside the web repository at `../third-party/ECDICT-master/`; `ECDICT_SOURCE_DIR` can override that maintenance-time path.
 - `tools/build-ecdict.py` generates the ECDICT-compatible SQLite table and indexes, validates the database, creates a deterministic gzip package, and writes a versioned manifest with entry count, sizes, and hashes.
 - The current basic build contains 770,611 entries. Its SQLite database is about 170.4 MB and its gzip download package is about 67.8 MB.
 - `DictionaryService` exposes stable `status`, `install`, `remove`, `query`, `match`, and `count` operations. A Worker-backed SQLite adapter currently implements those operations; a future server API/MySQL adapter can implement the same contract.
@@ -53,6 +56,7 @@ Local testing is the default workflow. Run `tools/start-langlsrw-server.bat`, th
 - Previous/next sentence navigation, British English as the default accent, voice selection, normal and slower replay, word replay, and automatic reading.
 - Dictation input with accuracy, speed, pause, fluency, and error statistics plus recent records.
 - Configurable keyboard shortcuts.
+- Google cloud accounts coexist with local-only users. Initial cloud sync covers settings, the signed-in user's practice history, and a current custom sentence library; the built-in common library and AI API key are excluded.
 
 ### Speaking
 
@@ -92,20 +96,20 @@ langLSRW/
   assets/libraries/common-english-30150/
     manifest.json
     sentences.tsv
-  assets/dictionaries/
-    source/
-      ECDICT-master/        # untouched extracted upstream package
-      ECDICT-master.zip     # downloaded upstream archive
-    runtime/ecdict/         # generated manifest, package, and license
+  assets/dictionaries/runtime/ecdict/  # generated manifest, package, and license
+  tools/build-web.mjs
   tools/build-ecdict.py
   tools/test-ecdict-build.py
   tools/vendor-sqlite-wasm.mjs
   tools/start-langlsrw-server.bat
+  package.json
+  vercel.json
   .agents/skills/
     langlsrw-traditional-grammar-analysis/
     langlsrw-sieg2-grammar-analysis/
-  .openai/hosting.json
 ```
+
+The local-only upstream dictionary source used by the build tool lives at `../third-party/ECDICT-master/`, outside the `langLSRW` repository and its deployment boundary.
 
 The HTML, CSS, bundled material, generated prompt, and launcher are separated. Most application behavior is still concentrated in `src/app.js`; splitting listening, speaking, storage, settings, and grammar rendering into modules remains architectural work, not a completed migration.
 
@@ -114,13 +118,15 @@ The HTML, CSS, bundled material, generated prompt, and launcher are separated. M
 - Reading and writing pages are not implemented yet.
 - AI article generation, writing review, and review-material generation are not implemented yet.
 - Only the common sentence library is currently available; the other library categories have no data yet.
-- There is no backend, authentication service, database, or cloud sync.
+- Supabase authentication, schema, and first-stage sync code exist, but there is no provisioned or connected cloud project yet; local browser storage remains the active data layer.
 - The API key is stored in browser local storage and is acceptable only for private local use.
 - Before public AI access, requests must move behind a backend proxy with quotas and cost controls.
 - Speech recognition and recording depend on browser support and microphone permission.
 - The native system color-picker dialog cannot be customized by the webpage; HEX editing is provided in the settings panel.
 - The uncompressed generated SQLite file is intentionally discarded after packaging. The versioned gzip package is the runtime asset; raw CSV sources and development tools must not enter the website deployment.
 - Browser dictionary installation requires OPFS, Web Workers, WebAssembly, streaming fetch, and gzip `DecompressionStream`. Current Chromium verification passes; Firefox and Safari remain explicit compatibility-test targets.
+- Supabase project provisioning, Google OAuth provider configuration, and execution of `supabase/schema.sql` remain external setup steps. Until those public settings are supplied, Google login stays disabled and all existing local workflows continue to work.
+- `dist/` is generated output and is ignored by Git. Vercel must provide `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` together to enable cloud login in a production build.
 - Clearing browser site data removes the installed local dictionary. It can be reinstalled without affecting the source package.
 
 ## Verification
@@ -142,6 +148,7 @@ Verified on 2026-09-24:
 - The generated SQLite database is about 170.4 MB; the deterministic gzip package is about 67.8 MB.
 - SQLite WASM initializes through the existing Python static server, installs the compressed database into OPFS, reports the stored metadata, and queries `dictionary` successfully in the browser.
 - JavaScript syntax checks pass for the app, dictionary service, and dictionary Worker.
+- The Vercel build produces 23 runtime files (about 71.75 MiB), excludes development and source-data directories, and correctly handles both empty local cloud configuration and build-time Supabase configuration.
 
 ## Next Priorities
 

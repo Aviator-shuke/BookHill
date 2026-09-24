@@ -156,6 +156,9 @@ const fallbackSentences = [
       startedAt: 0,
       finished: false,
       currentUser: localStorage.getItem("langLSRWCurrentUser") || "",
+      cloudUser: null,
+      cloudSyncing: false,
+      cloudLastSyncedAt: "",
       history: [],
       voices: [],
       lastSpokenWordKey: "",
@@ -221,6 +224,7 @@ const fallbackSentences = [
       $("currentLibraryIndicator").textContent = `句库：${state.currentLibraryLabel}`;
       $("currentLibraryIndicator").title = `当前使用：${state.currentLibraryLabel}`;
       if (statusText) $("sourceStatus").textContent = statusText;
+      scheduleCloudSync();
     }
 
     function normalizeUsername(name) {
@@ -252,6 +256,201 @@ const fallbackSentences = [
     function saveUserHistory() {
       if (!state.currentUser) return;
       localStorage.setItem(userStorageKey(), JSON.stringify(state.history));
+      scheduleCloudSync();
+    }
+
+    let cloudSyncTimer = 0;
+
+    function cloudDisplayName(user = state.cloudUser) {
+      if (!user) return "";
+      return String(user.user_metadata?.full_name || user.user_metadata?.name || user.email || "Google 用户");
+    }
+
+    function renderCloudAuthState(message = "") {
+      const configured = Boolean(window.langLSRWCloudAuth?.isConfigured());
+      const signedIn = Boolean(state.cloudUser);
+      $("googleLoginBtn").disabled = !configured || signedIn;
+      $("openCloudSettingsBtn").hidden = configured;
+      $("syncCloudBtn").disabled = !signedIn || state.cloudSyncing;
+      $("cloudLogoutBtn").disabled = !signedIn || state.cloudSyncing;
+      $("cloudLoginStatus").textContent = message || (signedIn
+        ? `已登录：${cloudDisplayName()}`
+        : configured ? "可使用 Google 登录" : "请先在设置中配置 Supabase");
+      $("cloudAccountStatus").textContent = signedIn
+        ? `${cloudDisplayName()}${state.cloudLastSyncedAt ? ` · 已同步 ${new Date(state.cloudLastSyncedAt).toLocaleString()}` : " · 等待同步"}`
+        : "未登录云账号";
+      if (signedIn) $("userBadge").textContent = `用户：${cloudDisplayName()}`;
+    }
+
+    function loadCloudSettings() {
+      const config = window.langLSRWCloudAuth?.config || {};
+      const bundled = window.langLSRWCloudConfig || {};
+      const hasBundledConfig = Boolean(bundled.supabaseUrl && bundled.supabaseAnonKey);
+      $("cloudConfigSection").hidden = hasBundledConfig;
+      $("supabaseUrlInput").value = config.supabaseUrl || "";
+      $("supabaseAnonKeyInput").value = config.supabaseAnonKey || "";
+      $("cloudSettingsStatus").textContent = window.langLSRWCloudAuth?.isConfigured()
+        ? "云账号配置已就绪。"
+        : "填写 Supabase 项目的公开 URL 和 publishable key。";
+      renderCloudAuthState();
+    }
+
+    function collectCloudPayload() {
+      const customLibrary = state.currentLibraryLabel === "常用句库"
+        ? null
+        : {
+            label: state.currentLibraryLabel,
+            index: state.index,
+            sentences: normalizeSentenceList(state.sentences).map(sentenceWithCachedGrammar)
+          };
+      return {
+        schemaVersion: 1,
+        savedAt: new Date().toISOString(),
+        settings: {
+          theme: state.theme,
+          shortcuts: state.shortcuts,
+          speech: state.speechSettings,
+          fonts: state.fontSettings,
+          grammarColors: state.grammarColors
+        },
+        history: state.history.slice(0, 500),
+        customLibrary
+      };
+    }
+
+    function applyCloudPayload(payload) {
+      if (!payload || Number(payload.schemaVersion) !== 1) return;
+      const settings = payload.settings || {};
+      state.cloudSyncing = true;
+      try {
+        if (settings.theme) applyTheme(settings.theme);
+        if (settings.shortcuts && typeof settings.shortcuts === "object") {
+          state.shortcuts = { ...defaultShortcuts, ...settings.shortcuts };
+          saveShortcuts();
+          renderShortcutSettings();
+        }
+        if (settings.speech && typeof settings.speech === "object") {
+          state.speechSettings = settings.speech;
+          localStorage.setItem("langLSRWSpeechSettings", JSON.stringify(state.speechSettings));
+          loadSpeechSettings();
+        }
+        if (settings.fonts && typeof settings.fonts === "object") {
+          state.fontSettings = { ...fontDefaults(), ...settings.fonts };
+          applyFontSettings(state.fontSettings);
+        }
+        if (settings.grammarColors && typeof settings.grammarColors === "object") {
+          state.grammarColors = normalizeGrammarColors(settings.grammarColors);
+          applyGrammarColors(state.grammarColors);
+        }
+        state.history = Array.isArray(payload.history) ? payload.history.slice(0, 500) : [];
+        localStorage.setItem(userStorageKey(), JSON.stringify(state.history));
+        if (payload.customLibrary?.sentences?.length) {
+          state.sentences = normalizeSentenceList(payload.customLibrary.sentences);
+          state.index = Math.min(Math.max(0, Number(payload.customLibrary.index) || 0), state.sentences.length - 1);
+          setCurrentLibrary(payload.customLibrary.label || "自定义句库", `当前句库：云端同步（${state.sentences.length}句）`);
+        }
+      } finally {
+        state.cloudSyncing = false;
+      }
+      resetCurrent();
+    }
+
+    async function pushCloudState() {
+      if (!state.cloudUser || state.cloudSyncing) return;
+      state.cloudSyncing = true;
+      renderCloudAuthState("正在同步...");
+      try {
+        state.cloudLastSyncedAt = await window.langLSRWCloudAuth.saveState(state.cloudUser.id, collectCloudPayload());
+        renderCloudAuthState("同步完成");
+      } catch (error) {
+        renderCloudAuthState(`同步失败：${error.message || error}`);
+      } finally {
+        state.cloudSyncing = false;
+        renderCloudAuthState();
+      }
+    }
+
+    function scheduleCloudSync() {
+      if (!state.cloudUser || state.cloudSyncing) return;
+      clearTimeout(cloudSyncTimer);
+      cloudSyncTimer = setTimeout(pushCloudState, 1200);
+    }
+
+    async function activateCloudUser(user) {
+      if (!user || state.cloudUser?.id === user.id) return;
+      const localSeed = collectCloudPayload();
+      state.cloudUser = user;
+      const localName = normalizeUsername(user.email || cloudDisplayName(user) || user.id);
+      state.currentUser = localName;
+      localStorage.setItem("langLSRWCurrentUser", localName);
+      saveKnownUser(localName);
+      localStorage.setItem(userStorageKey(), JSON.stringify(localSeed.history || []));
+      renderCloudAuthState("正在读取云端数据...");
+      try {
+        const remote = await window.langLSRWCloudAuth.loadState(user.id);
+        if (remote?.payload) {
+          state.cloudLastSyncedAt = remote.updated_at || remote.payload.savedAt || "";
+          applyCloudPayload(remote.payload);
+        } else {
+          state.history = localSeed.history || [];
+          await pushCloudState();
+        }
+        hideLogin();
+        render();
+      } catch (error) {
+        renderCloudAuthState(`云端读取失败，本地模式仍可使用：${error.message || error}`);
+      }
+    }
+
+    async function initializeCloudAuth() {
+      loadCloudSettings();
+      if (!window.langLSRWCloudAuth?.isConfigured()) return;
+      try {
+        window.langLSRWCloudAuth.onAuthStateChange((event, session) => {
+          if (session?.user) activateCloudUser(session.user);
+          if (event === "SIGNED_OUT") {
+            state.cloudUser = null;
+            state.cloudLastSyncedAt = "";
+            $("userBadge").textContent = state.currentUser ? `用户：${state.currentUser}` : "未登录";
+            renderCloudAuthState("已退出云账号，本机数据仍然保留");
+          }
+        });
+        const user = await window.langLSRWCloudAuth.getUser();
+        if (user) await activateCloudUser(user);
+      } catch (error) {
+        renderCloudAuthState(`云账号初始化失败：${error.message || error}`);
+      }
+    }
+
+    async function saveCloudSettings() {
+      const configured = window.langLSRWCloudAuth.configure({
+        supabaseUrl: $("supabaseUrlInput").value,
+        supabaseAnonKey: $("supabaseAnonKeyInput").value
+      });
+      $("cloudSettingsStatus").textContent = configured
+        ? "配置已保存，可以使用 Google 登录。"
+        : "配置不完整，请检查 URL 和 anon key。";
+      state.cloudUser = null;
+      state.cloudLastSyncedAt = "";
+      renderCloudAuthState();
+      if (configured) await initializeCloudAuth();
+    }
+
+    async function signInWithGoogle() {
+      renderCloudAuthState("正在跳转到 Google...");
+      try {
+        await window.langLSRWCloudAuth.signInWithGoogle();
+      } catch (error) {
+        renderCloudAuthState(`登录失败：${error.message || error}`);
+      }
+    }
+
+    async function signOutCloudUser() {
+      try {
+        await window.langLSRWCloudAuth.signOut();
+      } catch (error) {
+        renderCloudAuthState(`退出失败：${error.message || error}`);
+      }
     }
 
     function normalizeSentenceItem(item) {
@@ -486,9 +685,19 @@ const fallbackSentences = [
       $("loginScreen").classList.remove("active");
     }
 
-    function loginAs(name) {
+    async function loginAs(name) {
       const username = normalizeUsername(name);
       if (!username) return;
+      if (state.cloudUser) {
+        clearTimeout(cloudSyncTimer);
+        try {
+          await window.langLSRWCloudAuth.signOut();
+        } catch {
+          // Local mode remains available even if the remote session cannot be closed.
+        }
+        state.cloudUser = null;
+        state.cloudLastSyncedAt = "";
+      }
       const isNewUser = !getKnownUsers().includes(username);
       if (isNewUser) resetSettingsToDefault();
       state.currentUser = username;
@@ -759,6 +968,7 @@ const fallbackSentences = [
       state.translationEditing = false;
       state.translationDraft = "";
       renderTarget();
+      scheduleCloudSync();
     }
 
     function saveCurrentTranslation() {
@@ -1081,6 +1291,7 @@ const fallbackSentences = [
         item.grammarRaw = content;
         state.sentences[state.index] = item;
         saveGrammarCache(sentence, content, content);
+        scheduleCloudSync();
         $("sourceStatus").textContent = force
           ? "当前句已重新分析并更新缓存。"
           : "当前句语法分析已保存。";
@@ -1131,10 +1342,12 @@ const fallbackSentences = [
       };
       state.speechSettings = settings;
       localStorage.setItem("langLSRWSpeechSettings", JSON.stringify(settings));
+      scheduleCloudSync();
     }
 
     function saveShortcuts() {
       localStorage.setItem("langLSRWShortcuts", JSON.stringify(state.shortcuts));
+      scheduleCloudSync();
     }
 
     function aiDefaults() {
@@ -1274,6 +1487,7 @@ const fallbackSentences = [
       $("themeToggleBtn").textContent = current.label;
       $("themeToggleBtn").title = `背景：${current.label}`;
       localStorage.setItem("langLSRWTheme", state.theme);
+      scheduleCloudSync();
     }
 
     function toggleTheme() {
@@ -1294,7 +1508,10 @@ const fallbackSentences = [
       document.documentElement.style.setProperty("--font-translation", chineseFontPresets[chinese]);
       $("englishFontSelect").value = english;
       $("chineseFontSelect").value = chinese;
-      if (persist) localStorage.setItem("langLSRWFontSettings", JSON.stringify(state.fontSettings));
+      if (persist) {
+        localStorage.setItem("langLSRWFontSettings", JSON.stringify(state.fontSettings));
+        scheduleCloudSync();
+      }
     }
 
     function saveFontSettings() {
@@ -1358,7 +1575,10 @@ const fallbackSentences = [
           hexInput.classList.remove("is-invalid");
         }
       });
-      if (persist) localStorage.setItem("langLSRWGrammarColors", JSON.stringify(state.grammarColors));
+      if (persist) {
+        localStorage.setItem("langLSRWGrammarColors", JSON.stringify(state.grammarColors));
+        scheduleCloudSync();
+      }
     }
 
     function resetGrammarColors() {
@@ -2740,6 +2960,17 @@ const fallbackSentences = [
     });
 
     $("saveAiSettingsBtn").addEventListener("click", saveAiSettings);
+    $("saveCloudSettingsBtn").addEventListener("click", saveCloudSettings);
+    $("googleLoginBtn").addEventListener("click", signInWithGoogle);
+    $("openCloudSettingsBtn").addEventListener("click", () => {
+      hideLogin();
+      closeTopMenus();
+      const settingsMenu = document.querySelector(".font-menu");
+      settingsMenu.open = true;
+      setTimeout(() => $("supabaseUrlInput").focus(), 0);
+    });
+    $("syncCloudBtn").addEventListener("click", pushCloudState);
+    $("cloudLogoutBtn").addEventListener("click", signOutCloudUser);
     $("installDictionaryBtn").addEventListener("click", installDictionary);
     $("testDictionaryBtn").addEventListener("click", testDictionary);
     $("removeDictionaryBtn").addEventListener("click", removeDictionary);
@@ -3136,5 +3367,6 @@ const fallbackSentences = [
 
     tryLoadDefaultLibrary();
     render();
+    initializeCloudAuth();
 
 

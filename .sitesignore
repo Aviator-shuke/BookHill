@@ -1,6 +1,0 @@
-tools/
-.agents/
-node_modules/
-assets/dictionaries/source/
-assets/dictionaries/runtime/ecdict/*.sqlite
-

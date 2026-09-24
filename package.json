@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
+    "build": "node tools/build-web.mjs",
     "build:dictionary": "python tools/build-ecdict.py",
     "vendor:sqlite": "node tools/vendor-sqlite-wasm.mjs",
     "prepare:dictionary": "npm run vendor:sqlite && npm run build:dictionary",

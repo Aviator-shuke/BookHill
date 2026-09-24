@@ -7,6 +7,7 @@ import csv
 import gzip
 import hashlib
 import json
+import os
 import shutil
 import sqlite3
 from datetime import datetime, timezone
@@ -14,7 +15,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_DIR = ROOT / "assets" / "dictionaries" / "source" / "ECDICT-master"
+DEFAULT_SOURCE_DIR = ROOT.parent / "third-party" / "ECDICT-master"
+SOURCE_DIR = Path(os.environ.get("ECDICT_SOURCE_DIR", str(DEFAULT_SOURCE_DIR))).expanduser().resolve()
 SOURCE_CSV = SOURCE_DIR / "ecdict.csv"
 OUTPUT_DIR = ROOT / "assets" / "dictionaries" / "runtime" / "ecdict"
 OUTPUT_DB = OUTPUT_DIR / "ecdict.sqlite"
