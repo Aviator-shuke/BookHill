@@ -19,6 +19,7 @@ const fallbackSentences = [
       previousSentence: "Left",
       speakCurrentWord: "Alt+`",
       peekCurrentWord: "Alt+1",
+      lookupCurrentWord: "Alt+D",
       stopSpeech: "Alt+X",
       resetSentence: "Alt+R",
       finishSentence: "Ctrl+Enter",
@@ -105,6 +106,7 @@ const fallbackSentences = [
       { id: "previousSentence", label: "上一句" },
       { id: "speakCurrentWord", label: "朗读当前词" },
       { id: "peekCurrentWord", label: "按住显示当前词" },
+      { id: "lookupCurrentWord", label: "查询当前词" },
       { id: "stopSpeech", label: "停止朗读" },
       { id: "resetSentence", label: "重写当前句" },
       { id: "finishSentence", label: "完成本句" },
@@ -113,7 +115,8 @@ const fallbackSentences = [
 
     const fixedMouseActions = [
       { label: "朗读所点单词", control: "鼠标中键" },
-      { label: "临时查看隐藏单词", control: "按住左键" }
+      { label: "临时查看隐藏单词", control: "按住左键" },
+      { label: "查询所点单词", control: "鼠标右键" }
     ];
 
     function loadShortcutSettings() {
@@ -1459,6 +1462,7 @@ const fallbackSentences = [
         stopSpeech,
         peekCurrentWord: peekCurrentWord,
         speakCurrentWord: speakCurrentWord,
+        lookupCurrentWord: lookupCurrentWord,
         finishSentence: finishCurrent
       };
       if (actions[actionId]) actions[actionId]();
@@ -1503,6 +1507,11 @@ const fallbackSentences = [
     function handleGlobalShortcut(event) {
       if (event.isComposing) return;
       if (event.target && event.target.closest && event.target.closest("[data-shortcut]")) return;
+      if (event.key === "Escape" && !$("dictionaryLookupPopover").hidden) {
+        event.preventDefault();
+        closeDictionaryLookup();
+        return;
+      }
       if (isTopMenuOpen()) return;
       if (state.activePage !== "listenPage") return;
       const target = event.target;
@@ -1730,6 +1739,129 @@ const fallbackSentences = [
 
     function speakCurrentWord() {
       speakTargetWord(getActiveTargetWordEl());
+    }
+
+    function dictionaryTextLines(value) {
+      return String(value || "")
+        .split(/\\n|\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+    }
+
+    function dictionaryTags(value) {
+      const labels = {
+        zk: "中考",
+        gk: "高考",
+        cet4: "CET4",
+        cet6: "CET6",
+        ky: "考研",
+        ielts: "IELTS",
+        toefl: "TOEFL",
+        gre: "GRE"
+      };
+      return String(value || "")
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((tag) => labels[tag.toLowerCase()] || tag.toUpperCase());
+    }
+
+    function dictionaryExchanges(value) {
+      const labels = {
+        p: "过去式",
+        d: "过去分词",
+        i: "现在分词",
+        3: "第三人称单数",
+        r: "比较级",
+        t: "最高级",
+        s: "复数",
+        0: "原形",
+        1: "原形类别"
+      };
+      return String(value || "")
+        .split("/")
+        .map((item) => {
+          const separator = item.indexOf(":");
+          if (separator < 1) return null;
+          const type = item.slice(0, separator).trim();
+          const form = item.slice(separator + 1).trim();
+          return form ? { label: labels[type] || type, form } : null;
+        })
+        .filter(Boolean);
+    }
+
+    function dictionaryRank(value) {
+      const rank = Number(value);
+      return Number.isFinite(rank) && rank > 0 ? rank.toLocaleString() : "";
+    }
+
+    function positionDictionaryLookup(anchor) {
+      const popover = $("dictionaryLookupPopover");
+      const margin = 8;
+      const preferredX = anchor?.clientX ?? anchor?.left ?? window.innerWidth / 2;
+      const preferredY = anchor?.clientY ?? anchor?.bottom ?? window.innerHeight / 2;
+      popover.style.left = `${Math.max(margin, Math.min(preferredX, window.innerWidth - popover.offsetWidth - margin))}px`;
+      popover.style.top = `${Math.max(margin, Math.min(preferredY + 8, window.innerHeight - popover.offsetHeight - margin))}px`;
+    }
+
+    function closeDictionaryLookup() {
+      $("dictionaryLookupPopover").hidden = true;
+    }
+
+    async function lookupTargetWord(wordEl, anchor) {
+      if (!wordEl) return;
+      const word = String(wordEl.dataset.word || wordEl.textContent || "").trim();
+      if (!word) return;
+      const popover = $("dictionaryLookupPopover");
+      popover.hidden = false;
+      popover.innerHTML = `<div class="dictionary-lookup-loading">正在查询 ${escapeHtml(word)}...</div>`;
+      positionDictionaryLookup(anchor || wordEl.getBoundingClientRect());
+      popover.dataset.word = word;
+      try {
+        const result = await window.langLSRWDictionary.query(word);
+        if (popover.dataset.word !== word) return;
+        if (!result) {
+          popover.innerHTML = `<div class="dictionary-lookup-header"><strong>${escapeHtml(word)}</strong><button type="button" data-dictionary-close aria-label="关闭">×</button></div><div class="dictionary-lookup-empty">本地词典中未找到该词。</div>`;
+        } else {
+          const translations = dictionaryTextLines(result.translation);
+          const definitions = dictionaryTextLines(result.definition);
+          const pos = String(result.pos || "").trim();
+          const collins = Math.max(0, Math.min(5, Number(result.collins) || 0));
+          const tags = dictionaryTags(result.tag);
+          const bnc = dictionaryRank(result.bnc);
+          const frq = dictionaryRank(result.frq);
+          const exchanges = dictionaryExchanges(result.exchange);
+          popover.innerHTML = `
+            <div class="dictionary-lookup-header">
+              <div><strong>${escapeHtml(result.word || word)}</strong>${result.phonetic ? `<span class="dictionary-phonetic">[${escapeHtml(result.phonetic)}]</span>` : ""}</div>
+              <button type="button" data-dictionary-close aria-label="关闭">×</button>
+            </div>
+            ${pos ? `<div class="dictionary-pos">${escapeHtml(pos)}</div>` : ""}
+            ${translations.length ? `<div class="dictionary-meanings">${translations.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
+            ${definitions.length ? `<div class="dictionary-definitions">${definitions.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
+            ${!translations.length && !definitions.length ? `<div class="dictionary-lookup-empty">该词条暂无释义。</div>` : ""}
+            ${collins || Number(result.oxford) > 0 || tags.length ? `<div class="dictionary-badges">
+              ${collins ? `<span class="dictionary-collins" title="柯林斯 ${collins} 星">柯林斯 ${"★".repeat(collins)}</span>` : ""}
+              ${Number(result.oxford) > 0 ? `<span>Oxford 3000</span>` : ""}
+              ${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
+            </div>` : ""}
+            ${bnc || frq ? `<div class="dictionary-frequency">
+              ${bnc ? `<span><b>BNC</b> 词频 #${bnc}</span>` : ""}
+              ${frq ? `<span><b>当代语料</b> 词频 #${frq}</span>` : ""}
+            </div>` : ""}
+            ${exchanges.length ? `<div class="dictionary-exchange"><div class="dictionary-section-label">词形变化</div><dl>${exchanges.map(({ label, form }) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(form)}</dd></div>`).join("")}</dl></div>` : ""}`;
+        }
+      } catch (error) {
+        if (popover.dataset.word !== word) return;
+        const unavailable = String(error?.message || error).includes("尚未安装");
+        popover.innerHTML = `<div class="dictionary-lookup-header"><strong>${escapeHtml(word)}</strong><button type="button" data-dictionary-close aria-label="关闭">×</button></div><div class="dictionary-lookup-empty">${unavailable ? "本地词典尚未安装，请先在设置中安装。" : `查询失败：${escapeHtml(error?.message || String(error))}`}</div>`;
+      }
+      positionDictionaryLookup(anchor || wordEl.getBoundingClientRect());
+    }
+
+    function lookupCurrentWord() {
+      const wordEl = getActiveTargetWordEl();
+      if (!wordEl) return;
+      lookupTargetWord(wordEl, wordEl.getBoundingClientRect());
     }
 
     function getTargetWordEndingAt(position) {
@@ -2438,6 +2570,7 @@ const fallbackSentences = [
     }
 
     function resetCurrent(shouldSpeak = false) {
+      closeDictionaryLookup();
       state.translationEditing = false;
       state.translationDraft = "";
       state.grammarVisible = false;
@@ -2699,6 +2832,13 @@ const fallbackSentences = [
       }
     });
 
+    targetEl.addEventListener("contextmenu", (event) => {
+      const wordEl = targetWordFromEvent(event);
+      if (!wordEl) return;
+      event.preventDefault();
+      lookupTargetWord(wordEl, event);
+    });
+
     targetEl.addEventListener("click", (event) => {
       const translationAction = event.target.closest("[data-translation-action]");
       if (translationAction) {
@@ -2750,6 +2890,14 @@ const fallbackSentences = [
 
     window.addEventListener("mouseup", clearPeekedWord);
     targetEl.addEventListener("mouseleave", clearPeekedWord);
+    $("dictionaryLookupPopover").addEventListener("click", (event) => {
+      if (event.target.closest("[data-dictionary-close]")) closeDictionaryLookup();
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if ($("dictionaryLookupPopover").hidden) return;
+      if (event.target.closest("#dictionaryLookupPopover") || event.target.closest(".target-word")) return;
+      closeDictionaryLookup();
+    });
 
     $("accentSelect").addEventListener("change", () => {
       state.speechSettings.voiceURI = "";

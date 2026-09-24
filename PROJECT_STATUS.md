@@ -39,6 +39,7 @@ Local testing is the default workflow. Run `tools/start-langlsrw-server.bat`, th
 - The current basic build contains 770,611 entries. Its SQLite database is about 170.4 MB and its gzip download package is about 67.8 MB.
 - `DictionaryService` exposes stable `status`, `install`, `remove`, `query`, `match`, and `count` operations. A Worker-backed SQLite adapter currently implements those operations; a future server API/MySQL adapter can implement the same contract.
 - The Settings panel displays installation state and sizes, installs the compressed package into browser OPFS, supports removal, and provides an explicit test query.
+- Words in the listening source can be queried from the installed local dictionary by right-clicking; a configurable keyboard shortcut queries the current word. Results expose available pronunciation, bilingual definitions, part of speech, Collins rating, Oxford 3000 membership, study tags, corpus ranks, and parsed inflections without calling AI.
 - The base dictionary is opened read-only. User vocabulary, notes, overrides, history, and review state must remain outside the replaceable ECDICT database.
 - SQLite WASM is pinned through npm and copied into static vendor assets by `tools/vendor-sqlite-wasm.mjs`; website users do not install SQLite, Python, or Node.
 

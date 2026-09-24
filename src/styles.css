@@ -130,6 +130,148 @@
       background: color-mix(in srgb, var(--ink) 16%, transparent);
     }
 
+    .dictionary-lookup-popover {
+      position: fixed;
+      z-index: 110;
+      width: min(360px, calc(100vw - 16px));
+      max-height: min(420px, calc(100vh - 16px));
+      overflow: auto;
+      padding: 10px 12px;
+      border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--ink));
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--ink);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      font-family: var(--font-translation), "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .dictionary-lookup-popover[hidden] { display: none; }
+
+    .dictionary-lookup-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      font-family: var(--font-english-content), "Segoe UI", sans-serif;
+      font-size: 19px;
+    }
+
+    .dictionary-lookup-header button {
+      width: 26px;
+      min-width: 26px;
+      min-height: 26px;
+      padding: 0;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .dictionary-phonetic {
+      margin-left: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 400;
+    }
+
+    .dictionary-pos {
+      margin-top: 4px;
+      color: var(--accent);
+      font-family: var(--font-english-content), "Segoe UI", sans-serif;
+      font-size: 12px;
+    }
+
+    .dictionary-meanings,
+    .dictionary-definitions,
+    .dictionary-lookup-empty,
+    .dictionary-lookup-loading {
+      margin-top: 7px;
+    }
+
+    .dictionary-definitions {
+      padding-top: 7px;
+      border-top: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+      color: var(--muted);
+      font-family: var(--font-english-content), "Segoe UI", sans-serif;
+      font-size: 13px;
+    }
+
+    .dictionary-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 9px;
+    }
+
+    .dictionary-badges span {
+      padding: 2px 6px;
+      border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+      border-radius: 4px;
+      color: var(--accent);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .dictionary-badges .dictionary-collins {
+      color: #eab308;
+      border-color: color-mix(in srgb, #eab308 55%, transparent);
+    }
+
+    .dictionary-frequency {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 14px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .dictionary-frequency b {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .dictionary-exchange {
+      margin-top: 9px;
+      padding-top: 8px;
+      border-top: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+    }
+
+    .dictionary-section-label {
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .dictionary-exchange dl {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 3px 12px;
+      margin: 0;
+    }
+
+    .dictionary-exchange dl > div {
+      display: flex;
+      min-width: 0;
+      gap: 6px;
+    }
+
+    .dictionary-exchange dt {
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .dictionary-exchange dd {
+      min-width: 0;
+      margin: 0;
+      overflow-wrap: anywhere;
+      font-family: var(--font-english-content), "Segoe UI", sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
     .app {
       width: min(1240px, calc(100vw - 24px));
       margin: 0 auto;
