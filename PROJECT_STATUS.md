@@ -1,12 +1,12 @@
 # langLSRW Project Status
 
-Last updated: 2026-09-24
+Last updated: 2026-09-25
 
 ## Current Stage
 
-langLSRW is currently a personal, local-first language-learning prototype. The listening and speaking workflow is usable for daily local testing. Reading, writing, review pools, and article generation are still future work. An optional cloud client exists, but no Supabase project is connected yet.
+langLSRW is currently a personal, local-first language-learning prototype. The listening and speaking workflow is usable for daily local testing. Reading, writing, review pools, and article generation are still future work. The production deployment is connected to Supabase, and Google login has been verified on the deployed site.
 
-Local testing is the default workflow. Run `tools/start-langlsrw-server.bat`, then open `http://localhost:8848/`. A clean Vercel build is prepared, but no GitHub repository, Vercel project, or production deployment is connected yet. The public deployment direction is Vercel for hosting plus Supabase for authentication and synchronized data, and deployment must only happen after the owner explicitly requests it.
+Local testing remains the default development workflow. Run `tools/start-langlsrw-server.bat`, then open `http://localhost:8848/`. The source repository is connected to Vercel and the first production deployment completed successfully on 2026-09-24. Vercel hosts the frontend, while Supabase now provides Google authentication and the existing initial-sync backend. Cross-device synchronization still requires explicit end-to-end verification. Future deployments and external service changes still require the owner's explicit request.
 
 ## Implemented
 
@@ -18,7 +18,7 @@ Local testing is the default workflow. Run `tools/start-langlsrw-server.bat`, th
 - Separate English-content and Chinese UI/translation font settings.
 - Configurable colors for all grammar roles, with a color picker, editable HEX value, common color palette, local persistence, and reset defaults.
 - Installable local ECDICT foundation using SQLite WASM in a dedicated Worker and browser OPFS persistence. The page accesses it through a storage-independent dictionary service rather than issuing SQL from UI code.
-- Optional Supabase Google authentication and first-stage cross-device sync are implemented. The Supabase SDK is pinned locally; a project URL and publishable key must be configured before real sign-in is enabled.
+- Supabase Google authentication and first-stage cross-device sync are implemented. The Supabase SDK is pinned locally, production public configuration is supplied by Vercel environment variables, and deployed Google sign-in has been verified.
 - `npm run build` creates a disposable `dist/` containing only browser runtime files and injects public Supabase configuration from Vercel build environment variables.
 - Top controls for theme, library, settings, and users. Shortcut configuration lives inside Settings, and learning shortcuts are suspended while Settings, the user menu, or the library dialog is open.
 - Independent sentence-library dialog with library categories, search, paginated preview, and a direct practice action.
@@ -118,15 +118,15 @@ The HTML, CSS, bundled material, generated prompt, and launcher are separated. M
 - Reading and writing pages are not implemented yet.
 - AI article generation, writing review, and review-material generation are not implemented yet.
 - Only the common sentence library is currently available; the other library categories have no data yet.
-- Supabase authentication, schema, and first-stage sync code exist, but there is no provisioned or connected cloud project yet; local browser storage remains the active data layer.
+- Supabase authentication, schema, and first-stage sync code are connected to the production project. Google sign-in works; cross-device state synchronization has not yet completed a two-browser or two-device verification pass. Local browser storage remains the primary offline data layer.
 - The API key is stored in browser local storage and is acceptable only for private local use.
 - Before public AI access, requests must move behind a backend proxy with quotas and cost controls.
 - Speech recognition and recording depend on browser support and microphone permission.
 - The native system color-picker dialog cannot be customized by the webpage; HEX editing is provided in the settings panel.
 - The uncompressed generated SQLite file is intentionally discarded after packaging. The versioned gzip package is the runtime asset; raw CSV sources and development tools must not enter the website deployment.
 - Browser dictionary installation requires OPFS, Web Workers, WebAssembly, streaming fetch, and gzip `DecompressionStream`. Current Chromium verification passes; Firefox and Safari remain explicit compatibility-test targets.
-- Supabase project provisioning, Google OAuth provider configuration, and execution of `supabase/schema.sql` remain external setup steps. Until those public settings are supplied, Google login stays disabled and all existing local workflows continue to work.
-- `dist/` is generated output and is ignored by Git. Vercel must provide `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` together to enable cloud login in a production build.
+- Supabase provisioning, Google OAuth provider configuration, `supabase/schema.sql`, production redirect URLs, and Vercel public environment variables are configured. Any additional deployment domain must also be added to Supabase Auth redirect URLs before Google login can return to it.
+- `dist/` is generated output and is ignored by Git. Vercel provides `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` together during production builds; neither the Google OAuth client secret nor any Supabase secret/service-role key belongs in frontend or Vercel public build configuration.
 - Clearing browser site data removes the installed local dictionary. It can be reinstalled without affecting the source package.
 
 ## Verification
@@ -149,6 +149,12 @@ Verified on 2026-09-24:
 - SQLite WASM initializes through the existing Python static server, installs the compressed database into OPFS, reports the stored metadata, and queries `dictionary` successfully in the browser.
 - JavaScript syntax checks pass for the app, dictionary service, and dictionary Worker.
 - The Vercel build produces 23 runtime files (about 71.75 MiB), excludes development and source-data directories, and correctly handles both empty local cloud configuration and build-time Supabase configuration.
+
+Verified on 2026-09-25:
+
+- The production Vercel deployment is configured with the Supabase project URL and publishable key.
+- Supabase Google OAuth returns successfully to `https://book-hill.vercel.app/`, and production Google login works.
+- Cross-device state synchronization remains to be tested independently of authentication.
 
 ## Next Priorities
 
