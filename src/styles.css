@@ -758,6 +758,18 @@
       min-width: 58px;
     }
 
+    .dictionary-status {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .dictionary-install-progress {
+      width: 100%;
+      height: 8px;
+      accent-color: var(--accent);
+    }
+
     .grammar-panel {
       min-height: 42px;
       border: 1px solid rgba(156, 163, 175, 0.35);

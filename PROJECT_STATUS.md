@@ -1,6 +1,6 @@
 # langLSRW Project Status
 
-Last updated: 2026-09-23
+Last updated: 2026-09-24
 
 ## Current Stage
 
@@ -17,6 +17,7 @@ Local testing is the default workflow. Run `tools/start-langlsrw-server.bat`, th
 - Four themes: black, gray, light, and eye-care.
 - Separate English-content and Chinese UI/translation font settings.
 - Configurable colors for all grammar roles, with a color picker, editable HEX value, common color palette, local persistence, and reset defaults.
+- Installable local ECDICT foundation using SQLite WASM in a dedicated Worker and browser OPFS persistence. The page accesses it through a storage-independent dictionary service rather than issuing SQL from UI code.
 - Top controls for theme, library, settings, and users. Shortcut configuration lives inside Settings, and learning shortcuts are suspended while Settings, the user menu, or the library dialog is open.
 - Independent sentence-library dialog with library categories, search, paginated preview, and a direct practice action.
 - Local static server launcher that resolves the project directory from the BAT file location and only stops a Python `http.server` occupying port 8848.
@@ -30,6 +31,16 @@ Local testing is the default workflow. Run `tools/start-langlsrw-server.bat`, th
 - Preview renders 50 records per page instead of creating 30,150 DOM rows.
 - Selecting the package makes all 30,150 records available to the existing listening and speaking workflow.
 - Scenario, grammar, level, and phrase library categories are reserved in the UI but remain disabled until content is added.
+
+### Local dictionary
+
+- ECDICT's basic `ecdict.csv` is the fixed source for the initial dictionary build; the larger `stardict.7z` data is not used by the runtime build.
+- `tools/build-ecdict.py` generates the ECDICT-compatible SQLite table and indexes, validates the database, creates a deterministic gzip package, and writes a versioned manifest with entry count, sizes, and hashes.
+- The current basic build contains 770,611 entries. Its SQLite database is about 170.4 MB and its gzip download package is about 67.8 MB.
+- `DictionaryService` exposes stable `status`, `install`, `remove`, `query`, `match`, and `count` operations. A Worker-backed SQLite adapter currently implements those operations; a future server API/MySQL adapter can implement the same contract.
+- The Settings panel displays installation state and sizes, installs the compressed package into browser OPFS, supports removal, and provides an explicit test query.
+- The base dictionary is opened read-only. User vocabulary, notes, overrides, history, and review state must remain outside the replaceable ECDICT database.
+- SQLite WASM is pinned through npm and copied into static vendor assets by `tools/vendor-sqlite-wasm.mjs`; website users do not install SQLite, Python, or Node.
 
 ### Listening and dictation
 
@@ -70,12 +81,24 @@ langLSRW/
   src/
     app.js
     library.js
+    dictionary/
+      dictionary-service.js
+      dictionary-worker.js
+    vendor/sqlite-wasm/
     styles.css
     generated/grammar-prompt.js
   assets/materials/default-bilingual.lrc
   assets/libraries/common-english-30150/
     manifest.json
     sentences.tsv
+  assets/dictionaries/
+    source/
+      ECDICT-master/        # untouched extracted upstream package
+      ECDICT-master.zip     # downloaded upstream archive
+    runtime/ecdict/         # generated manifest, package, and license
+  tools/build-ecdict.py
+  tools/test-ecdict-build.py
+  tools/vendor-sqlite-wasm.mjs
   tools/start-langlsrw-server.bat
   .agents/skills/
     langlsrw-traditional-grammar-analysis/
@@ -95,6 +118,9 @@ The HTML, CSS, bundled material, generated prompt, and launcher are separated. M
 - Before public AI access, requests must move behind a backend proxy with quotas and cost controls.
 - Speech recognition and recording depend on browser support and microphone permission.
 - The native system color-picker dialog cannot be customized by the webpage; HEX editing is provided in the settings panel.
+- The uncompressed generated SQLite file is intentionally discarded after packaging. The versioned gzip package is the runtime asset; raw CSV sources and development tools must not enter the website deployment.
+- Browser dictionary installation requires OPFS, Web Workers, WebAssembly, streaming fetch, and gzip `DecompressionStream`. Current Chromium verification passes; Firefox and Safari remain explicit compatibility-test targets.
+- Clearing browser site data removes the installed local dictionary. It can be reinstalled without affecting the source package.
 
 ## Verification
 
@@ -108,6 +134,13 @@ Verified on 2026-09-23:
 - Opening a top popover disables learning shortcuts; closing it restores them.
 - The common library manifest count matches the 30,150 valid TSV records.
 - Library search, 50-row pagination, practice selection, and shortcut suspension were verified in the browser.
+
+Verified on 2026-09-24:
+
+- The basic `ecdict.csv` build produces 770,611 entries and passes SQLite `integrity_check` plus fixed exact/fuzzy query tests.
+- The generated SQLite database is about 170.4 MB; the deterministic gzip package is about 67.8 MB.
+- SQLite WASM initializes through the existing Python static server, installs the compressed database into OPFS, reports the stored metadata, and queries `dictionary` successfully in the browser.
+- JavaScript syntax checks pass for the app, dictionary service, and dictionary Worker.
 
 ## Next Priorities
 

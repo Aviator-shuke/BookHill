@@ -102,6 +102,17 @@
               <div id="aiSettingsStatus" class="small-note" aria-live="polite"></div>
             </div>
             <div class="settings-section">
+              <div class="settings-section-title">本地词典</div>
+              <div id="dictionaryStatus" class="dictionary-status" aria-live="polite">正在检查...</div>
+              <progress id="dictionaryInstallProgress" class="dictionary-install-progress" max="100" value="0" hidden></progress>
+              <div class="button-row">
+                <button id="installDictionaryBtn" type="button">安装词典</button>
+                <button id="testDictionaryBtn" type="button" disabled>测试查询</button>
+                <button id="removeDictionaryBtn" type="button" disabled>删除本地词典</button>
+              </div>
+              <div id="dictionaryTestResult" class="small-note"></div>
+            </div>
+            <div class="settings-section">
               <div class="settings-section-title">句子成分颜色</div>
               <div id="grammarColorGrid" class="grammar-color-grid">
                 <label class="grammar-color-row is-active" data-grammar-color-row="subject"><span>主语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="subject" aria-label="主语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="subject" maxlength="7" spellcheck="false" aria-label="主语 HEX 颜色"></span></span></label>
@@ -364,7 +375,8 @@
   </div>
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
-  <script src="src/app.js?v=20260923-12"></script>
+  <script src="src/dictionary/dictionary-service.js?v=20260924-1"></script>
+  <script src="src/app.js?v=20260924-1"></script>
 </body>
 </html>
 

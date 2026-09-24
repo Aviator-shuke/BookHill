@@ -1,0 +1,14 @@
+{
+  "name": "langlsrw",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build:dictionary": "python tools/build-ecdict.py",
+    "vendor:sqlite": "node tools/vendor-sqlite-wasm.mjs",
+    "prepare:dictionary": "npm run vendor:sqlite && npm run build:dictionary",
+    "test:dictionary": "python tools/test-ecdict-build.py"
+  },
+  "devDependencies": {
+    "@sqlite.org/sqlite-wasm": "3.51.2-build8"
+  }
+}

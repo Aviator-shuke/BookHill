@@ -1,0 +1,3 @@
+node_modules/
+tools/__pycache__/
+assets/dictionaries/runtime/ecdict/*.sqlite

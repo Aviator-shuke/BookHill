@@ -1164,6 +1164,104 @@ const fallbackSentences = [
       $("aiSettingsStatus").textContent = "AI 设置已保存。";
     }
 
+    function formatBytes(bytes) {
+      const value = Number(bytes) || 0;
+      if (value < 1024) return `${value} B`;
+      if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+      return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    function setDictionaryBusy(busy) {
+      $("installDictionaryBtn").disabled = busy;
+      $("testDictionaryBtn").disabled = busy || $("testDictionaryBtn").dataset.installed !== "true";
+      $("removeDictionaryBtn").disabled = busy || $("removeDictionaryBtn").dataset.installed !== "true";
+    }
+
+    function renderDictionaryStatus(result) {
+      const installed = Boolean(result?.installed);
+      const manifest = result?.manifest;
+      const metadata = result?.metadata;
+      $("testDictionaryBtn").dataset.installed = String(installed);
+      $("removeDictionaryBtn").dataset.installed = String(installed);
+      $("testDictionaryBtn").disabled = !installed;
+      $("removeDictionaryBtn").disabled = !installed;
+      $("installDictionaryBtn").textContent = installed
+        ? (result.updateAvailable ? "更新词典" : "重新安装")
+        : "安装词典";
+      if (installed) {
+        const count = Number(metadata?.entry_count || manifest?.entryCount || 0).toLocaleString();
+        $("dictionaryStatus").textContent = `已安装 ${manifest?.name || "ECDICT"} · ${count} 词条 · v${metadata?.dictionary_version || manifest?.version || "未知"}`;
+      } else if (manifest) {
+        $("dictionaryStatus").textContent = `未安装 · ${manifest.name} · ${Number(manifest.entryCount).toLocaleString()} 词条 · 下载 ${formatBytes(manifest.downloadBytes || manifest.databaseBytes)} · 本地 ${formatBytes(manifest.databaseBytes)}`;
+      } else {
+        $("dictionaryStatus").textContent = "本地词典尚未准备好。";
+      }
+    }
+
+    async function refreshDictionaryStatus() {
+      if (!window.langLSRWDictionary) return;
+      try {
+        setDictionaryBusy(true);
+        renderDictionaryStatus(await window.langLSRWDictionary.status());
+      } catch (error) {
+        $("dictionaryStatus").textContent = `词典不可用：${error.message || error}`;
+      } finally {
+        setDictionaryBusy(false);
+      }
+    }
+
+    async function installDictionary() {
+      if (!window.langLSRWDictionary) return;
+      const progress = $("dictionaryInstallProgress");
+      progress.hidden = false;
+      progress.value = 0;
+      $("dictionaryTestResult").textContent = "";
+      setDictionaryBusy(true);
+      const stopProgress = window.langLSRWDictionary.onProgress(({ received, total }) => {
+        progress.max = total || Math.max(received, 1);
+        progress.value = received;
+        $("dictionaryStatus").textContent = total
+          ? `正在安装：${formatBytes(received)} / ${formatBytes(total)}`
+          : `正在安装：${formatBytes(received)}`;
+      });
+      try {
+        await window.langLSRWDictionary.install();
+        await refreshDictionaryStatus();
+      } catch (error) {
+        $("dictionaryStatus").textContent = `安装失败：${error.message || error}`;
+      } finally {
+        stopProgress();
+        progress.hidden = true;
+        setDictionaryBusy(false);
+      }
+    }
+
+    async function testDictionary() {
+      $("dictionaryTestResult").textContent = "正在查询 dictionary...";
+      try {
+        const result = await window.langLSRWDictionary.query("dictionary");
+        $("dictionaryTestResult").textContent = result
+          ? `${result.word} ${result.phonetic ? `[${result.phonetic}] ` : ""}${String(result.translation || result.definition || "").split("\n")[0]}`
+          : "未找到 dictionary。";
+      } catch (error) {
+        $("dictionaryTestResult").textContent = `查询失败：${error.message || error}`;
+      }
+    }
+
+    async function removeDictionary() {
+      if (!confirm("删除当前浏览器中的本地词典吗？以后可以重新安装。")) return;
+      try {
+        setDictionaryBusy(true);
+        await window.langLSRWDictionary.remove();
+        $("dictionaryTestResult").textContent = "";
+        await refreshDictionaryStatus();
+      } catch (error) {
+        $("dictionaryStatus").textContent = `删除失败：${error.message || error}`;
+      } finally {
+        setDictionaryBusy(false);
+      }
+    }
+
     function applyTheme(theme) {
       const themeMap = { dark: "black" };
       const nextTheme = themeMap[theme] || theme;
@@ -2509,6 +2607,9 @@ const fallbackSentences = [
     });
 
     $("saveAiSettingsBtn").addEventListener("click", saveAiSettings);
+    $("installDictionaryBtn").addEventListener("click", installDictionary);
+    $("testDictionaryBtn").addEventListener("click", testDictionary);
+    $("removeDictionaryBtn").addEventListener("click", removeDictionary);
     $("openLibraryBtn").addEventListener("click", openLibraryModal);
     $("closeLibraryBtn").addEventListener("click", closeLibraryModal);
     $("commonLibraryTabBtn").addEventListener("click", () => setLibraryView("common"));
@@ -2868,6 +2969,7 @@ const fallbackSentences = [
     setActivePage(state.activePage);
     loadSpeechSettings();
     loadAiSettings();
+    refreshDictionaryStatus();
     renderShortcutSettings();
     updateSpeechRateIndicator();
     populateVoices();

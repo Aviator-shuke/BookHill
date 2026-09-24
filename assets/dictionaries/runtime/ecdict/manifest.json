@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "ecdict",
+  "name": "ECDICT 英汉词典",
+  "version": "2026.09.24",
+  "format": "sqlite+gzip",
+  "file": "ecdict.sqlite.gz",
+  "entryCount": 770611,
+  "databaseBytes": 178720768,
+  "downloadBytes": 71124602,
+  "sha256": "6a58efae6baf35ce82dbf0d6466fcda55f1c40532492e1117e71e77976ccad1c",
+  "packageSha256": "3873c59041b76bbf2766006777ff84738527b0a9ac2897f9896b2c93694fc5d4",
+  "source": "ecdict.csv",
+  "license": "MIT"
+}

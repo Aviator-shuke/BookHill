@@ -1,0 +1,5 @@
+node_modules/
+tools/
+.agents/
+assets/dictionaries/source/
+assets/dictionaries/runtime/ecdict/*.sqlite
