@@ -2,7 +2,7 @@
   class DictionaryService {
     constructor(options = {}) {
       this.manifestUrl = options.manifestUrl || "assets/dictionaries/runtime/ecdict/manifest.json";
-      this.workerUrl = options.workerUrl || "src/dictionary/dictionary-worker.js";
+      this.workerUrl = options.workerUrl || "src/dictionary/dictionary-worker.js?v=20260925-6";
       this.worker = null;
       this.sequence = 0;
       this.pending = new Map();
@@ -87,6 +87,10 @@
 
     count() {
       return this.call("count");
+    }
+
+    list(options = {}) {
+      return this.call("list", options);
     }
 
     onProgress(listener) {

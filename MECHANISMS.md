@@ -79,6 +79,8 @@ Storage namespaces:
 
 The collection supports category filtering from the saved ECDICT metadata and sorting by saved time, alphabet, BNC rank, contemporary-corpus rank, or Collins stars. It is not currently synchronized to Supabase.
 
+The visible product name is `收藏`. Its word view shares the dictionary window's resizable layout, fixed-height rows, adaptive client-side page size, compact page controls, and Up/Down word plus Left/Right page navigation. Unlike the complete dictionary, its already-local collection is filtered, sorted, and paginated in browser memory.
+
 Relevant implementation: `userWordsStorageKey()`, `toggleDictionaryFavorite()`, and `renderUserPhrases()` in `src/app.js`.
 
 ## User Sentence Collection
@@ -100,6 +102,10 @@ ECDICT is distributed as a generated compressed SQLite package.
 - Queries are local and do not call AI or a remote dictionary service.
 - The database is read-only and can be removed or replaced independently of user data.
 - `DictionaryService` is the stable interface so a future server/MySQL adapter can replace the local adapter without rewriting the UI.
+- The `词库` view requests only one 100-entry page at a time. ECDICT has no dedicated entry-type column, so classification is mutually exclusive and text-based: a leading `-` means suffix; otherwise a first character outside `A-Z`/`a-z` means special; remaining entries with an internal ASCII space are phrases; and the rest are words. This means multiword proper names beginning with a letter appear under phrases, while entries such as `'hood`, `.45-caliber`, and `'s Gravenhage` appear under special. Type/category filtering, total counting, sorting, limits, and offsets run inside SQLite; the browser never loads all entries into the DOM or application memory.
+- While the dictionary view is open, Up/Down selects words within the current page and Left/Right changes pages. These shortcuts are suspended while an input, select, or textarea has focus.
+- The dictionary dialog is user-resizable. A `ResizeObserver` derives page size from the list's available height and the fixed 26-pixel row height, then re-queries SQLite while preserving the previous first-visible global position. The list itself has no vertical scrollbar.
+- `词库` and `收藏` share the same browsing controls and interaction pattern, including the count/search row, adaptive pagination, resize/reset behavior, and arrow-key navigation. Changes to these common interactions should be applied to both views unless their data source requires an explicit difference. Dictionary search is debounced and executed inside SQLite; collection search runs against the already-local saved array.
 
 Relevant implementation: `src/dictionary/dictionary-service.js`, `src/dictionary/dictionary-worker.js`, and `tools/build-ecdict.py`.
 

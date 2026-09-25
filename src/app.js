@@ -161,6 +161,15 @@ const fallbackSentences = [
       cloudLastSyncedAt: "",
       cloudSwitchingToLocal: false,
       dictionaryLookupEntry: null,
+      dictionaryLibraryPage: 1,
+      dictionaryLibraryPageCount: 1,
+      dictionaryLibraryType: "words",
+      dictionaryLibrarySelectFirstAfterRender: false,
+      dictionaryLibraryPageSize: 100,
+      userWordsPage: 1,
+      userWordsPageCount: 1,
+      userWordsPageSize: 100,
+      userWordsSelectFirstAfterRender: false,
       history: [],
       learnedCount: 0,
       voices: [],
@@ -1772,6 +1781,7 @@ const fallbackSentences = [
       return Boolean(
         document.querySelector(".font-menu[open], .user-menu[open]")
         || !$("libraryModal").hidden
+        || !$("dictionaryLibraryModal").hidden
         || !$("userPhrasesModal").hidden
       );
     }
@@ -1787,6 +1797,11 @@ const fallbackSentences = [
       if (event.key === "Escape" && !$("userPhrasesModal").hidden) {
         event.preventDefault();
         closeUserPhrases();
+        return;
+      }
+      if (event.key === "Escape" && !$("dictionaryLibraryModal").hidden) {
+        event.preventDefault();
+        closeDictionaryLibrary();
         return;
       }
       if (isTopMenuOpen()) return;
@@ -2089,6 +2104,180 @@ const fallbackSentences = [
       return `langLSRWUserWords:${state.currentUser}`;
     }
 
+    async function renderDictionaryLibrary() {
+      const list = $("dictionaryLibraryList");
+      list.innerHTML = '<div class="user-phrases-empty">正在读取词库...</div>';
+      try {
+        const result = await window.langLSRWDictionary.list({
+          entryType: state.dictionaryLibraryType,
+          category: $("dictionaryCategorySelect").value,
+          sort: $("dictionarySortSelect").value,
+          query: $("dictionaryLibrarySearchInput").value,
+          page: state.dictionaryLibraryPage,
+          pageSize: state.dictionaryLibraryPageSize
+        });
+        state.dictionaryLibraryPage = result.page;
+        state.dictionaryLibraryPageCount = result.pageCount;
+        const typeLabel = state.dictionaryLibraryType === "suffixes"
+          ? "后缀"
+          : state.dictionaryLibraryType === "phrases" ? "短语"
+            : state.dictionaryLibraryType === "special" ? "特殊词条" : "单词";
+        $("dictionaryLibraryCountText").textContent = `0 / ${result.total.toLocaleString()} 个${typeLabel}`;
+        $("dictionaryLibrarySummary").textContent = `完整 ECDICT · 每页 ${result.pageSize} 词`;
+        $("dictionaryPageInput").value = result.page;
+        $("dictionaryPageInput").max = result.pageCount;
+        $("dictionaryPageCount").textContent = `/ ${result.pageCount.toLocaleString()} 页`;
+        $("dictionaryFirstPageBtn").disabled = result.page <= 1;
+        $("dictionaryPrevPageBtn").disabled = result.page <= 1;
+        $("dictionaryNextPageBtn").disabled = result.page >= result.pageCount;
+        $("dictionaryLastPageBtn").disabled = result.page >= result.pageCount;
+        list.innerHTML = result.rows.length
+          ? result.rows.map((item, index) => `<button class="user-word-item" type="button" data-dictionary-library-word="${escapeHtml(item.word)}" data-dictionary-library-index="${(result.page - 1) * result.pageSize + index + 1}">${escapeHtml(item.word)}</button>`).join("")
+          : '<div class="user-phrases-empty">当前分类没有单词。</div>';
+        list.querySelectorAll("[data-dictionary-library-word]").forEach((button) => {
+          button.addEventListener("mouseenter", () => activateDictionaryLibraryWord(button, result.total, typeLabel));
+          button.addEventListener("focus", () => activateDictionaryLibraryWord(button, result.total, typeLabel));
+        });
+        if (state.dictionaryLibrarySelectFirstAfterRender) {
+          state.dictionaryLibrarySelectFirstAfterRender = false;
+          const firstWord = list.querySelector("[data-dictionary-library-word]");
+          if (firstWord) {
+            list.scrollTop = 0;
+            firstWord.focus({ preventScroll: true });
+          }
+        }
+      } catch (error) {
+        const message = String(error.message || "无法读取词库");
+        const notInstalled = message.includes("尚未安装");
+        list.innerHTML = `<div class="user-phrases-empty">${escapeHtml(message)}${notInstalled ? "<br>请先在设置中安装 ECDICT。" : ""}</div>`;
+        $("dictionaryLibraryCountText").textContent = notInstalled ? "词典未安装" : "读取失败";
+      }
+    }
+
+    async function activateDictionaryLibraryWord(button, total, typeLabel) {
+      if (!button) return;
+      $("dictionaryLibraryList").querySelectorAll(".is-current").forEach((item) => item.classList.remove("is-current"));
+      button.classList.add("is-current");
+      const word = button.dataset.dictionaryLibraryWord;
+      $("dictionaryLibraryCountText").textContent = `${Number(button.dataset.dictionaryLibraryIndex).toLocaleString()} / ${Number(total).toLocaleString()} 个${typeLabel}`;
+      const item = await window.langLSRWDictionary.query(word);
+      if (!item || !button.classList.contains("is-current")) return;
+      renderDictionaryLibraryDetail(item);
+    }
+
+    function handleDictionaryLibraryKeys(event) {
+      if ($("dictionaryLibraryModal").hidden || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.target.matches("input, select, textarea")) return;
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        goToDictionaryLibraryPage(state.dictionaryLibraryPage + (event.key === "ArrowLeft" ? -1 : 1));
+        return;
+      }
+      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+      const buttons = [...$("dictionaryLibraryList").querySelectorAll("[data-dictionary-library-word]")];
+      if (!buttons.length) return;
+      event.preventDefault();
+      const currentIndex = buttons.findIndex((button) => button.classList.contains("is-current"));
+      const nextIndex = currentIndex < 0
+        ? (event.key === "ArrowDown" ? 0 : buttons.length - 1)
+        : Math.max(0, Math.min(buttons.length - 1, currentIndex + (event.key === "ArrowDown" ? 1 : -1)));
+      buttons[nextIndex].focus({ preventScroll: true });
+      buttons[nextIndex].scrollIntoView({ block: "nearest" });
+    }
+
+    function renderDictionaryLibraryDetail(item) {
+      state.dictionaryLookupEntry = item;
+      const translations = dictionaryTextLines(item.translation);
+      const definitions = dictionaryTextLines(item.definition);
+      const collins = Math.max(0, Math.min(5, Number(item.collins) || 0));
+      const tags = dictionaryTags(item.tag);
+      const bnc = dictionaryRank(item.bnc);
+      const frq = dictionaryRank(item.frq);
+      const exchanges = dictionaryExchanges(item.exchange);
+      $("dictionaryLibraryDetail").innerHTML = `
+        <div class="dictionary-lookup-header"><div><strong>${escapeHtml(item.word)}</strong>${item.phonetic ? `<span class="dictionary-phonetic">[${escapeHtml(item.phonetic)}]</span>` : ""}</div>${dictionaryFavoriteButton(item.word)}</div>
+        ${item.pos ? `<div class="dictionary-pos">${escapeHtml(item.pos)}</div>` : ""}
+        ${translations.length ? `<div class="dictionary-meanings">${translations.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
+        ${definitions.length ? `<div class="dictionary-definitions">${definitions.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
+        ${collins || Number(item.oxford) > 0 || tags.length ? `<div class="dictionary-badges">${collins ? `<span class="dictionary-collins">柯林斯 ${"★".repeat(collins)}</span>` : ""}${Number(item.oxford) > 0 ? "<span>Oxford 3000</span>" : ""}${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
+        ${bnc || frq ? `<div class="dictionary-frequency">${bnc ? `<span><b>BNC</b> 词频 #${bnc}</span>` : ""}${frq ? `<span><b>当代语料</b> 词频 #${frq}</span>` : ""}</div>` : ""}
+        ${exchanges.length ? `<div class="dictionary-exchange"><div class="dictionary-section-label">词形变化</div><dl>${exchanges.map(({ label, form }) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(form)}</dd></div>`).join("")}</dl></div>` : ""}`;
+    }
+
+    function openDictionaryLibrary() {
+      closeTopMenus();
+      closeDictionaryLookup();
+      state.dictionaryLibraryPage = 1;
+      state.dictionaryLibraryType = "words";
+      setDictionaryLibraryType("words", false);
+      $("dictionaryLibraryModal").hidden = false;
+      requestAnimationFrame(() => {
+        updateDictionaryLibraryPageSize(false);
+        renderDictionaryLibrary();
+      });
+    }
+
+    function setDictionaryLibraryType(type, refresh = true) {
+      state.dictionaryLibraryType = ["suffixes", "phrases", "special"].includes(type) ? type : "words";
+      state.dictionaryLibraryPage = 1;
+      const showWords = state.dictionaryLibraryType === "words";
+      const showSuffixes = state.dictionaryLibraryType === "suffixes";
+      const showPhrases = state.dictionaryLibraryType === "phrases";
+      const showSpecial = state.dictionaryLibraryType === "special";
+      $("dictionaryWordsTabBtn").classList.toggle("is-active", showWords);
+      $("dictionarySuffixesTabBtn").classList.toggle("is-active", showSuffixes);
+      $("dictionaryPhrasesTabBtn").classList.toggle("is-active", showPhrases);
+      $("dictionarySpecialTabBtn").classList.toggle("is-active", showSpecial);
+      $("dictionaryWordsTabBtn").setAttribute("aria-selected", String(showWords));
+      $("dictionarySuffixesTabBtn").setAttribute("aria-selected", String(showSuffixes));
+      $("dictionaryPhrasesTabBtn").setAttribute("aria-selected", String(showPhrases));
+      $("dictionarySpecialTabBtn").setAttribute("aria-selected", String(showSpecial));
+      const typeLabel = showWords ? "单词" : showSuffixes ? "后缀" : showPhrases ? "短语" : "特殊词条";
+      $("dictionaryLibraryDetail").innerHTML = `<div class="user-phrases-empty">将鼠标移到${typeLabel}上查看释义。</div>`;
+      if (refresh) renderDictionaryLibrary();
+    }
+
+    function closeDictionaryLibrary() {
+      $("dictionaryLibraryModal").hidden = true;
+    }
+
+    function resetDictionaryLibrarySize() {
+      const dialog = $("dictionaryLibraryModal").querySelector(".user-phrases-dialog");
+      dialog.style.removeProperty("width");
+      dialog.style.removeProperty("height");
+      requestAnimationFrame(() => updateDictionaryLibraryPageSize());
+    }
+
+    function goToDictionaryLibraryPage(page) {
+      const target = Math.max(1, Math.min(Number(page) || 1, state.dictionaryLibraryPageCount));
+      if (target === state.dictionaryLibraryPage) return;
+      state.dictionaryLibraryPage = target;
+      state.dictionaryLibrarySelectFirstAfterRender = true;
+      renderDictionaryLibrary();
+      $("dictionaryLibraryList").scrollTop = 0;
+    }
+
+    function goToEnteredDictionaryPage() {
+      goToDictionaryLibraryPage(Number.parseInt($("dictionaryPageInput").value, 10));
+    }
+
+    let dictionaryLibraryResizeTimer;
+    function updateDictionaryLibraryPageSize(refresh = true) {
+      const listHeight = $("dictionaryLibraryList").clientHeight;
+      if (!listHeight) return;
+      const nextPageSize = Math.max(5, Math.min(200, Math.floor(listHeight / 26)));
+      if (nextPageSize === state.dictionaryLibraryPageSize) return;
+      const firstVisibleIndex = (state.dictionaryLibraryPage - 1) * state.dictionaryLibraryPageSize;
+      state.dictionaryLibraryPageSize = nextPageSize;
+      state.dictionaryLibraryPage = Math.floor(firstVisibleIndex / nextPageSize) + 1;
+      if (refresh && !$("dictionaryLibraryModal").hidden) renderDictionaryLibrary();
+    }
+
+    function scheduleDictionaryLibraryResize() {
+      clearTimeout(dictionaryLibraryResizeTimer);
+      dictionaryLibraryResizeTimer = setTimeout(() => updateDictionaryLibraryPageSize(), 100);
+    }
+
     function loadUserWords() {
       try {
         const words = JSON.parse(localStorage.getItem(userWordsStorageKey()) || "[]");
@@ -2133,8 +2322,8 @@ const fallbackSentences = [
           bnc: Number(result.bnc) || 0,
           frq: Number(result.frq) || 0,
           exchange: String(result.exchange || ""),
-          sourceSentence: currentSentence(),
-          sourceTranslation: currentTranslation(),
+          sourceSentence: $("dictionaryLibraryModal").hidden ? currentSentence() : "",
+          sourceTranslation: $("dictionaryLibraryModal").hidden ? currentTranslation() : "",
           savedAt: new Date().toISOString()
         });
       } else {
@@ -2151,7 +2340,9 @@ const fallbackSentences = [
     function filteredAndSortedUserWords(words) {
       const category = $("userWordsCategorySelect").value;
       const sort = $("userWordsSortSelect").value;
+      const query = $("userWordsSearchInput").value.trim().toLocaleLowerCase("en-US");
       const filtered = words.filter((item) => {
+        if (query && !String(item.word || "").toLocaleLowerCase("en-US").includes(query)) return false;
         if (category === "all") return true;
         if (category === "oxford") return Number(item.oxford) > 0;
         if (category === "collins") return Number(item.collins) > 0;
@@ -2174,23 +2365,43 @@ const fallbackSentences = [
       const allWords = loadUserWords();
       const words = filteredAndSortedUserWords(allWords);
       const sentences = loadUserSentences();
+      const pageCount = Math.max(1, Math.ceil(words.length / state.userWordsPageSize));
+      state.userWordsPage = Math.max(1, Math.min(state.userWordsPage, pageCount));
+      state.userWordsPageCount = pageCount;
+      const start = (state.userWordsPage - 1) * state.userWordsPageSize;
+      const pageWords = words.slice(start, start + state.userWordsPageSize);
       $("userPhrasesSummary").textContent = `${words.length}/${allWords.length} 个单词 · ${sentences.length} 个句子`;
-      $("userWordsCount").textContent = words.length === allWords.length
-        ? `${allWords.length} 个单词`
-        : `${words.length} / ${allWords.length} 个单词`;
-      $("userPhrasesList").innerHTML = words.length
-        ? words.map((item) => `<button class="user-word-item" type="button" data-user-word="${escapeHtml(item.word)}">${escapeHtml(item.word)}</button>`).join("")
+      $("userWordsCountText").textContent = `0 / ${words.length.toLocaleString()} 个单词`;
+      $("userWordsPageInput").value = state.userWordsPage;
+      $("userWordsPageInput").max = pageCount;
+      $("userWordsPageCount").textContent = `/ ${pageCount.toLocaleString()} 页`;
+      $("userWordsFirstPageBtn").disabled = state.userWordsPage <= 1;
+      $("userWordsPrevPageBtn").disabled = state.userWordsPage <= 1;
+      $("userWordsNextPageBtn").disabled = state.userWordsPage >= pageCount;
+      $("userWordsLastPageBtn").disabled = state.userWordsPage >= pageCount;
+      $("userPhrasesList").innerHTML = pageWords.length
+        ? pageWords.map((item, index) => `<button class="user-word-item" type="button" data-user-word="${escapeHtml(item.word)}" data-user-word-index="${start + index + 1}">${escapeHtml(item.word)}</button>`).join("")
         : `<div class="user-phrases-empty">${allWords.length ? "当前分类没有收藏单词。" : "还没有收藏单词。"}</div>`;
       $("userSentencesList").innerHTML = sentences.length
         ? sentences.map((item) => `<article class="user-sentence-item"><div>${escapeHtml(item.sentence)}</div>${item.translation ? `<div>${escapeHtml(item.translation)}</div>` : ""}</article>`).join("")
         : '<div class="user-phrases-empty">还没有收藏句子。</div>';
 
       $("userPhrasesList").querySelectorAll("[data-user-word]").forEach((button) => {
-        button.addEventListener("mouseenter", () => {
+        const activate = () => {
+          $("userPhrasesList").querySelectorAll(".is-current").forEach((item) => item.classList.remove("is-current"));
+          button.classList.add("is-current");
+          $("userWordsCountText").textContent = `${Number(button.dataset.userWordIndex).toLocaleString()} / ${words.length.toLocaleString()} 个单词`;
           const item = words.find((word) => dictionaryFavoriteKey(word.word) === dictionaryFavoriteKey(button.dataset.userWord));
           if (item) renderUserWordDetail(item);
-        });
+        };
+        button.addEventListener("mouseenter", activate);
+        button.addEventListener("focus", activate);
       });
+      if (state.userWordsSelectFirstAfterRender) {
+        state.userWordsSelectFirstAfterRender = false;
+        const firstWord = $("userPhrasesList").querySelector("[data-user-word]");
+        if (firstWord) firstWord.focus({ preventScroll: true });
+      }
     }
 
     function renderUserWordDetail(item) {
@@ -2239,6 +2450,7 @@ const fallbackSentences = [
       $("userSentencesList").hidden = showWords;
       $("userWordsControls").hidden = !showWords;
       $("userWordsCount").hidden = !showWords;
+      $("userWordsPagination").hidden = !showWords;
       $("userWordsTabBtn").classList.toggle("is-active", showWords);
       $("userSentencesTabBtn").classList.toggle("is-active", !showWords);
       $("userWordsTabBtn").setAttribute("aria-selected", String(showWords));
@@ -2250,13 +2462,64 @@ const fallbackSentences = [
     function openUserPhrases() {
       closeTopMenus();
       closeDictionaryLookup();
-      renderUserPhrases();
       setUserPhrasesView("words");
       $("userPhrasesModal").hidden = false;
+      requestAnimationFrame(() => {
+        updateUserWordsPageSize(false);
+        renderUserPhrases();
+      });
     }
 
     function closeUserPhrases() {
       $("userPhrasesModal").hidden = true;
+    }
+
+    function resetUserPhrasesSize() {
+      const dialog = $("userPhrasesModal").querySelector(".user-phrases-dialog");
+      dialog.style.removeProperty("width");
+      dialog.style.removeProperty("height");
+      requestAnimationFrame(() => updateUserWordsPageSize());
+    }
+
+    function goToUserWordsPage(page) {
+      const target = Math.max(1, Math.min(Number(page) || 1, state.userWordsPageCount));
+      if (target === state.userWordsPage) return;
+      state.userWordsPage = target;
+      state.userWordsSelectFirstAfterRender = true;
+      renderUserPhrases();
+    }
+
+    function goToEnteredUserWordsPage() {
+      goToUserWordsPage(Number.parseInt($("userWordsPageInput").value, 10));
+    }
+
+    let userWordsResizeTimer;
+    function updateUserWordsPageSize(refresh = true) {
+      const height = $("userPhrasesList").clientHeight;
+      if (!height) return;
+      const nextSize = Math.max(5, Math.min(200, Math.floor(height / 26)));
+      if (nextSize === state.userWordsPageSize) return;
+      const firstIndex = (state.userWordsPage - 1) * state.userWordsPageSize;
+      state.userWordsPageSize = nextSize;
+      state.userWordsPage = Math.floor(firstIndex / nextSize) + 1;
+      if (refresh && !$("userPhrasesModal").hidden) renderUserPhrases();
+    }
+
+    function handleUserWordsKeys(event) {
+      if ($("userPhrasesModal").hidden || $("userPhrasesList").hidden || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.target.matches("input, select, textarea")) return;
+      if (["ArrowLeft", "ArrowRight"].includes(event.key)) {
+        event.preventDefault();
+        goToUserWordsPage(state.userWordsPage + (event.key === "ArrowLeft" ? -1 : 1));
+        return;
+      }
+      if (!["ArrowUp", "ArrowDown"].includes(event.key)) return;
+      const buttons = [...$("userPhrasesList").querySelectorAll("[data-user-word]")];
+      if (!buttons.length) return;
+      event.preventDefault();
+      const current = buttons.findIndex((button) => button.classList.contains("is-current"));
+      const next = current < 0 ? (event.key === "ArrowDown" ? 0 : buttons.length - 1) : Math.max(0, Math.min(buttons.length - 1, current + (event.key === "ArrowDown" ? 1 : -1)));
+      buttons[next].focus({ preventScroll: true });
     }
 
     async function lookupTargetWord(wordEl, anchor) {
@@ -3208,13 +3471,81 @@ const fallbackSentences = [
     $("testDictionaryBtn").addEventListener("click", testDictionary);
     $("removeDictionaryBtn").addEventListener("click", removeDictionary);
     $("openLibraryBtn").addEventListener("click", openLibraryModal);
+    $("openDictionaryLibraryBtn").addEventListener("click", openDictionaryLibrary);
     $("userPhrasesBtn").addEventListener("click", openUserPhrases);
     $("closeLibraryBtn").addEventListener("click", closeLibraryModal);
+    $("closeDictionaryLibraryBtn").addEventListener("click", closeDictionaryLibrary);
+    $("resetDictionaryLibrarySizeBtn").addEventListener("click", resetDictionaryLibrarySize);
+    $("dictionaryWordsTabBtn").addEventListener("click", () => setDictionaryLibraryType("words"));
+    $("dictionarySuffixesTabBtn").addEventListener("click", () => setDictionaryLibraryType("suffixes"));
+    $("dictionaryPhrasesTabBtn").addEventListener("click", () => setDictionaryLibraryType("phrases"));
+    $("dictionarySpecialTabBtn").addEventListener("click", () => setDictionaryLibraryType("special"));
+    $("dictionaryCategorySelect").addEventListener("change", () => {
+      state.dictionaryLibraryPage = 1;
+      renderDictionaryLibrary();
+    });
+    $("dictionarySortSelect").addEventListener("change", () => {
+      state.dictionaryLibraryPage = 1;
+      renderDictionaryLibrary();
+    });
+    let dictionaryLibrarySearchTimer;
+    $("dictionaryLibrarySearchInput").addEventListener("input", () => {
+      clearTimeout(dictionaryLibrarySearchTimer);
+      dictionaryLibrarySearchTimer = setTimeout(() => {
+        state.dictionaryLibraryPage = 1;
+        renderDictionaryLibrary();
+      }, 250);
+    });
+    $("dictionaryPrevPageBtn").addEventListener("click", () => {
+      goToDictionaryLibraryPage(state.dictionaryLibraryPage - 1);
+    });
+    $("dictionaryNextPageBtn").addEventListener("click", () => {
+      goToDictionaryLibraryPage(state.dictionaryLibraryPage + 1);
+    });
+    $("dictionaryFirstPageBtn").addEventListener("click", () => goToDictionaryLibraryPage(1));
+    $("dictionaryLastPageBtn").addEventListener("click", () => goToDictionaryLibraryPage(state.dictionaryLibraryPageCount));
+    $("dictionaryPageInput").addEventListener("change", goToEnteredDictionaryPage);
+    $("dictionaryPageInput").addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      goToEnteredDictionaryPage();
+      $("dictionaryPageInput").select();
+    });
+    $("dictionaryLibraryDetail").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-dictionary-favorite]");
+      if (button) toggleDictionaryFavorite(button);
+    });
+    $("dictionaryLibraryModal").addEventListener("pointerdown", (event) => {
+      if (event.target === $("dictionaryLibraryModal")) closeDictionaryLibrary();
+    });
+    new ResizeObserver(scheduleDictionaryLibraryResize).observe($("dictionaryLibraryList"));
     $("closeUserPhrasesBtn").addEventListener("click", closeUserPhrases);
+    $("resetUserPhrasesSizeBtn").addEventListener("click", resetUserPhrasesSize);
     $("userWordsTabBtn").addEventListener("click", () => setUserPhrasesView("words"));
     $("userSentencesTabBtn").addEventListener("click", () => setUserPhrasesView("sentences"));
-    $("userWordsCategorySelect").addEventListener("change", renderUserPhrases);
-    $("userWordsSortSelect").addEventListener("change", renderUserPhrases);
+    $("userWordsCategorySelect").addEventListener("change", () => {
+      state.userWordsPage = 1;
+      renderUserPhrases();
+    });
+    $("userWordsSortSelect").addEventListener("change", () => {
+      state.userWordsPage = 1;
+      renderUserPhrases();
+    });
+    $("userWordsSearchInput").addEventListener("input", () => {
+      state.userWordsPage = 1;
+      renderUserPhrases();
+    });
+    $("userWordsFirstPageBtn").addEventListener("click", () => goToUserWordsPage(1));
+    $("userWordsPrevPageBtn").addEventListener("click", () => goToUserWordsPage(state.userWordsPage - 1));
+    $("userWordsNextPageBtn").addEventListener("click", () => goToUserWordsPage(state.userWordsPage + 1));
+    $("userWordsLastPageBtn").addEventListener("click", () => goToUserWordsPage(state.userWordsPageCount));
+    $("userWordsPageInput").addEventListener("change", goToEnteredUserWordsPage);
+    $("userWordsPageInput").addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      goToEnteredUserWordsPage();
+      $("userWordsPageInput").select();
+    });
     $("userPhraseDetail").addEventListener("click", (event) => {
       const button = event.target.closest("[data-user-detail-remove]");
       if (!button) return;
@@ -3227,6 +3558,10 @@ const fallbackSentences = [
     $("userPhrasesModal").addEventListener("pointerdown", (event) => {
       if (event.target === $("userPhrasesModal")) closeUserPhrases();
     });
+    new ResizeObserver(() => {
+      clearTimeout(userWordsResizeTimer);
+      userWordsResizeTimer = setTimeout(() => updateUserWordsPageSize(), 100);
+    }).observe($("userPhrasesList"));
     $("commonLibraryTabBtn").addEventListener("click", () => setLibraryView("common"));
     $("librarySettingsTabBtn").addEventListener("click", () => setLibraryView("settings"));
     $("libraryModal").addEventListener("pointerdown", (event) => {
@@ -3559,6 +3894,8 @@ const fallbackSentences = [
     });
 
     document.addEventListener("keydown", (event) => {
+      handleDictionaryLibraryKeys(event);
+      handleUserWordsKeys(event);
       if (event.key === "Escape") {
         closeLibraryModal();
         closeAiTextModal();

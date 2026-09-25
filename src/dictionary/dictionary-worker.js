@@ -133,7 +133,53 @@ function count() {
   return database.selectValue("SELECT count(*) FROM stardict");
 }
 
-const handlers = { status, install, remove, query, match, count };
+function list({ entryType = "words", category = "all", sort = "alphabetical", query = "", page = 1, pageSize = 100 } = {}) {
+  requireDatabase();
+  const categories = {
+    all: ["1=1", []],
+    oxford: ["oxford > 0", []],
+    collins: ["collins > 0", []],
+    zk: ["instr(' ' || lower(tag) || ' ', ' zk ') > 0", []],
+    gk: ["instr(' ' || lower(tag) || ' ', ' gk ') > 0", []],
+    ky: ["instr(' ' || lower(tag) || ' ', ' ky ') > 0", []],
+    cet4: ["instr(' ' || lower(tag) || ' ', ' cet4 ') > 0", []],
+    cet6: ["instr(' ' || lower(tag) || ' ', ' cet6 ') > 0", []],
+    ielts: ["instr(' ' || lower(tag) || ' ', ' ielts ') > 0", []],
+    toefl: ["instr(' ' || lower(tag) || ' ', ' toefl ') > 0", []],
+    gre: ["instr(' ' || lower(tag) || ' ', ' gre ') > 0", []]
+  };
+  const orderBy = {
+    alphabetical: "word COLLATE NOCASE, id",
+    bnc: "CASE WHEN bnc > 0 THEN 0 ELSE 1 END, bnc, word COLLATE NOCASE",
+    frq: "CASE WHEN frq > 0 THEN 0 ELSE 1 END, frq, word COLLATE NOCASE",
+    collins: "collins DESC, word COLLATE NOCASE"
+  };
+  const [categoryWhere] = categories[category] || categories.all;
+  const typeWhere = entryType === "suffixes"
+    ? "word LIKE '-%'"
+    : entryType === "special"
+      ? "word NOT LIKE '-%' AND word NOT GLOB '[A-Za-z]*'"
+    : entryType === "phrases"
+      ? "word GLOB '[A-Za-z]*' AND instr(trim(word), ' ') > 0"
+      : "word GLOB '[A-Za-z]*' AND instr(trim(word), ' ') = 0";
+  const normalizedQuery = String(query || "").trim();
+  const escapedQuery = normalizedQuery.replace(/([%_\\])/g, "\\$1");
+  const searchWhere = normalizedQuery ? "word LIKE ? ESCAPE '\\' COLLATE NOCASE" : "1=1";
+  const bindings = normalizedQuery ? [`%${escapedQuery}%`] : [];
+  const where = `(${typeWhere}) AND (${categoryWhere}) AND (${searchWhere})`;
+  const normalizedPageSize = Math.max(20, Math.min(Number(pageSize) || 100, 200));
+  const countSql = `SELECT count(*) FROM stardict WHERE ${where}`;
+  const total = Number(bindings.length ? database.selectValue(countSql, bindings) : database.selectValue(countSql)) || 0;
+  const pageCount = Math.max(1, Math.ceil(total / normalizedPageSize));
+  const normalizedPage = Math.max(1, Math.min(Number(page) || 1, pageCount));
+  const rows = database.selectArrays(
+    `SELECT id, word FROM stardict WHERE ${where} ORDER BY ${orderBy[sort] || orderBy.alphabetical} LIMIT ? OFFSET ?`,
+    [...bindings, normalizedPageSize, (normalizedPage - 1) * normalizedPageSize]
+  ).map(([id, word]) => ({ id, word }));
+  return { rows, total, page: normalizedPage, pageSize: normalizedPageSize, pageCount };
+}
+
+const handlers = { status, install, remove, query, match, count, list };
 
 self.addEventListener("message", async (event) => {
   const { id, method, payload } = event.data || {};

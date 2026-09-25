@@ -64,7 +64,8 @@
       <div class="toolbar">
         <button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="切换背景模式">黑夜</button>
         <button id="openLibraryBtn" type="button">句库</button>
-        <button id="userPhrasesBtn" type="button">用户词句</button>
+        <button id="openDictionaryLibraryBtn" type="button">词库</button>
+        <button id="userPhrasesBtn" type="button">收藏</button>
         <details class="font-menu">
           <summary>设置</summary>
           <div class="font-popover settings">
@@ -379,14 +380,63 @@
       </div>
     </div>
   </div>
+  <div id="dictionaryLibraryModal" class="library-modal" hidden>
+    <div class="user-phrases-dialog" role="dialog" aria-modal="true" aria-labelledby="dictionaryLibraryTitle">
+      <div class="library-header">
+        <div><h2 id="dictionaryLibraryTitle">词库</h2><div id="dictionaryLibrarySummary" class="small-note">完整 ECDICT</div></div>
+        <div class="dialog-header-actions">
+          <button id="resetDictionaryLibrarySizeBtn" type="button">恢复默认大小</button>
+          <button id="closeDictionaryLibraryBtn" type="button">关闭</button>
+        </div>
+      </div>
+      <div class="user-phrases-layout">
+        <aside class="user-phrases-tabs" role="tablist" aria-label="词库类型">
+          <button id="dictionaryWordsTabBtn" class="is-active" type="button" role="tab" aria-selected="true">单词</button>
+          <button id="dictionarySuffixesTabBtn" type="button" role="tab" aria-selected="false">后缀</button>
+          <button id="dictionaryPhrasesTabBtn" type="button" role="tab" aria-selected="false">短语</button>
+          <button id="dictionarySpecialTabBtn" type="button" role="tab" aria-selected="false">特殊</button>
+        </aside>
+        <div class="user-phrases-collection">
+          <div class="user-words-controls">
+            <label>分类<select id="dictionaryCategorySelect">
+              <option value="all">全部</option><option value="oxford">Oxford 3000</option><option value="collins">柯林斯词汇</option>
+              <option value="zk">中考</option><option value="gk">高考</option><option value="ky">考研</option>
+              <option value="cet4">CET4</option><option value="cet6">CET6</option><option value="ielts">IELTS</option>
+              <option value="toefl">TOEFL</option><option value="gre">GRE</option>
+            </select></label>
+            <label>排序<select id="dictionarySortSelect">
+              <option value="alphabetical">字母 A-Z</option><option value="bnc">BNC 词频</option>
+              <option value="frq">当代语料词频</option><option value="collins">柯林斯星级</option>
+            </select></label>
+          </div>
+          <div id="dictionaryLibraryCount" class="user-words-count">
+            <input id="dictionaryLibrarySearchInput" type="search" autocomplete="off" placeholder="搜索单词" aria-label="搜索完整词库">
+            <span id="dictionaryLibraryCountText">0 个单词</span>
+          </div>
+          <div id="dictionaryLibraryList" class="user-words-list"></div>
+          <div class="dictionary-library-pagination">
+            <button id="dictionaryFirstPageBtn" type="button" aria-label="最前页" title="最前页">≪</button>
+            <button id="dictionaryPrevPageBtn" type="button" aria-label="上一页" title="上一页">‹</button>
+            <label class="dictionary-page-jump"><input id="dictionaryPageInput" type="number" min="1" value="1" inputmode="numeric" aria-label="跳转页码"><span id="dictionaryPageCount">/ 1 页</span></label>
+            <button id="dictionaryNextPageBtn" type="button" aria-label="下一页" title="下一页">›</button>
+            <button id="dictionaryLastPageBtn" type="button" aria-label="最后页" title="最后页">≫</button>
+          </div>
+        </div>
+        <section id="dictionaryLibraryDetail" class="user-phrase-detail" aria-live="polite"><div class="user-phrases-empty">将鼠标移到单词上查看释义。</div></section>
+      </div>
+    </div>
+  </div>
   <div id="userPhrasesModal" class="library-modal" hidden>
     <div class="user-phrases-dialog" role="dialog" aria-modal="true" aria-labelledby="userPhrasesTitle">
       <div class="library-header">
         <div>
-          <h2 id="userPhrasesTitle">用户词句</h2>
+          <h2 id="userPhrasesTitle">收藏</h2>
           <div id="userPhrasesSummary" class="small-note">0 个收藏单词</div>
         </div>
-        <button id="closeUserPhrasesBtn" type="button">关闭</button>
+        <div class="dialog-header-actions">
+          <button id="resetUserPhrasesSizeBtn" type="button">恢复默认大小</button>
+          <button id="closeUserPhrasesBtn" type="button">关闭</button>
+        </div>
       </div>
       <div class="user-phrases-layout">
         <aside class="user-phrases-tabs" role="tablist" aria-label="收藏类型">
@@ -420,9 +470,19 @@
               </select>
             </label>
           </div>
-          <div id="userWordsCount" class="user-words-count">0 个单词</div>
+          <div id="userWordsCount" class="user-words-count">
+            <input id="userWordsSearchInput" type="search" autocomplete="off" placeholder="搜索单词" aria-label="搜索收藏单词">
+            <span id="userWordsCountText">0 个单词</span>
+          </div>
           <div id="userPhrasesList" class="user-words-list" role="tabpanel"></div>
           <div id="userSentencesList" class="user-sentences-list" role="tabpanel" hidden></div>
+          <div id="userWordsPagination" class="dictionary-library-pagination">
+            <button id="userWordsFirstPageBtn" type="button" aria-label="最前页" title="最前页">≪</button>
+            <button id="userWordsPrevPageBtn" type="button" aria-label="上一页" title="上一页">‹</button>
+            <label class="dictionary-page-jump"><input id="userWordsPageInput" type="number" min="1" value="1" inputmode="numeric" aria-label="跳转页码"><span id="userWordsPageCount">/ 1 页</span></label>
+            <button id="userWordsNextPageBtn" type="button" aria-label="下一页" title="下一页">›</button>
+            <button id="userWordsLastPageBtn" type="button" aria-label="最后页" title="最后页">≫</button>
+          </div>
         </div>
         <section id="userPhraseDetail" class="user-phrase-detail" aria-live="polite">
           <div class="user-phrases-empty">将鼠标移到单词上查看释义。</div>
@@ -457,7 +517,7 @@
   <script src="src/auth/supabase-auth-service.js?v=20260925-1"></script>
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
-  <script src="src/dictionary/dictionary-service.js?v=20260924-1"></script>
-  <script src="src/app.js?v=20260925-1"></script>
+  <script src="src/dictionary/dictionary-service.js?v=20260925-6"></script>
+  <script src="src/app.js?v=20260925-14"></script>
 </body>
 </html>
