@@ -1,6 +1,4 @@
 (() => {
-  const CONFIG_STORAGE_KEY = "langLSRWCloudConfig";
-
   class SupabaseAuthService {
     constructor() {
       this.client = null;
@@ -9,21 +7,10 @@
     }
 
     loadConfig() {
-      let stored = {};
-      try {
-        stored = JSON.parse(localStorage.getItem(CONFIG_STORAGE_KEY) || "{}");
-      } catch {
-        stored = {};
-      }
       const bundled = window.langLSRWCloudConfig || {};
-      const bundledConfig = {
+      return {
         supabaseUrl: String(bundled.supabaseUrl || "").trim().replace(/\/$/, ""),
         supabaseAnonKey: String(bundled.supabaseAnonKey || "").trim()
-      };
-      if (bundledConfig.supabaseUrl && bundledConfig.supabaseAnonKey) return bundledConfig;
-      return {
-        supabaseUrl: String(stored.supabaseUrl || "").trim().replace(/\/$/, ""),
-        supabaseAnonKey: String(stored.supabaseAnonKey || "").trim()
       };
     }
 
@@ -39,16 +26,6 @@
       }
     }
 
-    configure(config, persist = true) {
-      this.config = {
-        supabaseUrl: String(config?.supabaseUrl || "").trim().replace(/\/$/, ""),
-        supabaseAnonKey: String(config?.supabaseAnonKey || "").trim()
-      };
-      if (persist) localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(this.config));
-      this.disconnect();
-      return this.isConfigured();
-    }
-
     connect() {
       if (!this.isConfigured()) return null;
       if (this.client) return this.client;
@@ -62,12 +39,6 @@
         }
       });
       return this.client;
-    }
-
-    disconnect() {
-      if (this.authSubscription) this.authSubscription.unsubscribe();
-      this.authSubscription = null;
-      this.client = null;
     }
 
     async getUser() {

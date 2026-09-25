@@ -289,6 +289,7 @@ const fallbackSentences = [
       scheduleCloudSync();
     }
 
+    const AUTO_CLOUD_SYNC_ENABLED = false;
     let cloudSyncTimer = 0;
 
     function cloudDisplayName(user = state.cloudUser) {
@@ -302,30 +303,17 @@ const fallbackSentences = [
       $("cloudUserMenuSection").hidden = !signedIn;
       $("localUserMenuSection").hidden = signedIn || !state.currentUser;
       $("googleLoginBtn").disabled = !configured || signedIn;
-      $("openCloudSettingsBtn").hidden = configured;
       $("cloudLogoutBtn").disabled = !signedIn || state.cloudSyncing;
+      $("syncCloudBtn").disabled = !signedIn || state.cloudSyncing;
       $("clearUserBtn").disabled = signedIn || !state.currentUser;
       $("clearUserBtn").title = signedIn ? "请先退出 Google 登录" : "删除当前浏览器中的本机用户和练习记录";
       $("cloudLoginStatus").textContent = message || (signedIn
         ? `已登录：${cloudDisplayName()}`
-        : configured ? "" : "请先在设置中配置 Supabase");
+        : configured ? "" : "云登录未配置");
       $("cloudAccountStatus").textContent = signedIn
         ? `${cloudDisplayName()}${state.cloudLastSyncedAt ? ` · 云端保存 ${new Date(state.cloudLastSyncedAt).toLocaleString()}` : " · 尚未保存"}`
         : "未登录云账号";
       if (signedIn) $("userBadge").textContent = `用户：${cloudDisplayName()}`;
-    }
-
-    function loadCloudSettings() {
-      const config = window.langLSRWCloudAuth?.config || {};
-      const bundled = window.langLSRWCloudConfig || {};
-      const hasBundledConfig = Boolean(bundled.supabaseUrl && bundled.supabaseAnonKey);
-      $("cloudConfigSection").hidden = hasBundledConfig;
-      $("supabaseUrlInput").value = config.supabaseUrl || "";
-      $("supabaseAnonKeyInput").value = config.supabaseAnonKey || "";
-      $("cloudSettingsStatus").textContent = window.langLSRWCloudAuth?.isConfigured()
-        ? "云账号配置已就绪。"
-        : "填写 Supabase 项目的公开 URL 和 publishable key。";
-      renderCloudAuthState();
     }
 
     function collectCloudPayload() {
@@ -407,7 +395,7 @@ const fallbackSentences = [
     }
 
     function scheduleCloudSync() {
-      if (!state.cloudUser || state.cloudSyncing) return;
+      if (!AUTO_CLOUD_SYNC_ENABLED || !state.cloudUser || state.cloudSyncing) return;
       clearTimeout(cloudSyncTimer);
       cloudSyncTimer = setTimeout(pushCloudState, 1200);
     }
@@ -450,8 +438,6 @@ const fallbackSentences = [
         if (remote?.payload) {
           state.cloudLastSyncedAt = remote.updated_at || remote.payload.savedAt || "";
           applyCloudPayload(remote.payload);
-        } else {
-          await pushCloudState();
         }
         hideLogin();
         render();
@@ -461,7 +447,7 @@ const fallbackSentences = [
     }
 
     async function initializeCloudAuth() {
-      loadCloudSettings();
+      renderCloudAuthState();
       if (!window.langLSRWCloudAuth?.isConfigured()) return;
       try {
         window.langLSRWCloudAuth.onAuthStateChange((event, session) => {
@@ -480,20 +466,6 @@ const fallbackSentences = [
       }
     }
 
-    async function saveCloudSettings() {
-      const configured = window.langLSRWCloudAuth.configure({
-        supabaseUrl: $("supabaseUrlInput").value,
-        supabaseAnonKey: $("supabaseAnonKeyInput").value
-      });
-      $("cloudSettingsStatus").textContent = configured
-        ? "配置已保存，可以使用 Google 登录。"
-        : "配置不完整，请检查 URL 和 anon key。";
-      state.cloudUser = null;
-      state.cloudLastSyncedAt = "";
-      renderCloudAuthState();
-      if (configured) await initializeCloudAuth();
-    }
-
     async function signInWithGoogle() {
       renderCloudAuthState("正在跳转到 Google...");
       try {
@@ -506,7 +478,6 @@ const fallbackSentences = [
     async function signOutCloudUser() {
       try {
         clearTimeout(cloudSyncTimer);
-        await pushCloudState();
         await window.langLSRWCloudAuth.signOut();
         if (state.cloudUser) completeCloudSignOut();
       } catch (error) {
@@ -761,7 +732,6 @@ const fallbackSentences = [
         clearTimeout(cloudSyncTimer);
         state.cloudSwitchingToLocal = true;
         try {
-          await pushCloudState();
           await window.langLSRWCloudAuth.signOut();
         } catch {
           // Local mode remains available even if the remote session cannot be closed.
@@ -3047,15 +3017,8 @@ const fallbackSentences = [
     });
 
     $("saveAiSettingsBtn").addEventListener("click", saveAiSettings);
-    $("saveCloudSettingsBtn").addEventListener("click", saveCloudSettings);
     $("googleLoginBtn").addEventListener("click", signInWithGoogle);
-    $("openCloudSettingsBtn").addEventListener("click", () => {
-      hideLogin();
-      closeTopMenus();
-      const settingsMenu = document.querySelector(".font-menu");
-      settingsMenu.open = true;
-      setTimeout(() => $("supabaseUrlInput").focus(), 0);
-    });
+    $("syncCloudBtn").addEventListener("click", pushCloudState);
     $("cloudLogoutBtn").addEventListener("click", signOutCloudUser);
     $("installDictionaryBtn").addEventListener("click", installDictionary);
     $("testDictionaryBtn").addEventListener("click", testDictionary);

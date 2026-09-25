@@ -20,7 +20,6 @@
               使用 Google 登录
             </button>
             <div id="cloudLoginStatus" class="cloud-login-status" aria-live="polite">尚未配置云登录</div>
-            <button id="openCloudSettingsBtn" class="login-settings-button" type="button">配置云登录</button>
           </div>
         </section>
         <div class="login-choice-or" aria-hidden="true">or</div>
@@ -97,19 +96,6 @@
               </div>
               <div class="small-note">点击按键框后，按下你想设置的组合键。</div>
             </div>
-            <div id="cloudConfigSection" class="settings-section">
-              <div class="settings-section-title">云账号</div>
-              <label>
-                Supabase URL
-                <input id="supabaseUrlInput" type="url" autocomplete="off" placeholder="https://项目.supabase.co">
-              </label>
-              <label>
-                Supabase publishable key
-                <input id="supabaseAnonKeyInput" type="password" autocomplete="off" placeholder="sb_publishable_...">
-              </label>
-              <button id="saveCloudSettingsBtn" type="button">保存云账号设置</button>
-              <div id="cloudSettingsStatus" class="small-note" aria-live="polite"></div>
-            </div>
             <div class="settings-section">
               <div class="settings-section-title">AI 接口</div>
               <label>
@@ -182,7 +168,8 @@
               <div class="account-menu-title">登录账户</div>
               <div id="cloudAccountStatus" class="cloud-account-status">未登录云账号</div>
               <button id="cloudLogoutBtn" type="button" disabled>退出 Google</button>
-              <div class="small-note">登录时读取云端数据；练习记录或设置变化后自动保存。</div>
+              <div class="small-note">登录时读取一次云端数据；调试阶段不会自动保存。</div>
+              <button id="syncCloudBtn" type="button" disabled>手动同步</button>
             </section>
             <section id="localUserMenuSection" class="account-menu-section" hidden>
               <div class="account-menu-title">本机用户</div>

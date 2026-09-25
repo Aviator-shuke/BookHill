@@ -18,7 +18,7 @@ Local testing remains the default development workflow. Run `tools/start-langlsr
 - Separate English-content and Chinese UI/translation font settings.
 - Configurable colors for all grammar roles, with a color picker, editable HEX value, common color palette, local persistence, and reset defaults.
 - Installable local ECDICT foundation using SQLite WASM in a dedicated Worker and browser OPFS persistence. The page accesses it through a storage-independent dictionary service rather than issuing SQL from UI code.
-- Supabase Google authentication and first-stage cross-device sync are implemented. The Supabase SDK is pinned locally, localhost has a browser-safe default project URL and publishable key, production public configuration is supplied by Vercel environment variables, and deployed Google sign-in has been verified.
+- Supabase Google authentication and first-stage cross-device sync are implemented. The Supabase SDK is pinned locally, localhost reads the project's bundled public configuration, production public configuration is supplied by Vercel environment variables, and deployed Google sign-in has been verified. The obsolete user-editable Supabase configuration UI and browser-storage override have been removed. During the current debugging stage, login performs one cloud read but all automatic writes are disabled; the signed-in account menu provides an explicit manual-sync action.
 - `npm run build` creates a disposable `dist/` containing only browser runtime files and injects public Supabase configuration from Vercel build environment variables.
 - Top controls for theme, library, settings, and users. Shortcut configuration lives inside Settings, and learning shortcuts are suspended while Settings, the user menu, or the library dialog is open.
 - The user menu is identity-specific: a Google session shows only account status and sign-out, while a local session shows only local-user switching, JSON import/export, and deletion. Local backup controls no longer appear in global Settings or in cloud-account mode. Global reset remains under Settings.
@@ -60,6 +60,7 @@ Local testing remains the default development workflow. Run `tools/start-langlsr
 - Dictation input with accuracy, speed, pause, fluency, and error statistics plus recent records.
 - Configurable keyboard shortcuts.
 - Google cloud accounts and local-only users are separate identity types. Cloud caches are keyed by the immutable Supabase user ID and are never registered as email-named local users. Signing out clears the active identity and returns to user selection; choosing a local user is always explicit. Initial cloud persistence covers settings, the signed-in user's practice history, learned count, and a current custom sentence library; the built-in common library and AI API key are excluded.
+- Cloud writes are manual during the debugging stage to control traffic. Login reads the cloud record once; learning actions, setting changes, first login, sign-out, and switching to a local user do not write automatically. `手动同步` replaces the account's single Supabase row with the current settings, up to 80 recent practice records, learned count, and the complete active custom library. The built-in common library, ECDICT database, recordings, local-user data, and AI API key are excluded. The retained 1.2-second debounced auto-sync path is guarded by `AUTO_CLOUD_SYNC_ENABLED = false` for later reactivation.
 
 ### Speaking
 
@@ -122,6 +123,7 @@ The HTML, CSS, bundled material, generated prompt, and launcher are separated. M
 - AI article generation, writing review, and review-material generation are not implemented yet.
 - Only the common sentence library is currently available; the other library categories have no data yet.
 - Supabase authentication, schema, and first-stage sync code are connected to the production project. Google sign-in works; cross-device state synchronization has not yet completed a two-browser or two-device verification pass. Local browser storage remains the primary offline data layer.
+- Manual synchronization still uploads the complete cloud payload rather than field-level changes; large custom libraries can therefore consume substantial traffic per click. Incremental synchronization remains future work.
 - The API key is stored in browser local storage and is acceptable only for private local use.
 - Before public AI access, requests must move behind a backend proxy with quotas and cost controls.
 - Speech recognition and recording depend on browser support and microphone permission.

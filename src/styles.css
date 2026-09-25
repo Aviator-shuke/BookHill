@@ -793,14 +793,6 @@
       margin: 0;
     }
 
-    .login-settings-button {
-      width: 100%;
-      min-height: 34px;
-      margin-top: 7px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-
     .login-divider {
       display: flex;
       align-items: center;
