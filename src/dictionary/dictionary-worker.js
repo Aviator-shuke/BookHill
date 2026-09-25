@@ -105,8 +105,7 @@ function requireDatabase() {
   if (!database) throw new Error("本地词典尚未安装");
 }
 
-function query(word) {
-  requireDatabase();
+function selectEntry(word) {
   const rows = [];
   database.exec({
     sql: "SELECT word, phonetic, definition, translation, pos, collins, oxford, tag, bnc, frq, exchange, detail, audio FROM stardict WHERE word = ? COLLATE NOCASE LIMIT 1",
@@ -115,6 +114,21 @@ function query(word) {
     callback: (row) => rows.push(row)
   });
   return rows[0] || null;
+}
+
+function query(word) {
+  requireDatabase();
+  const result = selectEntry(word);
+  if (!result || String(result.exchange || "").trim()) return result;
+
+  const doubledLVariant = String(result.word || word).replace(/l(ing|ed|er)$/i, "ll$1");
+  if (doubledLVariant.toLowerCase() === String(result.word || word).toLowerCase()) return result;
+  const variant = selectEntry(doubledLVariant);
+  const lemma = String(variant?.exchange || "")
+    .split("/")
+    .find((item) => item.trim().startsWith("0:"));
+  if (lemma) result.exchange = lemma.trim();
+  return result;
 }
 
 function match({ word, limit = 10, strip = false }) {

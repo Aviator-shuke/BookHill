@@ -2100,10 +2100,19 @@ const fallbackSentences = [
     function positionDictionaryLookup(anchor) {
       const popover = $("dictionaryLookupPopover");
       const margin = 8;
+      const gap = 0;
       const preferredX = anchor?.clientX ?? anchor?.left ?? window.innerWidth / 2;
-      const preferredY = anchor?.clientY ?? anchor?.bottom ?? window.innerHeight / 2;
+      const avoidRect = anchor?.avoidRect || anchor;
+      const avoidTop = avoidRect?.top ?? anchor?.clientY ?? window.innerHeight / 2;
+      const avoidBottom = avoidRect?.bottom ?? anchor?.clientY ?? window.innerHeight / 2;
+      const belowTop = avoidBottom + gap;
+      const belowSpace = window.innerHeight - margin - belowTop;
+      const aboveSpace = avoidTop - gap - margin;
+      const useBelow = belowSpace >= Math.min(popover.scrollHeight, 180) || belowSpace >= aboveSpace;
+      const availableHeight = Math.max(96, useBelow ? belowSpace : aboveSpace);
+      popover.style.maxHeight = `${Math.min(420, availableHeight)}px`;
       popover.style.left = `${Math.max(margin, Math.min(preferredX, window.innerWidth - popover.offsetWidth - margin))}px`;
-      popover.style.top = `${Math.max(margin, Math.min(preferredY + 8, window.innerHeight - popover.offsetHeight - margin))}px`;
+      popover.style.top = `${useBelow ? belowTop : Math.max(margin, avoidTop - gap - popover.offsetHeight)}px`;
     }
 
     function closeDictionaryLookup() {
@@ -2567,10 +2576,16 @@ const fallbackSentences = [
       const word = String(wordEl.dataset.word || wordEl.textContent || "").trim();
       if (!word) return;
       const popover = $("dictionaryLookupPopover");
+      const wordRect = wordEl.getBoundingClientRect();
+      const sourceLineRect = wordEl.closest(".target-english")?.getBoundingClientRect() || wordRect;
+      const lookupAnchor = {
+        clientX: anchor?.clientX ?? wordRect.left,
+        avoidRect: sourceLineRect
+      };
       state.dictionaryLookupEntry = null;
       popover.hidden = false;
       popover.innerHTML = `<div class="dictionary-lookup-loading">正在查询 ${escapeHtml(word)}...</div>`;
-      positionDictionaryLookup(anchor || wordEl.getBoundingClientRect());
+      positionDictionaryLookup(lookupAnchor);
       popover.dataset.word = word;
       try {
         const result = await window.langLSRWDictionary.query(word);
@@ -2612,7 +2627,7 @@ const fallbackSentences = [
         const unavailable = String(error?.message || error).includes("尚未安装");
         popover.innerHTML = `<div class="dictionary-lookup-header"><strong>${escapeHtml(word)}</strong><button type="button" data-dictionary-close aria-label="关闭">×</button></div><div class="dictionary-lookup-empty">${unavailable ? "本地词典尚未安装，请先在设置中安装。" : `查询失败：${escapeHtml(error?.message || String(error))}`}</div>`;
       }
-      positionDictionaryLookup(anchor || wordEl.getBoundingClientRect());
+      positionDictionaryLookup(lookupAnchor);
     }
 
     function lookupCurrentWord() {
