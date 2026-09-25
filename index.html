@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260925-20">
+  <link rel="stylesheet" href="src/styles.css?v=20260925-56">
 
 </head>
 <body data-theme="black" data-active-page="listenPage">
@@ -399,10 +399,10 @@
         <div class="user-phrases-collection">
           <div class="user-words-controls">
             <label>分类<select id="dictionaryCategorySelect">
-              <option value="all">全部</option><option value="oxford">Oxford 3000</option><option value="collins">柯林斯词汇</option>
-              <option value="zk">中考</option><option value="gk">高考</option><option value="ky">考研</option>
-              <option value="cet4">CET4</option><option value="cet6">CET6</option><option value="ielts">IELTS</option>
-              <option value="toefl">TOEFL</option><option value="gre">GRE</option>
+              <option value="oxford">Oxford 3000</option>
+              <option value="zk">中考</option><option value="gk">高考</option><option value="cet4">CET4</option><option value="cet6">CET6</option>
+              <option value="ky">考研</option><option value="ielts">IELTS</option>
+              <option value="toefl">TOEFL</option><option value="gre">GRE</option><option value="all">全部</option>
             </select></label>
             <label>排序<select id="dictionarySortSelect">
               <option value="alphabetical">字母 A-Z</option><option value="bnc">BNC 词频</option>
@@ -449,12 +449,11 @@
               <select id="userWordsCategorySelect">
                 <option value="all">全部</option>
                 <option value="oxford">Oxford 3000</option>
-                <option value="collins">柯林斯词汇</option>
                 <option value="zk">中考</option>
                 <option value="gk">高考</option>
-                <option value="ky">考研</option>
                 <option value="cet4">CET4</option>
                 <option value="cet6">CET6</option>
+                <option value="ky">考研</option>
                 <option value="ielts">IELTS</option>
                 <option value="toefl">TOEFL</option>
                 <option value="gre">GRE</option>
@@ -463,6 +462,7 @@
             <label>排序
               <select id="userWordsSortSelect">
                 <option value="saved-desc">收藏时间</option>
+                <option value="rating">收藏星级</option>
                 <option value="alphabetical">字母 A-Z</option>
                 <option value="bnc">BNC 词频</option>
                 <option value="frq">当代语料词频</option>
@@ -517,7 +517,7 @@
   <script src="src/auth/supabase-auth-service.js?v=20260925-1"></script>
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
-  <script src="src/dictionary/dictionary-service.js?v=20260925-6"></script>
-  <script src="src/app.js?v=20260925-14"></script>
+  <script src="src/dictionary/dictionary-service.js?v=20260925-7"></script>
+  <script src="src/app.js?v=20260925-28"></script>
 </body>
 </html>

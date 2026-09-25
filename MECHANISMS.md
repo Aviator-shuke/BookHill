@@ -68,9 +68,12 @@ Each saved word is a complete snapshot containing:
 - `exchange`
 - `sourceSentence`
 - `sourceTranslation`
+- `rating` (1-5)
 - `savedAt`
 
 The source sentence and translation are saved as complete text, not as a sentence number or library reference. This preserves the example even if the active library, sentence order, or source material later changes. Saving several words from one sentence intentionally duplicates that small text snapshot.
+
+Collection level uses five stars. Clicking a level stores that integer; clicking the active level again removes the word. Existing records without `rating` are interpreted as level 1 without requiring a destructive migration.
 
 Storage namespaces:
 

@@ -173,9 +173,9 @@ function list({ entryType = "words", category = "all", sort = "alphabetical", qu
   const pageCount = Math.max(1, Math.ceil(total / normalizedPageSize));
   const normalizedPage = Math.max(1, Math.min(Number(page) || 1, pageCount));
   const rows = database.selectArrays(
-    `SELECT id, word FROM stardict WHERE ${where} ORDER BY ${orderBy[sort] || orderBy.alphabetical} LIMIT ? OFFSET ?`,
+    `SELECT id, word, collins FROM stardict WHERE ${where} ORDER BY ${orderBy[sort] || orderBy.alphabetical} LIMIT ? OFFSET ?`,
     [...bindings, normalizedPageSize, (normalizedPage - 1) * normalizedPageSize]
-  ).map(([id, word]) => ({ id, word }));
+  ).map(([id, word, collins]) => ({ id, word, collins: Number(collins) || 0 }));
   return { rows, total, page: normalizedPage, pageSize: normalizedPageSize, pageCount };
 }
 

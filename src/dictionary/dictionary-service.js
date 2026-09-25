@@ -2,7 +2,7 @@
   class DictionaryService {
     constructor(options = {}) {
       this.manifestUrl = options.manifestUrl || "assets/dictionaries/runtime/ecdict/manifest.json";
-      this.workerUrl = options.workerUrl || "src/dictionary/dictionary-worker.js?v=20260925-6";
+      this.workerUrl = options.workerUrl || "src/dictionary/dictionary-worker.js?v=20260925-7";
       this.worker = null;
       this.sequence = 0;
       this.pending = new Map();

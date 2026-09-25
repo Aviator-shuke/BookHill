@@ -2044,17 +2044,28 @@ const fallbackSentences = [
       const labels = {
         zk: "中考",
         gk: "高考",
+        ky: "考研",
         cet4: "CET4",
         cet6: "CET6",
-        ky: "考研",
         ielts: "IELTS",
         toefl: "TOEFL",
         gre: "GRE"
       };
+      const order = ["zk", "gk", "cet4", "cet6", "ky", "ielts", "toefl", "gre"];
       return String(value || "")
         .split(/\s+/)
         .filter(Boolean)
-        .map((tag) => labels[tag.toLowerCase()] || tag.toUpperCase());
+        .map((tag) => tag.toLowerCase())
+        .sort((left, right) => {
+          const leftIndex = order.indexOf(left);
+          const rightIndex = order.indexOf(right);
+          return (leftIndex < 0 ? order.length : leftIndex) - (rightIndex < 0 ? order.length : rightIndex);
+        })
+        .map((tag) => ({ key: labels[tag] ? tag : "other", label: labels[tag] || tag.toUpperCase() }));
+    }
+
+    function dictionaryTagBadges(tags) {
+      return tags.map((tag) => `<span class="dictionary-level-tag dictionary-level-${tag.key}">${escapeHtml(tag.label)}</span>`).join("");
     }
 
     function dictionaryExchanges(value) {
@@ -2132,7 +2143,7 @@ const fallbackSentences = [
         $("dictionaryNextPageBtn").disabled = result.page >= result.pageCount;
         $("dictionaryLastPageBtn").disabled = result.page >= result.pageCount;
         list.innerHTML = result.rows.length
-          ? result.rows.map((item, index) => `<button class="user-word-item" type="button" data-dictionary-library-word="${escapeHtml(item.word)}" data-dictionary-library-index="${(result.page - 1) * result.pageSize + index + 1}">${escapeHtml(item.word)}</button>`).join("")
+          ? result.rows.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-dictionary-library-word="${escapeHtml(item.word)}" data-dictionary-library-index="${(result.page - 1) * result.pageSize + index + 1}"><span class="user-word-label">${escapeHtml(item.word)}</span>${dictionaryCollinsRating(item)}</div>`).join("")
           : '<div class="user-phrases-empty">当前分类没有单词。</div>';
         list.querySelectorAll("[data-dictionary-library-word]").forEach((button) => {
           button.addEventListener("mouseenter", () => activateDictionaryLibraryWord(button, result.total, typeLabel));
@@ -2199,7 +2210,7 @@ const fallbackSentences = [
         ${item.pos ? `<div class="dictionary-pos">${escapeHtml(item.pos)}</div>` : ""}
         ${translations.length ? `<div class="dictionary-meanings">${translations.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
         ${definitions.length ? `<div class="dictionary-definitions">${definitions.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
-        ${collins || Number(item.oxford) > 0 || tags.length ? `<div class="dictionary-badges">${collins ? `<span class="dictionary-collins">柯林斯 ${"★".repeat(collins)}</span>` : ""}${Number(item.oxford) > 0 ? "<span>Oxford 3000</span>" : ""}${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
+        ${collins || Number(item.oxford) > 0 || tags.length ? `<div class="dictionary-badges">${collins ? `<span class="dictionary-collins">柯林斯 <span class="dictionary-collins-stars">${"★".repeat(collins)}</span></span>` : ""}${Number(item.oxford) > 0 ? '<span class="dictionary-level-tag dictionary-level-oxford">Oxford 3000</span>' : ""}${dictionaryTagBadges(tags)}</div>` : ""}
         ${bnc || frq ? `<div class="dictionary-frequency">${bnc ? `<span><b>BNC</b> 词频 #${bnc}</span>` : ""}${frq ? `<span><b>当代语料</b> 词频 #${frq}</span>` : ""}</div>` : ""}
         ${exchanges.length ? `<div class="dictionary-exchange"><div class="dictionary-section-label">词形变化</div><dl>${exchanges.map(({ label, form }) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(form)}</dd></div>`).join("")}</dl></div>` : ""}`;
     }
@@ -2296,20 +2307,35 @@ const fallbackSentences = [
       return loadUserWords().some((item) => dictionaryFavoriteKey(item.word) === key);
     }
 
-    function dictionaryFavoriteButton(word) {
-      const saved = isDictionaryFavorite(word);
-      return `<button class="dictionary-favorite-button${saved ? " is-saved" : ""}" type="button" data-dictionary-favorite aria-label="${saved ? "取消收藏" : "收藏单词"}" aria-pressed="${saved}">${saved ? "★" : "☆"}</button>`;
+    function dictionaryFavoriteButton(word, animateSaved = false) {
+      const savedItem = loadUserWords().find((item) => dictionaryFavoriteKey(item.word) === dictionaryFavoriteKey(word));
+      const rating = savedItem ? Math.max(1, Math.min(5, Number(savedItem.rating) || 1)) : 0;
+      const starIcon = '<svg class="dictionary-star-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.75 5.57 6.15.89-4.45 4.34 1.05 6.12L12 16.83l-5.5 2.89 1.05-6.12L3.1 9.26l6.15-.89L12 2.8Z"/></svg>';
+      return `<div class="dictionary-rating${animateSaved && rating ? " is-just-saved" : ""}" role="group" aria-label="收藏等级">${[1, 2, 3, 4, 5].map((level) => `<button class="dictionary-favorite-button${level <= rating ? " is-saved" : ""}${level === rating ? " is-current-rating" : ""}" type="button" data-dictionary-favorite data-dictionary-word="${escapeHtml(word)}" data-dictionary-favorite-level="${level}" aria-label="${level} 星收藏${level === rating ? "，再次点击取消收藏" : ""}" aria-pressed="${level <= rating}">${starIcon}</button>`).join("")}</div>`;
+    }
+
+    function dictionaryCollinsRating(item) {
+      const rating = Math.max(0, Math.min(5, Number(item.collins) || 0));
+      if (!rating) return "";
+      const starIcon = '<svg class="dictionary-star-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.75 5.57 6.15.89-4.45 4.34 1.05 6.12L12 16.83l-5.5 2.89 1.05-6.12L3.1 9.26l6.15-.89L12 2.8Z"/></svg>';
+      return `<div class="dictionary-rating is-collins-rating" aria-label="柯林斯 ${rating} 星">${Array.from({ length: rating }, () => `<span class="dictionary-favorite-button is-saved">${starIcon}</span>`).join("")}</div>`;
     }
 
     function toggleDictionaryFavorite(button) {
-      const result = state.dictionaryLookupEntry;
-      if (!result) return;
-      const word = String(result.word || $("dictionaryLookupPopover").dataset.word || "").trim();
-      const key = dictionaryFavoriteKey(word);
+      const inUserDetail = Boolean(button.closest("#userPhraseDetail"));
+      const inUserList = Boolean(button.closest("#userPhrasesList"));
       const words = loadUserWords();
+      const requestedWord = String(button.dataset.dictionaryWord || "").trim();
+      const requestedIndex = requestedWord ? words.findIndex((item) => dictionaryFavoriteKey(item.word) === dictionaryFavoriteKey(requestedWord)) : -1;
+      const result = requestedIndex >= 0 ? words[requestedIndex] : state.dictionaryLookupEntry;
+      if (!result) return;
+      const word = String(requestedWord || result.word || $("dictionaryLookupPopover").dataset.word || "").trim();
+      const key = dictionaryFavoriteKey(word);
       const existingIndex = words.findIndex((item) => dictionaryFavoriteKey(item.word) === key);
-      const saved = existingIndex < 0;
-      if (saved) {
+      const level = Math.max(1, Math.min(5, Number(button.dataset.dictionaryFavoriteLevel) || 1));
+      const existingRating = existingIndex >= 0 ? Math.max(1, Math.min(5, Number(words[existingIndex].rating) || 1)) : 0;
+      const saved = existingIndex < 0 || level !== existingRating;
+      if (existingIndex < 0) {
         words.unshift({
           word,
           phonetic: String(result.phonetic || ""),
@@ -2324,17 +2350,27 @@ const fallbackSentences = [
           exchange: String(result.exchange || ""),
           sourceSentence: $("dictionaryLibraryModal").hidden ? currentSentence() : "",
           sourceTranslation: $("dictionaryLibraryModal").hidden ? currentTranslation() : "",
+          rating: level,
           savedAt: new Date().toISOString()
         });
+      } else if (saved) {
+        words[existingIndex].rating = level;
       } else {
         words.splice(existingIndex, 1);
       }
       localStorage.setItem(userWordsStorageKey(), JSON.stringify(words));
-      button.classList.toggle("is-saved", saved);
-      button.textContent = saved ? "★" : "☆";
-      button.setAttribute("aria-pressed", String(saved));
-      button.setAttribute("aria-label", saved ? "取消收藏" : "收藏单词");
-      if (!$("userPhrasesModal").hidden) renderUserPhrases();
+      const ratingGroup = button.closest(".dictionary-rating");
+      if (ratingGroup) ratingGroup.outerHTML = dictionaryFavoriteButton(word, saved);
+      if (!$("userPhrasesModal").hidden) {
+        renderUserPhrases();
+        if (saved && inUserList) {
+          const row = Array.from($("userPhrasesList").querySelectorAll("[data-user-word]")).find((item) => dictionaryFavoriteKey(item.dataset.userWord) === key);
+          row?.querySelector(".dictionary-rating")?.classList.add("is-just-saved");
+        }
+      }
+      if (!saved && inUserDetail) {
+        $("userPhraseDetail").innerHTML = '<div class="user-phrases-empty">将鼠标移到单词上查看释义。</div>';
+      }
     }
 
     function filteredAndSortedUserWords(words) {
@@ -2352,11 +2388,13 @@ const fallbackSentences = [
         const rank = Number(value);
         return Number.isFinite(rank) && rank > 0 ? rank : Number.MAX_SAFE_INTEGER;
       };
+      const alphabetical = (left, right) => String(left.word).localeCompare(String(right.word), "en", { sensitivity: "base" });
       return filtered.sort((left, right) => {
-        if (sort === "alphabetical") return String(left.word).localeCompare(String(right.word), "en", { sensitivity: "base" });
+        if (sort === "alphabetical") return alphabetical(left, right);
+        if (sort === "rating") return (Number(right.rating) || 1) - (Number(left.rating) || 1) || alphabetical(left, right);
         if (sort === "bnc") return rankedValue(left.bnc) - rankedValue(right.bnc);
         if (sort === "frq") return rankedValue(left.frq) - rankedValue(right.frq);
-        if (sort === "collins") return (Number(right.collins) || 0) - (Number(left.collins) || 0);
+        if (sort === "collins") return (Number(right.collins) || 0) - (Number(left.collins) || 0) || alphabetical(left, right);
         return String(right.savedAt || "").localeCompare(String(left.savedAt || ""));
       });
     }
@@ -2366,6 +2404,7 @@ const fallbackSentences = [
       const words = filteredAndSortedUserWords(allWords);
       const sentences = loadUserSentences();
       const pageCount = Math.max(1, Math.ceil(words.length / state.userWordsPageSize));
+      const showCollinsRating = $("userWordsSortSelect").value === "collins";
       state.userWordsPage = Math.max(1, Math.min(state.userWordsPage, pageCount));
       state.userWordsPageCount = pageCount;
       const start = (state.userWordsPage - 1) * state.userWordsPageSize;
@@ -2380,7 +2419,7 @@ const fallbackSentences = [
       $("userWordsNextPageBtn").disabled = state.userWordsPage >= pageCount;
       $("userWordsLastPageBtn").disabled = state.userWordsPage >= pageCount;
       $("userPhrasesList").innerHTML = pageWords.length
-        ? pageWords.map((item, index) => `<button class="user-word-item" type="button" data-user-word="${escapeHtml(item.word)}" data-user-word-index="${start + index + 1}">${escapeHtml(item.word)}</button>`).join("")
+        ? pageWords.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-user-word="${escapeHtml(item.word)}" data-user-word-index="${start + index + 1}"><span class="user-word-label">${escapeHtml(item.word)}</span>${showCollinsRating ? dictionaryCollinsRating(item) : dictionaryFavoriteButton(item.word)}</div>`).join("")
         : `<div class="user-phrases-empty">${allWords.length ? "当前分类没有收藏单词。" : "还没有收藏单词。"}</div>`;
       $("userSentencesList").innerHTML = sentences.length
         ? sentences.map((item) => `<article class="user-sentence-item"><div>${escapeHtml(item.sentence)}</div>${item.translation ? `<div>${escapeHtml(item.translation)}</div>` : ""}</article>`).join("")
@@ -2405,6 +2444,7 @@ const fallbackSentences = [
     }
 
     function renderUserWordDetail(item) {
+      state.dictionaryLookupEntry = item;
       const translations = dictionaryTextLines(item.translation);
       const definitions = dictionaryTextLines(item.definition);
       const collins = Math.max(0, Math.min(5, Number(item.collins) || 0));
@@ -2415,15 +2455,15 @@ const fallbackSentences = [
       $("userPhraseDetail").innerHTML = `
         <div class="dictionary-lookup-header">
           <div><strong>${escapeHtml(item.word)}</strong>${item.phonetic ? `<span class="dictionary-phonetic">[${escapeHtml(item.phonetic)}]</span>` : ""}</div>
-          <button class="dictionary-favorite-button is-saved" type="button" data-user-detail-remove="${escapeHtml(dictionaryFavoriteKey(item.word))}" aria-label="取消收藏" title="取消收藏">★</button>
+          ${dictionaryFavoriteButton(item.word)}
         </div>
         ${item.pos ? `<div class="dictionary-pos">${escapeHtml(item.pos)}</div>` : ""}
         ${translations.length ? `<div class="dictionary-meanings">${translations.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
         ${definitions.length ? `<div class="dictionary-definitions">${definitions.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
         ${collins || Number(item.oxford) > 0 || tags.length ? `<div class="dictionary-badges">
-          ${collins ? `<span class="dictionary-collins">柯林斯 ${"★".repeat(collins)}</span>` : ""}
-          ${Number(item.oxford) > 0 ? `<span>Oxford 3000</span>` : ""}
-          ${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
+          ${collins ? `<span class="dictionary-collins">柯林斯 <span class="dictionary-collins-stars">${"★".repeat(collins)}</span></span>` : ""}
+          ${Number(item.oxford) > 0 ? '<span class="dictionary-level-tag dictionary-level-oxford">Oxford 3000</span>' : ""}
+          ${dictionaryTagBadges(tags)}
         </div>` : ""}
         ${bnc || frq ? `<div class="dictionary-frequency">${bnc ? `<span><b>BNC</b> 词频 #${bnc}</span>` : ""}${frq ? `<span><b>当代语料</b> 词频 #${frq}</span>` : ""}</div>` : ""}
         ${exchanges.length ? `<div class="dictionary-exchange"><div class="dictionary-section-label">词形变化</div><dl>${exchanges.map(({ label, form }) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(form)}</dd></div>`).join("")}</dl></div>` : ""}
@@ -2557,9 +2597,9 @@ const fallbackSentences = [
             ${definitions.length ? `<div class="dictionary-definitions">${definitions.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
             ${!translations.length && !definitions.length ? `<div class="dictionary-lookup-empty">该词条暂无释义。</div>` : ""}
             ${collins || Number(result.oxford) > 0 || tags.length ? `<div class="dictionary-badges">
-              ${collins ? `<span class="dictionary-collins" title="柯林斯 ${collins} 星">柯林斯 ${"★".repeat(collins)}</span>` : ""}
-              ${Number(result.oxford) > 0 ? `<span>Oxford 3000</span>` : ""}
-              ${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
+              ${collins ? `<span class="dictionary-collins" title="柯林斯 ${collins} 星">柯林斯 <span class="dictionary-collins-stars">${"★".repeat(collins)}</span></span>` : ""}
+              ${Number(result.oxford) > 0 ? '<span class="dictionary-level-tag dictionary-level-oxford">Oxford 3000</span>' : ""}
+              ${dictionaryTagBadges(tags)}
             </div>` : ""}
             ${bnc || frq ? `<div class="dictionary-frequency">
               ${bnc ? `<span><b>BNC</b> 词频 #${bnc}</span>` : ""}
@@ -3547,13 +3587,14 @@ const fallbackSentences = [
       $("userWordsPageInput").select();
     });
     $("userPhraseDetail").addEventListener("click", (event) => {
-      const button = event.target.closest("[data-user-detail-remove]");
+      const button = event.target.closest("[data-dictionary-favorite]");
+      if (button) toggleDictionaryFavorite(button);
+    });
+    $("userPhrasesList").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-dictionary-favorite]");
       if (!button) return;
-      const key = button.dataset.userDetailRemove;
-      const words = loadUserWords().filter((item) => dictionaryFavoriteKey(item.word) !== key);
-      localStorage.setItem(userWordsStorageKey(), JSON.stringify(words));
-      renderUserPhrases();
-      $("userPhraseDetail").innerHTML = '<div class="user-phrases-empty">将鼠标移到单词上查看释义。</div>';
+      event.stopPropagation();
+      toggleDictionaryFavorite(button);
     });
     $("userPhrasesModal").addEventListener("pointerdown", (event) => {
       if (event.target === $("userPhrasesModal")) closeUserPhrases();
