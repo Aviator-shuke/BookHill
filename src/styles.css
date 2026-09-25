@@ -191,6 +191,28 @@
       line-height: 1;
     }
 
+    .dictionary-lookup-actions {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 6px;
+    }
+
+    .dictionary-lookup-header .dictionary-favorite-button {
+      border-color: transparent;
+      background: transparent;
+      color: var(--muted);
+      font-size: 21px;
+    }
+
+    .dictionary-lookup-header .dictionary-favorite-button:hover,
+    .dictionary-lookup-header .dictionary-favorite-button:focus-visible,
+    .dictionary-lookup-header .dictionary-favorite-button.is-saved {
+      border-color: color-mix(in srgb, #eab308 55%, transparent);
+      background: color-mix(in srgb, #eab308 12%, transparent);
+      color: #eab308;
+      outline: none;
+    }
+
     .dictionary-phonetic {
       margin-left: 8px;
       color: var(--muted);
@@ -2258,6 +2280,212 @@
 
     .library-modal[hidden] {
       display: none;
+    }
+
+    .user-phrases-dialog {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      width: min(1080px, 100%);
+      height: min(760px, calc(100vh - 36px));
+      border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--ink);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
+      overflow: hidden;
+    }
+
+    .user-phrases-layout {
+      display: grid;
+      grid-template-columns: 150px minmax(190px, 280px) minmax(0, 1fr);
+      min-height: 0;
+    }
+
+    .user-phrases-tabs {
+      display: grid;
+      align-content: start;
+      gap: 4px;
+      padding: 10px;
+      border-right: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+      background: color-mix(in srgb, var(--surface) 78%, var(--panel));
+    }
+
+    .user-phrases-tabs button {
+      width: 100%;
+      border-color: transparent;
+      background: transparent;
+      text-align: left;
+    }
+
+    .user-phrases-tabs button.is-active {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+      color: var(--accent);
+    }
+
+    .user-phrases-collection {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      border-right: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+    }
+
+    .user-words-controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px;
+      padding: 4px 6px;
+      border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+      background: color-mix(in srgb, var(--surface) 54%, var(--panel));
+    }
+
+    .user-words-controls[hidden] {
+      display: none;
+    }
+
+    .user-words-count {
+      padding: 3px 8px;
+      border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 16px;
+      text-align: right;
+    }
+
+    .user-words-count[hidden] {
+      display: none;
+    }
+
+    .user-words-controls label {
+      display: grid;
+      gap: 1px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.2;
+    }
+
+    .user-words-controls select {
+      box-sizing: border-box;
+      appearance: none;
+      -webkit-appearance: none;
+      width: 100%;
+      min-width: 0;
+      min-height: 22px;
+      height: 22px;
+      padding: 0 14px 0 5px;
+      border-color: color-mix(in srgb, var(--ink) 18%, transparent);
+      border-radius: 7px;
+      background-color: var(--panel);
+      background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+      background-position: calc(100% - 8px) 10px, calc(100% - 4px) 10px;
+      background-size: 4px 4px, 4px 4px;
+      background-repeat: no-repeat;
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 20px;
+    }
+
+    .user-words-list,
+    .user-sentences-list {
+      display: grid;
+      flex: 1;
+      align-content: start;
+      min-height: 0;
+      padding: 12px;
+      overflow-y: auto;
+    }
+
+    .user-words-list {
+      grid-template-columns: 1fr;
+      gap: 0;
+      padding: 0;
+    }
+
+    .user-sentences-list {
+      gap: 8px;
+    }
+
+    .user-words-list[hidden],
+    .user-sentences-list[hidden] {
+      display: none;
+    }
+
+    .user-word-item {
+      min-width: 0;
+      min-height: 26px;
+      padding: 2px 8px;
+      border: 0;
+      border-top: 1px solid transparent;
+      border-bottom: 1px solid color-mix(in srgb, var(--ink) 13%, transparent);
+      border-radius: 0;
+      background: transparent;
+      font-family: var(--font-english-content), "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 20px;
+      overflow-wrap: anywhere;
+      text-align: left;
+    }
+
+    .user-word-item:hover,
+    .user-word-item:focus-visible {
+      border-top-color: color-mix(in srgb, var(--ink) 58%, transparent);
+      border-bottom-color: color-mix(in srgb, var(--ink) 58%, transparent);
+      background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+      outline: none;
+    }
+
+    .user-sentence-item {
+      display: grid;
+      gap: 5px;
+      border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+      border-radius: 7px;
+      padding: 12px;
+      background: color-mix(in srgb, var(--panel) 94%, var(--ink) 6%);
+    }
+
+    .user-sentence-item > div:last-child:not(:first-child) {
+      color: var(--muted);
+    }
+
+    .user-phrase-detail {
+      min-width: 0;
+      padding: 16px;
+      overflow-y: auto;
+    }
+
+    .user-phrase-detail .dictionary-favorite-button {
+      min-width: 30px;
+      padding: 0;
+      border-color: color-mix(in srgb, #eab308 55%, transparent);
+      background: color-mix(in srgb, #eab308 12%, transparent);
+      color: #eab308;
+      font-size: 21px;
+    }
+
+    .user-phrase-source {
+      display: grid;
+      gap: 3px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .user-phrases-empty {
+      grid-column: 1 / -1;
+      padding: 48px 16px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 760px) {
+      .user-phrases-layout {
+        grid-template-columns: 92px minmax(120px, 0.8fr) minmax(180px, 1.2fr);
+        overflow-x: auto;
+      }
     }
 
     .library-dialog {

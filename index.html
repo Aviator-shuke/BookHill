@@ -64,6 +64,7 @@
       <div class="toolbar">
         <button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="切换背景模式">黑夜</button>
         <button id="openLibraryBtn" type="button">句库</button>
+        <button id="userPhrasesBtn" type="button">用户词句</button>
         <details class="font-menu">
           <summary>设置</summary>
           <div class="font-popover settings">
@@ -374,6 +375,57 @@
             <textarea id="sentenceInput" class="sentence-list" spellcheck="false"></textarea>
           </label>
           <button id="useTextBtn" type="button">使用粘贴内容</button>
+        </section>
+      </div>
+    </div>
+  </div>
+  <div id="userPhrasesModal" class="library-modal" hidden>
+    <div class="user-phrases-dialog" role="dialog" aria-modal="true" aria-labelledby="userPhrasesTitle">
+      <div class="library-header">
+        <div>
+          <h2 id="userPhrasesTitle">用户词句</h2>
+          <div id="userPhrasesSummary" class="small-note">0 个收藏单词</div>
+        </div>
+        <button id="closeUserPhrasesBtn" type="button">关闭</button>
+      </div>
+      <div class="user-phrases-layout">
+        <aside class="user-phrases-tabs" role="tablist" aria-label="收藏类型">
+          <button id="userWordsTabBtn" class="is-active" type="button" role="tab" aria-selected="true">单词</button>
+          <button id="userSentencesTabBtn" type="button" role="tab" aria-selected="false">句子</button>
+        </aside>
+        <div class="user-phrases-collection">
+          <div id="userWordsControls" class="user-words-controls">
+            <label>分类
+              <select id="userWordsCategorySelect">
+                <option value="all">全部</option>
+                <option value="oxford">Oxford 3000</option>
+                <option value="collins">柯林斯词汇</option>
+                <option value="zk">中考</option>
+                <option value="gk">高考</option>
+                <option value="ky">考研</option>
+                <option value="cet4">CET4</option>
+                <option value="cet6">CET6</option>
+                <option value="ielts">IELTS</option>
+                <option value="toefl">TOEFL</option>
+                <option value="gre">GRE</option>
+              </select>
+            </label>
+            <label>排序
+              <select id="userWordsSortSelect">
+                <option value="saved-desc">收藏时间</option>
+                <option value="alphabetical">字母 A-Z</option>
+                <option value="bnc">BNC 词频</option>
+                <option value="frq">当代语料词频</option>
+                <option value="collins">柯林斯星级</option>
+              </select>
+            </label>
+          </div>
+          <div id="userWordsCount" class="user-words-count">0 个单词</div>
+          <div id="userPhrasesList" class="user-words-list" role="tabpanel"></div>
+          <div id="userSentencesList" class="user-sentences-list" role="tabpanel" hidden></div>
+        </div>
+        <section id="userPhraseDetail" class="user-phrase-detail" aria-live="polite">
+          <div class="user-phrases-empty">将鼠标移到单词上查看释义。</div>
         </section>
       </div>
     </div>

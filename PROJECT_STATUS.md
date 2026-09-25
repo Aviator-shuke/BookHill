@@ -2,6 +2,8 @@
 
 Last updated: 2026-09-25
 
+Detailed behavior, storage, synchronization, and build rules are maintained in [`MECHANISMS.md`](MECHANISMS.md).
+
 ## Current Stage
 
 langLSRW is currently a personal, local-first language-learning prototype. The listening and speaking workflow is usable for daily local testing. Reading, writing, review pools, and article generation are still future work. The production deployment is connected to Supabase, and Google login has been verified on the deployed site.
@@ -21,6 +23,8 @@ Local testing remains the default development workflow. Run `tools/start-langlsr
 - Supabase Google authentication and first-stage cross-device sync are implemented. The Supabase SDK is pinned locally, localhost reads the project's bundled public configuration, production public configuration is supplied by Vercel environment variables, and deployed Google sign-in has been verified. The obsolete user-editable Supabase configuration UI and browser-storage override have been removed. During the current debugging stage, login performs one cloud read but all automatic writes are disabled; the signed-in account menu provides an explicit manual-sync action.
 - `npm run build` creates a disposable `dist/` containing only browser runtime files and injects public Supabase configuration from Vercel build environment variables.
 - Top controls for theme, library, settings, and users. Shortcut configuration lives inside Settings, and learning shortcuts are suspended while Settings, the user menu, or the library dialog is open.
+- The top-level `用户词句` view uses a stable three-column layout: word/sentence categories on the left, the selected collection in the middle, and item details on the right. The word list displays only word forms; hovering a word renders its full dictionary information in the right detail pane, where its filled star can remove it. The middle word column supports category filters for Oxford 3000, Collins, exam, and proficiency tags plus sorting by collection time, alphabet, BNC rank, contemporary-corpus rank, or Collins stars. The sentence collection is structurally ready and shows its own empty state until sentence collection is implemented.
+- Dictionary lookup results include a top-right favorite star. Favorites are separated by cloud-account ID or local-user name and stored locally with the dictionary entry plus its source sentence and translation. They are not yet included in cloud synchronization, and sentence-only collection is still future work.
 - The user menu is identity-specific: a Google session shows only account status and sign-out, while a local session shows only local-user switching, JSON import/export, and deletion. Local backup controls no longer appear in global Settings or in cloud-account mode. Global reset remains under Settings.
 - The streamlined login screen centers the `langLSRW` name above `登录账号·云端同步` and `本机用户·离线保存`, presented as two distinct choices separated by a prominent `or`. Opening the screen moves focus to the neutral login container so browser-restored input focus cannot preselect either choice. Once the user hovers or focuses a choice, it gains a restrained lift and strongly softens the inactive choice; pointer hover takes precedence over retained input focus. Google login, local practice, and user import use the same outlined hover, keyboard-focus, and pressed feedback. Narrow screens stack the choices vertically.
 - Independent sentence-library dialog with library categories, search, paginated preview, and a direct practice action.
