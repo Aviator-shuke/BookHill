@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260925-56">
+  <link rel="stylesheet" href="src/styles.css?v=20260925-102">
 
 </head>
-<body data-theme="black" data-active-page="listenPage">
+<body data-theme="eye" data-active-page="listenPage">
   <section id="loginScreen" class="login-screen active" aria-label="登录" tabindex="-1">
     <div class="login-card">
       <h1>langLSRW</h1>
@@ -195,6 +195,11 @@
           <div id="target" class="target" aria-live="polite"></div>
           <div class="sentence-tools" aria-label="句子控制">
             <div class="sentence-tool-row">
+              <span class="current-library-label">句库：</span>
+              <select id="currentLibrarySelect" class="current-library-indicator" aria-label="切换句库">
+                <option value="common">常用句库</option>
+                <option value="favorites">用户收藏</option>
+              </select>
               <select id="modeSelect" class="compact-select" aria-label="练习模式">
                 <option value="ordered">顺序</option>
                 <option value="random" selected>随机</option>
@@ -227,9 +232,11 @@
               <button id="speakBtn" type="button">朗读</button>
               <button id="analyzeGrammarBtn" type="button">Ai语法分析</button>
               <div class="sentence-tool-end">
-                <div id="currentLibraryIndicator" class="current-library-indicator">句库：示例句库</div>
                 <div id="learnedCount" class="learned-count">已学习：0</div>
-                <div id="counter" class="counter"></div>
+                <div id="counter" class="counter">
+                  <input id="counterIndexInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="跳转到第几句">
+                  <span id="counterTotal">/ 0</span>
+                </div>
                 <details class="help-popover">
                   <summary>?</summary>
                   <div class="help-content">
@@ -334,6 +341,7 @@
         <aside class="library-sidebar" aria-label="句库分类">
           <button id="librarySettingsTabBtn" class="library-type-button library-settings-button" type="button">自定义句库</button>
           <button id="commonLibraryTabBtn" class="library-type-button is-active" type="button" aria-current="true">常用句库</button>
+          <button id="favoritesLibraryTabBtn" class="library-type-button" type="button" aria-current="false">用户收藏</button>
           <button class="library-type-button" type="button" disabled>情景句库</button>
           <button class="library-type-button" type="button" disabled>语法句库</button>
           <button class="library-type-button" type="button" disabled>等级句库</button>
@@ -360,6 +368,21 @@
             <button id="libraryNextPageBtn" type="button" disabled>下一页</button>
             <button id="libraryLastPageBtn" type="button" disabled>最后页</button>
             <span id="libraryStatus" class="library-status" aria-live="polite">尚未加载</span>
+          </div>
+        </section>
+        <section id="favoritesLibraryPanel" class="library-content" hidden>
+          <div class="library-summary">
+            <div class="library-title-line">
+              <h3>用户收藏</h3>
+              <div id="favoritesLibraryMeta" class="small-note">0 句</div>
+            </div>
+            <button id="useFavoritesLibraryBtn" class="primary" type="button" disabled>使用此句库</button>
+          </div>
+          <label class="library-search-label" for="favoritesLibrarySearchInput">搜索英文或中文</label>
+          <input id="favoritesLibrarySearchInput" class="library-search" type="search" autocomplete="off" placeholder="输入关键词">
+          <div id="favoritesLibrarySentenceList" class="library-sentence-list"></div>
+          <div class="library-pagination">
+            <span id="favoritesLibraryStatus" class="library-status" aria-live="polite">还没有收藏句子</span>
           </div>
         </section>
         <section id="librarySettingsPanel" class="library-settings-panel" hidden>
@@ -483,6 +506,13 @@
             <button id="userWordsNextPageBtn" type="button" aria-label="下一页" title="下一页">›</button>
             <button id="userWordsLastPageBtn" type="button" aria-label="最后页" title="最后页">≫</button>
           </div>
+          <div id="userSentencesPagination" class="dictionary-library-pagination" hidden>
+            <button id="userSentencesFirstPageBtn" type="button" aria-label="最前页" title="最前页">≪</button>
+            <button id="userSentencesPrevPageBtn" type="button" aria-label="上一页" title="上一页">‹</button>
+            <label class="dictionary-page-jump"><input id="userSentencesPageInput" type="number" min="1" value="1" inputmode="numeric" aria-label="跳转页码"><span id="userSentencesPageCount">/ 1 页</span></label>
+            <button id="userSentencesNextPageBtn" type="button" aria-label="下一页" title="下一页">›</button>
+            <button id="userSentencesLastPageBtn" type="button" aria-label="最后页" title="最后页">≫</button>
+          </div>
         </div>
         <section id="userPhraseDetail" class="user-phrase-detail" aria-live="polite">
           <div class="user-phrases-empty">将鼠标移到单词上查看释义。</div>
@@ -518,6 +548,6 @@
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
   <script src="src/dictionary/dictionary-service.js?v=20260925-8"></script>
-  <script src="src/app.js?v=20260925-31"></script>
+  <script src="src/app.js?v=20260925-59"></script>
 </body>
 </html>

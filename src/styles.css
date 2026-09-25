@@ -198,7 +198,8 @@
     }
 
     .dictionary-lookup-header .dictionary-favorite-button,
-    #userPhrasesList .dictionary-favorite-button {
+    #userPhrasesList .dictionary-favorite-button,
+    .sentence-rating .dictionary-favorite-button {
       width: 15px;
       min-width: 15px;
       min-height: 24px;
@@ -1058,6 +1059,14 @@
 
     .counter,
     .learned-count,
+    .current-library-label {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      color: var(--ink);
+      font-size: 12px;
+    }
+
     .current-library-indicator {
       box-sizing: border-box;
       flex: 0 0 auto;
@@ -1069,14 +1078,55 @@
       background: #fff;
       border: 1px solid #d1d5db;
       border-radius: 6px;
-      padding: 0 6px;
+      padding: 0 22px 0 6px;
       line-height: 1;
     }
 
     .current-library-indicator {
       max-width: 150px;
+      width: auto;
+      min-height: 0;
       overflow: hidden;
       text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    #currentLibrarySelect {
+      margin-left: -6px;
+      padding: 0 14px 0 6px;
+    }
+
+    .counter {
+      gap: 2px;
+    }
+
+    #counterIndexInput {
+      appearance: textfield;
+      -moz-appearance: textfield;
+      width: auto;
+      min-width: 0;
+      min-height: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      padding: 0;
+      text-align: right;
+    }
+
+    #counterIndexInput::-webkit-inner-spin-button,
+    #counterIndexInput::-webkit-outer-spin-button {
+      margin: 0;
+      -webkit-appearance: none;
+    }
+
+    #counterIndexInput:focus {
+      outline: none;
+    }
+
+    #counterTotal {
       white-space: nowrap;
     }
 
@@ -1516,7 +1566,9 @@
     }
 
     .target-english {
-      display: block;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
       font-family: var(--font-english-content), "Microsoft YaHei", serif;
       font-size: clamp(22px, 2.5vw, 32px);
       line-height: 1.3;
@@ -2441,6 +2493,14 @@
       min-height: 0;
     }
 
+    .user-phrases-layout.is-sentences-view {
+      grid-template-columns: 150px minmax(0, 1fr);
+    }
+
+    .user-phrases-layout.is-sentences-view .user-phrase-detail {
+      display: none;
+    }
+
     .user-phrases-tabs {
       display: grid;
       align-content: start;
@@ -2603,18 +2663,12 @@
 
     .user-words-list,
     .user-sentences-list {
-      display: grid;
+      display: flex;
+      flex-direction: column;
       flex: 1;
-      align-content: start;
       min-height: 0;
-      padding: 12px;
-      overflow-y: auto;
-    }
-
-    .user-words-list {
-      grid-template-columns: 1fr;
-      gap: 0;
       padding: 0;
+      overflow-y: auto;
     }
 
     #dictionaryLibraryList {
@@ -2688,16 +2742,13 @@
       justify-content: center;
     }
 
-    .user-sentences-list {
-      gap: 8px;
-    }
-
     .user-words-list[hidden],
     .user-sentences-list[hidden] {
       display: none;
     }
 
     .user-word-item {
+      flex-shrink: 0;
       min-width: 0;
       min-height: 26px;
       padding: 2px 8px;
@@ -2723,17 +2774,102 @@
     }
 
     .user-sentence-item {
-      display: grid;
-      gap: 5px;
-      border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
-      border-radius: 7px;
-      padding: 12px;
-      background: color-mix(in srgb, var(--panel) 94%, var(--ink) 6%);
+      position: relative;
+      flex-shrink: 0;
+      min-width: 0;
+      min-height: 30px;
+      padding: 5px 8px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: inset 0 -1px 0 #e5e5e5;
+      font-family: var(--font-english-content), "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.4;
+      text-align: left;
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      column-gap: 12px;
     }
 
-    .user-sentence-item > div:last-child:not(:first-child) {
-      color: var(--muted);
+    .user-sentence-item:hover,
+    .user-sentence-item:focus-visible {
+      background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+      box-shadow: inset 0 -1px 0 #999;
     }
+
+    .user-sentence-item:has(+ .user-sentence-item:hover),
+    .user-sentence-item:has(+ .user-sentence-item:focus-visible) {
+      box-shadow: inset 0 -1px 0 #999;
+    }
+
+    .target-english-text {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .sentence-rating {
+      flex: 0 0 auto;
+      align-self: center;
+    }
+
+    .user-sentence-item .sentence-rating {
+      order: 4;
+      flex-shrink: 0;
+    }
+
+    .user-sentence-load-button {
+      order: 3;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 24px;
+      min-width: 20px;
+      min-height: 24px;
+      padding: 0;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: color-mix(in srgb, var(--muted) 72%, transparent);
+      font-size: 11px;
+      line-height: 1;
+      cursor: pointer;
+      transition: color 120ms ease, background 120ms ease;
+    }
+
+    .user-sentence-load-button:hover,
+    .user-sentence-load-button:focus-visible {
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      outline: none;
+    }
+
+    .user-sentence-text {
+      order: 1;
+      flex: 1 1 auto;
+      min-width: 0;
+      white-space: normal;
+      overflow-wrap: break-word;
+    }
+
+    .user-sentence-meta {
+      order: 2;
+      flex: 0 1 auto;
+      min-width: 0;
+      white-space: normal;
+      overflow-wrap: break-word;
+      font-size: 12px;
+      color: var(--muted);
+      display: none;
+    }
+
+    .user-sentence-item:is(:hover, :focus-within) .user-sentence-meta {
+      display: block;
+    }
+
 
     .user-phrase-detail {
       min-width: 0;
@@ -2773,6 +2909,10 @@
       .user-phrases-layout {
         grid-template-columns: 92px minmax(120px, 0.8fr) minmax(180px, 1.2fr);
         overflow-x: auto;
+      }
+
+      .user-phrases-layout.is-sentences-view {
+        grid-template-columns: 92px minmax(0, 1fr);
       }
     }
 

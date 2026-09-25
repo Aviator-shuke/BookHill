@@ -22,6 +22,7 @@ The application is local-first. Settings, practice records, learned count, impor
 - Google-account browser data acts as the working local copy for that account.
 - Clearing browser site data removes local copies and locally installed dictionary data.
 - The replaceable ECDICT database never stores user-created data.
+- The learner's current position (`{ libraryLabel, index }`) is saved per identity under `langLSRWLastPosition:*` every time `resetCurrent()` or `switchSpeakingSentence()` runs — both are called whenever the active sentence changes (dictation flow and the shared ◀/▶ navigation respectively), and each must independently save the position since they don't call each other. On boot, `tryLoadDefaultLibrary()` reloads that same library — `用户收藏` (rebuilt from `loadUserSentences()`) if that was last active and still has entries, otherwise the built-in common library — and restores the saved index if it's still in range, defaulting to 0 otherwise. Imported custom material is not reloaded on boot (its content isn't persisted outside cloud sync), so a saved position pointing at a custom library is simply unused until that material is reselected in that session.
 
 ## Cloud Synchronization
 
@@ -88,13 +89,15 @@ Relevant implementation: `userWordsStorageKey()`, `toggleDictionaryFavorite()`, 
 
 ## User Sentence Collection
 
-The sentence collection has separate per-identity storage namespaces and UI structure, but adding sentences is not implemented yet.
+The listening page's English source line has a five-star sentence-favorite control (`sentenceFavoriteButton`), using the same interaction as word favorites: click a level to set it 1-5, click the current level again to remove it. Sentences are matched case- and whitespace-insensitively (`sentenceFavoriteKey`), so re-favoriting the same sentence updates the existing entry instead of duplicating it.
 
 - Google account: `langLSRWUserSentences:cloud:<Supabase user ID>`
 - Local user: `langLSRWUserSentences:<local username>`
-- Sentence collections are not currently synchronized to Supabase.
+- Each stored entry is `{ sentence, translation, sourceId, libraryId, libraryLabel, rating, savedAt }`. `sourceId`/`libraryId`/`libraryLabel` are only captured when the favorited sentence is the currently active one; they are empty for sentences favorited another way (e.g. re-rating from the 收藏 dialog).
+- The 收藏 dialog's "句子" tab lists favorites in a single-line row (original text + star rating, both always visible); translation and source are hidden until the row is hovered or focused, then appear on their own wrapped line below.
+- Sentence collections are not currently synchronized to Supabase, and are not yet included in `导出数据`/`导入数据` backups.
 
-Relevant implementation: `userSentencesStorageKey()` and `loadUserSentences()` in `src/app.js`.
+Relevant implementation: `userSentencesStorageKey()`, `loadUserSentences()`, `sentenceFavoriteButton()`, `toggleSentenceFavorite()` in `src/app.js`.
 
 ## Local Dictionary
 
@@ -121,6 +124,18 @@ The built-in common library is a versioned static package with stable source IDs
 - Preview renders 50 rows per page.
 - Selecting the package exposes all 30,150 entries to listening and speaking practice.
 - Imported custom material remains user data and is independent of the built-in package.
+- The `句库` picker also offers `用户收藏`: a library built on demand from the current identity's favorited sentences (`loadUserSentences()`), searchable, with no pagination since the list is small. Selecting it maps each favorite's `sentence`/`translation`/`sourceId`/`libraryId` into the normal sentence shape and loads it via `useFavoritesLibrary()`, following the same `setCurrentLibrary()` path as the common library and custom import.
+
+## Random-Mode Navigation History
+
+In 随机 (random) practice mode, `pickSentenceIndex()` keeps two per-session stacks, capped at 10 entries each, so `state.sentences`'s size does not bound how far the learner can step back:
+
+- `state.randomHistory` (back stack): the sentence left behind on every forward move (a new random pick, or a redo) is pushed here.
+- `state.randomForwardStack` (forward stack): the sentence left behind by "上一句"/◀ is pushed here.
+- "上一句"/◀ pops `randomHistory`; if it is empty, the action is a no-op (stays on the current sentence) rather than picking randomly.
+- "下一句"/▶ first drains `randomForwardStack` (redo) if it has entries, so stepping back and then forward returns to the sentence that was left, instead of immediately re-randomizing it away. Only once the forward stack is empty does a fresh random pick happen.
+- Both stacks are reset in `setCurrentLibrary()`, i.e. whenever the active material changes, since old indices would no longer point at the right sentences.
+- Ordered and mistakes modes are unaffected; they use direct index arithmetic, not these stacks.
 
 ## Grammar Analysis Cache
 
