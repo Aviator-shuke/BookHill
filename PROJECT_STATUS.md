@@ -84,7 +84,7 @@ Local testing remains the default development workflow. Run `tools/start-langlsr
 - Live bar-style volume indication and active-listening border feedback.
 - Similarity, omitted-word, wrong-word, extra-word, and volume feedback.
 - Recording playback and model-sentence comparison controls.
-- A `跟原声对比` button captures the TTS model reading (via reusable current-tab audio sharing) and the learner's own recording, then locally extracts, octave-stabilizes, smooths, and overlays their relative-pitch contours. The compact chart includes semitone guides and remains a visual pitch-shape comparison only, not a pronunciation score.
+- A `跟原声对比` button captures the TTS model reading (via reusable current-tab audio sharing) and the learner's own recording, then performs one local analysis pass for four switchable compact views: normalized relative-pitch contours (`语调`), relative-RMS emphasis curves (`重音`), voiced segments and pause counts (`节奏`), and an MFCC + constrained-DTW acoustic-difference strip (`发音对比`). Nothing is uploaded; all views are visual comparisons rather than phoneme-level pronunciation scoring.
 
 ### AI grammar analysis
 
@@ -145,6 +145,8 @@ The HTML, CSS, bundled material, generated prompt, and launcher are separated. M
 - The API key is stored in browser local storage and is acceptable only for private local use.
 - Before public AI access, requests must move behind a backend proxy with quotas and cost controls.
 - Speech recognition and recording depend on browser support and microphone permission.
+- `跟原声对比` additionally depends on browser tab/system-audio capture. Its current sharing request is intentionally the minimal Edge-compatible `getDisplayMedia({ video: true, audio: true })`; the learner must select the current tab and enable audio in the browser's system dialog. Other browsers and operating systems remain compatibility-test targets.
+- The local `发音对比` view visualizes broad MFCC/DTW acoustic differences only. It does not locate incorrect phonemes or words, judge accent correctness, or produce a pronunciation score.
 - The native system color-picker dialog cannot be customized by the webpage; HEX editing is provided in the settings panel.
 - The uncompressed generated SQLite file is intentionally discarded after packaging. The versioned gzip package is the runtime asset; raw CSV sources and development tools must not enter the website deployment.
 - Browser dictionary installation requires OPFS, Web Workers, WebAssembly, streaming fetch, and gzip `DecompressionStream`. Current Chromium verification passes; Firefox and Safari remain explicit compatibility-test targets.
@@ -189,6 +191,7 @@ Verified on 2026-09-26:
 - Removing `用户收藏` from the `句库` dialog's sidebar (while keeping it in the toolbar quick-switch dropdown and the `收藏` `▶` button) was confirmed by grepping `index.html`/`src/app.js`/`src/styles.css` for leftover `favoritesLibrary*` identifiers after the change.
 - The per-row `▶` load button added to the `句库` dialog's common-library preview was exercised in-browser against the real 30,150-entry package: clicking a non-first row's button closed the dialog, switched to the listening page, and displayed exactly that row's sentence.
 - `node --check src/app.js` passes.
+- The four-view local voice-comparison implementation passes `node --check src/app.js`, `npm run build`, and `git diff --check`; the local page initializes at `http://localhost:8848/` without an application-startup error. A complete capture comparison still requires a manual microphone recording and browser system-audio authorization, so that permission-dependent path is reserved for interactive browser verification.
 
 ## Next Priorities
 

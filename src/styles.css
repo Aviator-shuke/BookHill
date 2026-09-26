@@ -3554,6 +3554,38 @@
       border-top: 1px solid var(--line);
     }
 
+    .pitch-compare-tabs {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 7px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .pitch-compare-tabs button {
+      min-height: 25px;
+      padding: 0 1px 4px;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .pitch-compare-tabs button:hover,
+    .pitch-compare-tabs button:focus-visible {
+      color: var(--ink);
+      outline: none;
+    }
+
+    .pitch-compare-tabs button[aria-selected="true"] {
+      border-bottom-color: var(--accent);
+      color: var(--ink);
+      font-weight: 700;
+    }
+
     .pitch-compare-head {
       display: flex;
       align-items: center;
@@ -3562,6 +3594,11 @@
       margin-bottom: 2px;
       color: var(--muted);
       font-size: 11px;
+    }
+
+    .pitch-compare-head-note {
+      font-size: 9px;
+      font-weight: 400;
     }
 
     .pitch-compare-plot {
@@ -3695,6 +3732,79 @@
 
     .pitch-compare-legend-own::before {
       background: #22d3ee;
+    }
+
+    .pitch-rhythm-lanes {
+      display: grid;
+      gap: 10px;
+      padding: 9px 0 7px;
+    }
+
+    .pitch-rhythm-row {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) 54px;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .pitch-rhythm-row b {
+      font-size: 9px;
+      font-weight: 400;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .pitch-rhythm-track {
+      position: relative;
+      height: 9px;
+      border-radius: 2px;
+      background: color-mix(in srgb, var(--line) 55%, transparent);
+      overflow: hidden;
+    }
+
+    .pitch-rhythm-track i {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      border-radius: 1px;
+    }
+
+    .pitch-rhythm-tts .pitch-rhythm-track i {
+      background: #f97316;
+    }
+
+    .pitch-rhythm-own .pitch-rhythm-track i {
+      background: #22d3ee;
+    }
+
+    .pitch-acoustic-strip {
+      display: grid;
+      grid-template-columns: repeat(80, minmax(0, 1fr));
+      height: 34px;
+      margin-top: 9px;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .pitch-acoustic-strip i {
+      min-width: 0;
+    }
+
+    .pitch-acoustic-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .pitch-analysis-empty {
+      padding: 14px 8px;
+      color: var(--muted);
+      font-size: 10px;
+      text-align: center;
     }
 
     .pitch-compare-status {

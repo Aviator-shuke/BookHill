@@ -226,7 +226,9 @@ const fallbackSentences = [
         metrics: null,
         ttsAudioCache: new Map(),
         ttsShareStream: null,
-        pitchCompareBusy: false
+        pitchCompareBusy: false,
+        pitchCompareView: "pitch",
+        pitchCompareResult: null
       }
     };
 
@@ -3471,7 +3473,7 @@ const fallbackSentences = [
       });
     }
 
-    async function extractPitchContour(blob) {
+    async function decodeAudioForAnalysis(blob) {
       const arrayBuffer = await blob.arrayBuffer();
       const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
       const audioContext = new AudioContextCtor();
@@ -3487,12 +3489,20 @@ const fallbackSentences = [
         const abs = Math.abs(rawChannelData[i]);
         if (abs > peak) peak = abs;
       }
-      const gain = peak > 0.0001 ? 0.9 / peak : 1;
-      if (peak < 0.0001) return { contour: [], duration: 0 };
+      if (peak < 0.0001) return { samples: new Float32Array(), sampleRate: 16000, duration: 0 };
+      const gain = 0.9 / peak;
       const normalizedData = gain === 1 ? rawChannelData : Float32Array.from(rawChannelData, (sample) => sample * gain);
       const resampled = resampleAudio(normalizedData, audioBuffer.sampleRate);
-      const channelData = resampled.samples;
-      const sampleRate = resampled.sampleRate;
+      return {
+        samples: resampled.samples,
+        sampleRate: resampled.sampleRate,
+        duration: resampled.samples.length / resampled.sampleRate
+      };
+    }
+
+    function extractPitchContour(audio) {
+      const channelData = audio.samples;
+      const sampleRate = audio.sampleRate;
       const windowSize = 1024;
       const hopSize = Math.round(sampleRate * 0.01);
       const contour = [];
@@ -3501,8 +3511,7 @@ const fallbackSentences = [
         const frequency = detectPitchYin(frame, sampleRate) || detectPitchAutocorrelation(frame, sampleRate);
         contour.push({ t: (start + windowSize / 2) / sampleRate, freq: frequency });
       }
-      const duration = channelData.length / sampleRate;
-      return { contour: fillShortPitchGaps(stabilizePitchContour(contour)), duration };
+      return { contour: fillShortPitchGaps(stabilizePitchContour(contour)), duration: audio.duration };
     }
 
     function fillShortPitchGaps(contour, maxGapSeconds = 0.06) {
@@ -3568,6 +3577,225 @@ const fallbackSentences = [
       </div>`;
     }
 
+    function smoothNumberSeries(values, radius = 2) {
+      return values.map((_, index) => {
+        const nearby = values.slice(Math.max(0, index - radius), index + radius + 1);
+        return nearby.reduce((sum, value) => sum + value, 0) / nearby.length;
+      });
+    }
+
+    function extractEnergyAnalysis(audio) {
+      const frameSize = Math.max(1, Math.round(audio.sampleRate * 0.025));
+      const hopSize = Math.max(1, Math.round(audio.sampleRate * 0.01));
+      const frames = [];
+      for (let start = 0; start + frameSize <= audio.samples.length; start += hopSize) {
+        let sum = 0;
+        for (let i = start; i < start + frameSize; i += 1) sum += audio.samples[i] * audio.samples[i];
+        frames.push({ t: (start + frameSize / 2) / audio.sampleRate, rms: Math.sqrt(sum / frameSize) });
+      }
+      const maxRms = Math.max(...frames.map((frame) => frame.rms), 1e-6);
+      const values = smoothNumberSeries(frames.map((frame) => {
+        const db = 20 * Math.log10(Math.max(frame.rms / maxRms, 1e-4));
+        return Math.max(0, Math.min(1, (db + 36) / 36));
+      }));
+      const active = values.map((value) => value >= 0.16);
+      for (let i = 0; i < active.length;) {
+        if (active[i]) { i += 1; continue; }
+        let end = i;
+        while (end < active.length && !active[end]) end += 1;
+        if (i > 0 && end < active.length && end - i <= 8) {
+          for (let j = i; j < end; j += 1) active[j] = true;
+        }
+        i = end;
+      }
+      for (let i = 0; i < active.length;) {
+        if (!active[i]) { i += 1; continue; }
+        let end = i;
+        while (end < active.length && active[end]) end += 1;
+        if (end - i < 4) {
+          for (let j = i; j < end; j += 1) active[j] = false;
+        }
+        i = end;
+      }
+      const firstActive = active.findIndex(Boolean);
+      const lastActive = active.lastIndexOf(true);
+      if (firstActive < 0 || lastActive <= firstActive) return { points: [], segments: [], duration: 0, pauseCount: 0 };
+      const startT = frames[firstActive].t;
+      const endT = frames[lastActive].t;
+      const span = Math.max(0.05, endT - startT);
+      const points = frames.slice(firstActive, lastActive + 1).map((frame, index) => ({
+        tPct: ((frame.t - startT) / span) * 100,
+        value: values[firstActive + index]
+      }));
+      const segments = [];
+      for (let i = firstActive; i <= lastActive;) {
+        if (!active[i]) { i += 1; continue; }
+        let end = i;
+        while (end <= lastActive && active[end]) end += 1;
+        segments.push({
+          startPct: ((frames[i].t - startT) / span) * 100,
+          endPct: ((frames[Math.min(end - 1, lastActive)].t - startT) / span) * 100
+        });
+        i = end;
+      }
+      return { points, segments, duration: span, pauseCount: Math.max(0, segments.length - 1) };
+    }
+
+    function fftPowerSpectrum(frame, fftSize = 512) {
+      const real = new Float64Array(fftSize);
+      const imaginary = new Float64Array(fftSize);
+      const usable = Math.min(frame.length, fftSize);
+      for (let i = 0; i < usable; i += 1) {
+        const window = 0.54 - 0.46 * Math.cos((2 * Math.PI * i) / Math.max(1, usable - 1));
+        real[i] = frame[i] * window;
+      }
+      for (let i = 1, j = 0; i < fftSize; i += 1) {
+        let bit = fftSize >> 1;
+        while (j & bit) { j ^= bit; bit >>= 1; }
+        j ^= bit;
+        if (i < j) {
+          [real[i], real[j]] = [real[j], real[i]];
+          [imaginary[i], imaginary[j]] = [imaginary[j], imaginary[i]];
+        }
+      }
+      for (let length = 2; length <= fftSize; length <<= 1) {
+        const angle = -2 * Math.PI / length;
+        const baseReal = Math.cos(angle);
+        const baseImaginary = Math.sin(angle);
+        for (let offset = 0; offset < fftSize; offset += length) {
+          let phaseReal = 1;
+          let phaseImaginary = 0;
+          for (let i = 0; i < length / 2; i += 1) {
+            const even = offset + i;
+            const odd = even + length / 2;
+            const oddReal = real[odd] * phaseReal - imaginary[odd] * phaseImaginary;
+            const oddImaginary = real[odd] * phaseImaginary + imaginary[odd] * phaseReal;
+            real[odd] = real[even] - oddReal;
+            imaginary[odd] = imaginary[even] - oddImaginary;
+            real[even] += oddReal;
+            imaginary[even] += oddImaginary;
+            const nextPhaseReal = phaseReal * baseReal - phaseImaginary * baseImaginary;
+            phaseImaginary = phaseReal * baseImaginary + phaseImaginary * baseReal;
+            phaseReal = nextPhaseReal;
+          }
+        }
+      }
+      const spectrum = new Float32Array(fftSize / 2 + 1);
+      for (let i = 0; i < spectrum.length; i += 1) spectrum[i] = real[i] * real[i] + imaginary[i] * imaginary[i];
+      return spectrum;
+    }
+
+    function melFilterBins(sampleRate, fftSize, count = 20) {
+      const hzToMel = (hz) => 2595 * Math.log10(1 + hz / 700);
+      const melToHz = (mel) => 700 * (10 ** (mel / 2595) - 1);
+      const minMel = hzToMel(80);
+      const maxMel = hzToMel(Math.min(7600, sampleRate / 2));
+      const bins = Array.from({ length: count + 2 }, (_, index) => {
+        const mel = minMel + ((maxMel - minMel) * index) / (count + 1);
+        return Math.max(0, Math.min(fftSize / 2, Math.floor(((fftSize + 1) * melToHz(mel)) / sampleRate)));
+      });
+      return Array.from({ length: count }, (_, index) => ({ left: bins[index], center: bins[index + 1], right: bins[index + 2] }));
+    }
+
+    function extractMfccFrames(audio) {
+      const fftSize = 512;
+      const frameSize = Math.min(fftSize, Math.max(1, Math.round(audio.sampleRate * 0.025)));
+      const hopSize = Math.max(1, Math.round(audio.sampleRate * 0.02));
+      const filters = melFilterBins(audio.sampleRate, fftSize);
+      const frames = [];
+      for (let start = 0; start + frameSize <= audio.samples.length; start += hopSize) {
+        const spectrum = fftPowerSpectrum(audio.samples.subarray(start, start + frameSize), fftSize);
+        const logMel = filters.map(({ left, center, right }) => {
+          let energy = 0;
+          for (let bin = left; bin < center; bin += 1) energy += spectrum[bin] * ((bin - left) / Math.max(1, center - left));
+          for (let bin = center; bin <= right; bin += 1) energy += spectrum[bin] * ((right - bin) / Math.max(1, right - center));
+          return Math.log(Math.max(energy, 1e-10));
+        });
+        const vector = Array.from({ length: 12 }, (_, coefficient) => {
+          const order = coefficient + 1;
+          return logMel.reduce((sum, value, index) => (
+            sum + value * Math.cos((Math.PI * order * (index + 0.5)) / logMel.length)
+          ), 0);
+        });
+        frames.push({ t: (start + frameSize / 2) / audio.sampleRate, vector });
+      }
+      if (!frames.length) return [];
+      for (let coefficient = 0; coefficient < frames[0].vector.length; coefficient += 1) {
+        const values = frames.map((frame) => frame.vector[coefficient]);
+        const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+        const deviation = Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length) || 1;
+        frames.forEach((frame) => { frame.vector[coefficient] = (frame.vector[coefficient] - mean) / deviation; });
+      }
+      const stride = Math.max(1, Math.ceil(frames.length / 500));
+      return frames.filter((_, index) => index % stride === 0);
+    }
+
+    function featureDistance(left, right) {
+      let sum = 0;
+      for (let i = 0; i < left.length; i += 1) sum += (left[i] - right[i]) ** 2;
+      return Math.sqrt(sum / left.length);
+    }
+
+    function compareAcousticFeatures(referenceFrames, ownFrames) {
+      const rows = referenceFrames.length;
+      const columns = ownFrames.length;
+      if (!rows || !columns) return [];
+      const width = columns + 1;
+      const costs = new Float64Array((rows + 1) * (columns + 1));
+      costs.fill(Number.POSITIVE_INFINITY);
+      costs[0] = 0;
+      const directions = new Uint8Array(costs.length);
+      const band = Math.max(Math.abs(rows - columns) + 2, Math.ceil(Math.max(rows, columns) * 0.28));
+      for (let row = 1; row <= rows; row += 1) {
+        const expectedColumn = (row * columns) / rows;
+        const startColumn = Math.max(1, Math.floor(expectedColumn - band));
+        const endColumn = Math.min(columns, Math.ceil(expectedColumn + band));
+        for (let column = startColumn; column <= endColumn; column += 1) {
+          const index = row * width + column;
+          const diagonal = costs[(row - 1) * width + column - 1];
+          const up = costs[(row - 1) * width + column];
+          const left = costs[row * width + column - 1];
+          let previous = diagonal;
+          let direction = 1;
+          if (up < previous) { previous = up; direction = 2; }
+          if (left < previous) { previous = left; direction = 3; }
+          costs[index] = featureDistance(referenceFrames[row - 1].vector, ownFrames[column - 1].vector) + previous;
+          directions[index] = direction;
+        }
+      }
+      if (!Number.isFinite(costs[rows * width + columns])) return [];
+      const path = [];
+      let row = rows;
+      let column = columns;
+      while (row > 0 && column > 0) {
+        const distance = featureDistance(referenceFrames[row - 1].vector, ownFrames[column - 1].vector);
+        const progress = ((row - 1) / Math.max(1, rows - 1) + (column - 1) / Math.max(1, columns - 1)) / 2;
+        path.push({ progress, distance });
+        const direction = directions[row * width + column];
+        if (direction === 1) { row -= 1; column -= 1; }
+        else if (direction === 2) row -= 1;
+        else if (direction === 3) column -= 1;
+        else break;
+      }
+      if (!path.length) return [];
+      const distances = path.map((item) => item.distance);
+      const upper = [...distances].sort((a, b) => a - b)[Math.floor(distances.length * 0.9)] || 1;
+      const bins = Array.from({ length: 80 }, () => ({ total: 0, count: 0 }));
+      path.forEach((item) => {
+        const index = Math.min(bins.length - 1, Math.max(0, Math.floor(item.progress * bins.length)));
+        bins[index].total += Math.min(1, item.distance / upper);
+        bins[index].count += 1;
+      });
+      const values = bins.map((bin, index) => {
+        if (bin.count) return bin.total / bin.count;
+        const previous = bins.slice(0, index).reverse().find((item) => item.count);
+        const next = bins.slice(index + 1).find((item) => item.count);
+        const fallback = previous || next;
+        return fallback ? fallback.total / fallback.count : 0;
+      });
+      return smoothNumberSeries(values, 2);
+    }
+
     function pitchContourToSegments(points) {
       const clamp = (value) => Math.max(-12, Math.min(12, value));
       const toXY = (point) => `${point.tPct.toFixed(2)},${(50 - clamp(point.semitone) * (40 / 12)).toFixed(2)}`;
@@ -3612,10 +3840,93 @@ const fallbackSentences = [
       }).join("");
     }
 
-    function renderPitchCompareChart(ttsPoints, ownPoints, durations) {
+    function comparisonTabsHtml() {
+      const tabs = [
+        ["pitch", "语调"],
+        ["energy", "重音"],
+        ["rhythm", "节奏"],
+        ["acoustic", "发音对比"]
+      ];
+      return `<div class="pitch-compare-tabs" role="tablist" aria-label="声音对比视图">${tabs.map(([value, label]) => (
+        `<button type="button" role="tab" data-pitch-compare-view="${value}" aria-selected="${state.speaking.pitchCompareView === value}">${label}</button>`
+      )).join("")}</div>`;
+    }
+
+    function compareTimeScalesHtml(durations) {
+      return `<div class="pitch-compare-time-scales" aria-label="录音时间刻度">
+        ${pitchTimeScale("范读", "tts", durations.tts)}
+        ${pitchTimeScale("我的", "own", durations.own)}
+      </div>`;
+    }
+
+    function energySeriesPath(points) {
+      if (points.length < 2) return "";
+      return `M${points.map((point) => (
+        `${point.tPct.toFixed(2)},${(90 - Math.max(0, Math.min(1, point.value)) * 80).toFixed(2)}`
+      )).join(" L")}`;
+    }
+
+    function rhythmLaneHtml(label, source, analysis) {
+      return `<div class="pitch-rhythm-row pitch-rhythm-${source}">
+        <span>${label}</span>
+        <div class="pitch-rhythm-track">${analysis.segments.map((segment) => (
+          `<i style="left:${segment.startPct.toFixed(2)}%;width:${Math.max(1, segment.endPct - segment.startPct).toFixed(2)}%"></i>`
+        )).join("")}</div>
+        <b>${analysis.pauseCount} 次停顿</b>
+      </div>`;
+    }
+
+    function acousticDifferenceHtml(values) {
+      if (!values.length) {
+        return `<div class="pitch-analysis-empty">未提取到足够的声学特征，请重新录音并保持声音清晰。</div>`;
+      }
+      return `<div class="pitch-acoustic-strip" aria-label="声学差异沿句子进度分布">${values.map((value) => {
+        const hue = Math.round(188 - Math.max(0, Math.min(1, value)) * 158);
+        return `<i style="background:hsl(${hue} 82% 52%)"></i>`;
+      }).join("")}</div>`;
+    }
+
+    function renderPitchCompareChart(result = state.speaking.pitchCompareResult) {
       const chart = $("pitchCompareChart");
-      if (!chart) return;
-      chart.innerHTML = `
+      if (!chart || !result) return;
+      const tabs = comparisonTabsHtml();
+      const timeScales = compareTimeScalesHtml(result.durations);
+      if (state.speaking.pitchCompareView === "energy") {
+        chart.innerHTML = `${tabs}
+          <div class="pitch-compare-head">
+            <span>相对音量</span>
+            <div class="pitch-compare-legend">
+              <span class="pitch-compare-legend-item pitch-compare-legend-tts">范读</span>
+              <span class="pitch-compare-legend-item pitch-compare-legend-own">我的录音</span>
+            </div>
+          </div>
+          <div class="pitch-compare-plot">
+            <div class="pitch-compare-scale" aria-hidden="true"><span>强</span><span>中</span><span>弱</span></div>
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="pitch-compare-svg" role="img" aria-label="范读与我的录音相对音量曲线">
+              <line x1="0" y1="10" x2="100" y2="10" class="pitch-compare-grid" />
+              <line x1="0" y1="50" x2="100" y2="50" class="pitch-compare-grid is-baseline" />
+              <line x1="0" y1="90" x2="100" y2="90" class="pitch-compare-grid" />
+              <path d="${energySeriesPath(result.energy.tts.points)}" class="pitch-compare-line pitch-compare-line-tts" />
+              <path d="${energySeriesPath(result.energy.own.points)}" class="pitch-compare-line pitch-compare-line-own" />
+            </svg>
+          </div>
+          ${timeScales}`;
+      } else if (state.speaking.pitchCompareView === "rhythm") {
+        chart.innerHTML = `${tabs}
+          <div class="pitch-compare-head"><span>发声与停顿</span><span class="pitch-compare-head-note">色块为发声段</span></div>
+          <div class="pitch-rhythm-lanes">
+            ${rhythmLaneHtml("范读", "tts", result.energy.tts)}
+            ${rhythmLaneHtml("我的", "own", result.energy.own)}
+          </div>
+          ${timeScales}`;
+      } else if (state.speaking.pitchCompareView === "acoustic") {
+        chart.innerHTML = `${tabs}
+          <div class="pitch-compare-head"><span>声学差异</span><span class="pitch-compare-head-note">暖色表示差异更明显</span></div>
+          ${acousticDifferenceHtml(result.acoustic)}
+          <div class="pitch-acoustic-labels"><span>较接近</span><span>差异较大</span></div>
+          ${timeScales}`;
+      } else {
+        chart.innerHTML = `${tabs}
         <div class="pitch-compare-head">
           <span>相对音高</span>
           <div class="pitch-compare-legend">
@@ -3629,15 +3940,12 @@ const fallbackSentences = [
             <line x1="0" y1="10" x2="100" y2="10" class="pitch-compare-grid" />
             <line x1="0" y1="50" x2="100" y2="50" class="pitch-compare-grid is-baseline" />
             <line x1="0" y1="90" x2="100" y2="90" class="pitch-compare-grid" />
-            ${pitchSegmentsToSvg(ttsPoints, "tts")}
-            ${pitchSegmentsToSvg(ownPoints, "own")}
+            ${pitchSegmentsToSvg(result.pitch.tts, "tts")}
+            ${pitchSegmentsToSvg(result.pitch.own, "own")}
           </svg>
         </div>
-        <div class="pitch-compare-time-scales" aria-label="录音时间刻度">
-          ${pitchTimeScale("范读", "tts", durations.tts)}
-          ${pitchTimeScale("我的", "own", durations.own)}
-        </div>
-      `;
+        ${timeScales}`;
+      }
       chart.hidden = false;
     }
 
@@ -3664,11 +3972,14 @@ const fallbackSentences = [
       setPitchCompareStatus("正在获取原声…");
       try {
         const ttsBlob = await getOrCaptureTtsAudio();
-        setPitchCompareStatus("正在分析音高…");
-        const [ttsContour, ownContour] = await Promise.all([
-          extractPitchContour(ttsBlob),
-          extractPitchContour(state.speaking.recordedAudioBlob)
+        setPitchCompareStatus("正在分析声音…");
+        const [ttsAudio, ownAudio] = await Promise.all([
+          decodeAudioForAnalysis(ttsBlob),
+          decodeAudioForAnalysis(state.speaking.recordedAudioBlob)
         ]);
+        await waitMs(0);
+        const ttsContour = extractPitchContour(ttsAudio);
+        const ownContour = extractPitchContour(ownAudio);
         const ttsPoints = normalizePitchContour(ttsContour);
         const ownPoints = normalizePitchContour(ownContour);
         if (ttsPoints.length < 2) {
@@ -3677,11 +3988,20 @@ const fallbackSentences = [
           throw new Error("范读音频没有捕获到有效声音，已清除本次共享，请重新选择此标签页并保持“分享音频”开启。");
         }
         if (ownPoints.length < 2) throw new Error("你的录音中没有检测到稳定音高，请重新录音并保持声音清晰。");
-        renderPitchCompareChart(ttsPoints, ownPoints, {
-          tts: pitchContourDuration(ttsContour),
-          own: pitchContourDuration(ownContour)
-        });
-        setPitchCompareStatus("对比图仅显示音高升降趋势，不代表发音评分。");
+        const ttsEnergy = extractEnergyAnalysis(ttsAudio);
+        const ownEnergy = extractEnergyAnalysis(ownAudio);
+        const acoustic = compareAcousticFeatures(extractMfccFrames(ttsAudio), extractMfccFrames(ownAudio));
+        state.speaking.pitchCompareResult = {
+          pitch: { tts: ttsPoints, own: ownPoints },
+          energy: { tts: ttsEnergy, own: ownEnergy },
+          acoustic,
+          durations: {
+            tts: ttsEnergy.duration || pitchContourDuration(ttsContour),
+            own: ownEnergy.duration || pitchContourDuration(ownContour)
+          }
+        };
+        renderPitchCompareChart();
+        setPitchCompareStatus("本地对比显示语调、重音、节奏和声学差异，不代表发音评分。");
       } catch (error) {
         const message = error?.name === "NotAllowedError"
           ? "已取消共享，未生成对比图。"
@@ -3767,6 +4087,8 @@ const fallbackSentences = [
       state.speaking.recordedAudioBlob = null;
       state.speaking.audioChunks = [];
       if ($("pitchCompareChart")) $("pitchCompareChart").hidden = true;
+      state.speaking.pitchCompareResult = null;
+      state.speaking.pitchCompareView = "pitch";
       setPitchCompareStatus("");
       renderSpeakingPage();
     }
@@ -4630,6 +4952,12 @@ const fallbackSentences = [
     });
     holdSpeakBtn.addEventListener("click", (event) => event.preventDefault());
     $("pitchCompareBtn").addEventListener("click", comparePitchWithOriginal);
+    $("pitchCompareChart").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-pitch-compare-view]");
+      if (!button || !state.speaking.pitchCompareResult) return;
+      state.speaking.pitchCompareView = button.dataset.pitchCompareView;
+      renderPitchCompareChart();
+    });
     $("previousUnifiedBtn").addEventListener("click", (event) => {
       switchSpeakingSentence(pickSentenceIndex(-1), true);
       event.currentTarget.blur();
