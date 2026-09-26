@@ -139,7 +139,9 @@ The built-in common library is a versioned static package with stable source IDs
 
 ## Speaking Voice Comparison
 
-`跟原声对比` compares the learner's own recording against the TTS model reading using only local signal processing; nothing is uploaded and no score is produced. One analysis run decodes each clip once, then reuses the samples across four compact tabs: `语调`, `重音`, `节奏`, and `发音对比`.
+`跟原声对比` is currently an experimental, disabled feature. Its implementation is retained, but the entry button is hidden in `index.html` and ordinary users cannot start the comparison. It must remain disabled until its accuracy, interaction, and browser compatibility are mature enough for daily use.
+
+When enabled for continued development, it compares the learner's own recording against the TTS model reading using only local signal processing; nothing is uploaded and no score is produced. One analysis run decodes each clip once, then reuses the samples across four compact tabs: `语调`, `重音`, `节奏`, and `发音对比`.
 
 - The action is available after the learner has made a recording. On the first comparison, the browser opens its system sharing dialog; the learner selects the current tab and enables system/tab audio. Later comparisons reuse the live shared audio track, so changing among the four result tabs never requests permission or records the TTS again.
 - `getSharedTtsAudioStream()` deliberately uses the minimal `getDisplayMedia({video:true, audio:true})` request that is known to produce Edge's normal tab-audio picker for this feature. The learner selects the desired tab and enables audio. Once granted, the video track is stopped immediately and never recorded; an audio-only stream is cached in `state.speaking.ttsShareStream` and reused until its audio track ends.
