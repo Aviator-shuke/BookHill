@@ -148,6 +148,16 @@ In 随机 (random) practice mode, `pickSentenceIndex()` keeps two per-session st
 - Both stacks are reset in `setCurrentLibrary()`, i.e. whenever the active material changes, since old indices would no longer point at the right sentences.
 - Ordered and mistakes modes are unaffected; they use direct index arithmetic, not these stacks.
 
+## Grammar Node Rendering
+
+`renderGrammarNodes()` builds each node's card from its own `role`/`type`/`text`, independent of its position in the tree.
+
+- A node is treated as pure punctuation (label suppressed entirely) when its `text` matches `/^[\p{P}\s]+$/u` — this checks the source text itself, not the AI-returned label wording, so it doesn't depend on the model saying "标点" vs "标点符号" vs anything else.
+- `.grammar-node-content` uses `flex-wrap: nowrap` with `align-items: baseline`; the role/type badge (`.grammar-role`) is `flex-shrink: 0; white-space: nowrap` so it never shrinks or wraps internally, while the sentence text (`.grammar-text`) is `flex: 1 1 auto; min-width: 0` so it wraps within its own box instead of the whole text item dropping to a new line. Baseline (not box-center) alignment is used because the Chinese-font label and English-font text don't share an optical center at matched line-heights.
+- Top-level node cards have no fixed pixel width cap (`max-width: 100%` only, bounded by the row's own flex-wrap), so a long clause uses whatever space is actually left in its row instead of wrapping early against an arbitrary limit.
+- A node is flagged `is-clause` when its `type` contains `从句`. Nested clause nodes always render a role-colored top border regardless of expand/collapse state; other nested nodes only get a colored border when collapsed with children (`has-children:not(.is-expanded)`).
+- Expanding a collapsed node (`data-grammar-toggle` click) first collects all of that node's descendant ids (`collectGrammarDescendantIds()`) and removes them from `state.grammarExpandedNodeIds` before adding the node's own id back — so a node always opens to exactly one level of children, never restoring a deeper expansion state left over from earlier in the session.
+
 ## Grammar Analysis Cache
 
 Grammar analysis is manually triggered and never runs automatically during ordinary practice.

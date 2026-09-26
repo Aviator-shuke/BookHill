@@ -1307,16 +1307,18 @@ const fallbackSentences = [
       byParent.forEach((items) => items.sort((a, b) => a.order - b.order));
       const renderNode = (node, depth = 0) => {
         const roleType = grammarRoleType(node.role);
-        const label = [node.role, node.type].filter(Boolean).join(" · ");
+        const isPunctuationNode = /^[\p{P}\s]+$/u.test(node.text || "");
+        const isClauseNode = /从句/.test(node.type || "");
+        const label = isPunctuationNode ? "" : [node.role, node.type].filter(Boolean).join(" · ");
         const children = byParent.get(node.id) || [];
         const isExpanded = children.length && state.grammarExpandedNodeIds.has(node.id);
         const details = [node.note].filter(Boolean);
         const content = `
-          <span class="grammar-role">${escapeHtml(label)}</span>
+          ${label ? `<span class="grammar-role">${escapeHtml(label)}</span>` : ""}
           <span class="grammar-text">${escapeHtml(node.text)}</span>
         `;
         return `
-          <div class="grammar-node grammar-${roleType} ${children.length ? "has-children" : ""} ${isExpanded ? "is-expanded" : ""}" data-grammar-node-id="${node.id}" data-depth="${depth}">
+          <div class="grammar-node grammar-${roleType} ${children.length ? "has-children" : ""} ${isExpanded ? "is-expanded" : ""} ${isClauseNode ? "is-clause" : ""}" data-grammar-node-id="${node.id}" data-depth="${depth}">
             <div class="grammar-node-heading">
               ${children.length
                 ? `<button type="button" class="grammar-node-content" data-grammar-toggle="${node.id}" aria-expanded="${Boolean(isExpanded)}" aria-label="${isExpanded ? "收起" : "展开"}${escapeHtml(node.text)}">${content}</button>`
@@ -1345,6 +1347,21 @@ const fallbackSentences = [
       state.grammarExpansionMode = mode;
       state.grammarExpandedNodeIds = next;
       renderTarget();
+    }
+
+    function collectGrammarDescendantIds(nodeId, nodes) {
+      const result = new Set();
+      const stack = [nodeId];
+      while (stack.length) {
+        const current = stack.pop();
+        nodes.forEach((node) => {
+          if (node.parent === current) {
+            result.add(node.id);
+            stack.push(node.id);
+          }
+        });
+      }
+      return result;
     }
 
     function resetGrammarInteraction() {
@@ -3539,6 +3556,7 @@ const fallbackSentences = [
         }).join("");
         targetEl.innerHTML = `<span class="target-english"><span class="target-english-text">${html || "&nbsp;"}</span>${sentenceFavoriteButton(target)}</span>${translationHtml}${grammarHtml}`;
         updateCounter();
+        syncTypingShellHeight();
         return;
       }
 
@@ -3568,6 +3586,18 @@ const fallbackSentences = [
 
       targetEl.innerHTML = `<span class="target-english"><span class="target-english-text">${html || "&nbsp;"}</span>${sentenceFavoriteButton(target)}</span>${translationHtml}${grammarHtml}`;
       updateCounter();
+      syncTypingShellHeight();
+    }
+
+    function syncTypingShellHeight() {
+      const source = targetEl.querySelector(".target-english");
+      if (!source) return;
+      const height = `${Math.max(source.offsetHeight, 42)}px`;
+      $("typingShell").style.minHeight = height;
+      $("typingShell").style.height = height;
+      typingBox.style.minHeight = height;
+      typingBox.style.height = height;
+      $("typedPreview").style.minHeight = height;
     }
 
     function renderTypedPreview() {
@@ -4160,8 +4190,14 @@ const fallbackSentences = [
       const toggleButton = event.target.closest("[data-grammar-toggle]");
       if (toggleButton) {
         const nodeId = Number(toggleButton.dataset.grammarToggle);
-        if (state.grammarExpandedNodeIds.has(nodeId)) state.grammarExpandedNodeIds.delete(nodeId);
-        else state.grammarExpandedNodeIds.add(nodeId);
+        if (state.grammarExpandedNodeIds.has(nodeId)) {
+          state.grammarExpandedNodeIds.delete(nodeId);
+        } else {
+          const parsed = parseGrammarAnalysis(currentGrammar());
+          const nodes = normalizeGrammarNodes(parsed?.nodes);
+          collectGrammarDescendantIds(nodeId, nodes).forEach((id) => state.grammarExpandedNodeIds.delete(id));
+          state.grammarExpandedNodeIds.add(nodeId);
+        }
         state.grammarExpansionMode = "custom";
         renderTarget();
         return;
@@ -4399,6 +4435,7 @@ const fallbackSentences = [
     });
 
     window.addEventListener("resize", closeGrammarContextMenu);
+    window.addEventListener("resize", syncTypingShellHeight);
     window.addEventListener("scroll", closeGrammarContextMenu, true);
 
     let dragDepth = 0;
