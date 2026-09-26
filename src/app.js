@@ -201,6 +201,7 @@ const fallbackSentences = [
         pageSize: 50,
         loading: false
       },
+      wordReview: null,
       speaking: {
         isRecognizing: false,
         isRecording: false,
@@ -227,6 +228,7 @@ const fallbackSentences = [
         ttsAudioCache: new Map(),
         ttsShareStream: null,
         pitchCompareBusy: false,
+        loopCompareActive: false,
         pitchCompareView: "pitch",
         pitchCompareResult: null
       }
@@ -1832,6 +1834,7 @@ const fallbackSentences = [
         $("dropOverlay").classList.remove("active");
       }
       if (pageId !== "listenPage" && (state.speaking.isRecognizing || state.speaking.isRecording)) stopSpeakingPractice();
+      if (pageId !== "listenPage") stopLoopCompare();
       document.querySelectorAll(".learning-page").forEach((item) => {
         item.classList.toggle("active", item.id === pageId);
       });
@@ -1935,6 +1938,7 @@ const fallbackSentences = [
         || !$("libraryModal").hidden
         || !$("dictionaryLibraryModal").hidden
         || !$("userPhrasesModal").hidden
+        || !$("wordReviewModal").hidden
       );
     }
 
@@ -1944,6 +1948,11 @@ const fallbackSentences = [
       if (event.key === "Escape" && !$("dictionaryLookupPopover").hidden) {
         event.preventDefault();
         closeDictionaryLookup();
+        return;
+      }
+      if (event.key === "Escape" && !$("wordReviewModal").hidden) {
+        event.preventDefault();
+        closeWordReview();
         return;
       }
       if (event.key === "Escape" && !$("userPhrasesModal").hidden) {
@@ -2133,6 +2142,70 @@ const fallbackSentences = [
         utterance.onerror = (event) => reject(new Error(event.error || "朗读失败"));
         window.speechSynthesis.speak(utterance);
       });
+    }
+
+    function playRecordedAudioAndWait() {
+      const audio = $("speakingAudio");
+      return new Promise((resolve, reject) => {
+        if (!audio.src) {
+          resolve();
+          return;
+        }
+        const cleanup = () => {
+          audio.removeEventListener("ended", onEnded);
+          audio.removeEventListener("error", onError);
+        };
+        const onEnded = () => { cleanup(); resolve(); };
+        const onError = () => { cleanup(); reject(new Error("录音播放失败")); };
+        audio.addEventListener("ended", onEnded);
+        audio.addEventListener("error", onError);
+        audio.currentTime = 0;
+        audio.play().catch((error) => { cleanup(); reject(error); });
+      });
+    }
+
+    function setLoopCompareButtonState() {
+      const button = $("loopCompareBtn");
+      if (!button) return;
+      button.classList.toggle("is-active", state.speaking.loopCompareActive);
+      button.textContent = state.speaking.loopCompareActive ? "停止循环" : "原声对比";
+    }
+
+    function stopLoopCompare() {
+      if (!state.speaking.loopCompareActive) return;
+      state.speaking.loopCompareActive = false;
+      window.speechSynthesis.cancel();
+      $("speakingAudio").pause();
+      setLoopCompareButtonState();
+    }
+
+    async function toggleLoopCompare() {
+      if (state.speaking.loopCompareActive) {
+        stopLoopCompare();
+        return;
+      }
+      if (!state.speaking.recordedAudioUrl) {
+        setPitchCompareStatus("请先录音，再循环对比原声。");
+        return;
+      }
+      state.speaking.loopCompareActive = true;
+      setLoopCompareButtonState();
+      try {
+        while (state.speaking.loopCompareActive) {
+          await speakTextAndWait(currentSentence(), { rate: currentReplayRate() });
+          if (!state.speaking.loopCompareActive) break;
+          await waitMs(300);
+          if (!state.speaking.loopCompareActive) break;
+          await playRecordedAudioAndWait();
+          if (!state.speaking.loopCompareActive) break;
+          await waitMs(500);
+        }
+      } catch (error) {
+        setPitchCompareStatus(`循环对比中断：${error.message || error}`);
+      } finally {
+        state.speaking.loopCompareActive = false;
+        setLoopCompareButtonState();
+      }
     }
 
     function currentReplayRate() {
@@ -2899,6 +2972,396 @@ const fallbackSentences = [
 
     function closeUserPhrases() {
       $("userPhrasesModal").hidden = true;
+    }
+
+    const WORD_REVIEW_NEW_LIMIT = 20;
+    const WORD_REVIEW_DAY_MS = 24 * 60 * 60 * 1000;
+    const WORD_REVIEW_MODES = [
+      { id: "recognize", label: "认义", minStars: 1, title: "看英文、听发音，回想意思（1 星及以上的收藏词）" },
+      { id: "listen", label: "听写", minStars: 2, title: "只听发音，拼出单词（2 星及以上的收藏词）" },
+      { id: "spell", label: "默写", minStars: 3, title: "只看中文，拼出单词（3 星及以上的收藏词）" }
+    ];
+
+    function wordReviewModeLabel(mode) {
+      return WORD_REVIEW_MODES.find((item) => item.id === mode)?.label || "";
+    }
+
+    function wordReviewModeMinStars(mode) {
+      return WORD_REVIEW_MODES.find((item) => item.id === mode)?.minStars || 1;
+    }
+
+    function wordReviewEligible(item, mode) {
+      const stars = Math.max(1, Math.min(5, Number(item?.rating) || 1));
+      return stars >= wordReviewModeMinStars(mode);
+    }
+
+    function normalizeReviewAnswer(value) {
+      return String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("en-US");
+    }
+
+    function wordReviewRecord(item, mode) {
+      return item?.reviews?.[mode] || null;
+    }
+
+    function buildWordReviewQueue(mode) {
+      const now = Date.now();
+      const words = filteredAndSortedUserWords(loadUserWords()).filter((item) => wordReviewEligible(item, mode));
+      const dueReviewed = words
+        .filter((item) => wordReviewRecord(item, mode) && Number(wordReviewRecord(item, mode).due) <= now)
+        .sort((a, b) => Number(wordReviewRecord(a, mode).due) - Number(wordReviewRecord(b, mode).due));
+      const fresh = words.filter((item) => !wordReviewRecord(item, mode)).slice(0, WORD_REVIEW_NEW_LIMIT);
+      return [...dueReviewed, ...fresh].map((item) => dictionaryFavoriteKey(item.word));
+    }
+
+    function nextWordReviewDue(mode) {
+      const upcoming = loadUserWords()
+        .filter((item) => wordReviewEligible(item, mode))
+        .map((item) => Number(wordReviewRecord(item, mode)?.due))
+        .filter((due) => Number.isFinite(due) && due > Date.now())
+        .sort((a, b) => a - b);
+      return upcoming[0] || 0;
+    }
+
+    function scheduleWordReview(record, grade) {
+      const now = Date.now();
+      const next = {
+        interval: Number(record?.interval) || 0,
+        ease: Number(record?.ease) || 2.5,
+        reps: Number(record?.reps) || 0,
+        lapses: Number(record?.lapses) || 0
+      };
+      if (grade === "again") {
+        next.reps = 0;
+        next.lapses += 1;
+        next.interval = 0;
+        next.ease = Math.max(1.3, next.ease - 0.2);
+        return { ...next, due: now + 10 * 60 * 1000, lastReviewedAt: new Date(now).toISOString() };
+      }
+      if (grade === "hard") {
+        next.interval = next.reps === 0 ? 1 : Math.max(1, Math.round(next.interval * 1.2));
+        next.ease = Math.max(1.3, next.ease - 0.15);
+      } else {
+        next.interval = next.reps === 0 ? 1 : next.reps === 1 ? 3 : Math.round(next.interval * next.ease);
+      }
+      next.reps += 1;
+      return { ...next, due: now + next.interval * WORD_REVIEW_DAY_MS, lastReviewedAt: new Date(now).toISOString() };
+    }
+
+    function saveWordReviewGrade(key, mode, grade) {
+      const words = loadUserWords();
+      const item = words.find((word) => dictionaryFavoriteKey(word.word) === key);
+      if (!item) return;
+      delete item.review;
+      item.reviews = { ...(item.reviews || {}), [mode]: scheduleWordReview(wordReviewRecord(item, mode), grade) };
+      localStorage.setItem(userWordsStorageKey(), JSON.stringify(words));
+    }
+
+    function clearWordReviewMemory(mode) {
+      const label = wordReviewModeLabel(mode);
+      if (!label) return;
+      if (!confirm(`清除全部收藏单词的“${label}”复习记录？这些单词会在${label}里重新作为新词出现，无法撤销。`)) return;
+      const words = loadUserWords();
+      words.forEach((item) => {
+        delete item.review;
+        if (item.reviews) {
+          delete item.reviews[mode];
+          if (!Object.keys(item.reviews).length) delete item.reviews;
+        }
+      });
+      localStorage.setItem(userWordsStorageKey(), JSON.stringify(words));
+      if (state.wordReview) switchWordReviewMode(state.wordReview.mode);
+    }
+
+    function currentWordReviewItem() {
+      const review = state.wordReview;
+      if (!review) return null;
+      const key = review.queue[review.index];
+      return loadUserWords().find((word) => dictionaryFavoriteKey(word.word) === key) || null;
+    }
+
+    function wordReviewPatternHtml(word, revealed) {
+      return Array.from(word).map((char, index) => {
+        if (/\s/.test(char)) return '<span class="word-review-gap"></span>';
+        if (!/[a-z]/i.test(char)) return `<span class="word-review-letter is-shown">${escapeHtml(char)}</span>`;
+        return `<span class="word-review-letter${index < revealed ? " is-shown" : ""}">${index < revealed ? escapeHtml(char) : "_"}</span>`;
+      }).join("");
+    }
+
+    function wordReviewDiffHtml(target, input) {
+      const expected = Array.from(target);
+      const typed = Array.from(input);
+      const letters = expected.map((char, index) => {
+        const ok = (typed[index] || "").toLocaleLowerCase("en-US") === char.toLocaleLowerCase("en-US");
+        return `<span class="${ok ? "is-ok" : "is-bad"}">${escapeHtml(char)}</span>`;
+      }).join("");
+      const extra = typed.slice(expected.length).map((char) => `<span class="is-extra">${escapeHtml(char)}</span>`).join("");
+      return letters + extra;
+    }
+
+    function speakReviewWord(word) {
+      if (word) speakText(word, { rate: currentReplayRate() });
+    }
+
+    function renderWordReviewModes() {
+      const review = state.wordReview;
+      $("wordReviewModes").innerHTML = WORD_REVIEW_MODES.map(({ id, label, title }) => {
+        const count = buildWordReviewQueue(id).length;
+        const active = review?.mode === id;
+        return `<button type="button" role="tab" aria-selected="${active}" class="${active ? "is-active" : ""}" data-word-review-mode="${id}" title="${title}">${label}<span>${count}</span></button>`;
+      }).join("");
+    }
+
+    function wordReviewMeaningsHtml(item) {
+      const meanings = dictionaryTextLines(item.translation).slice(0, 3);
+      return `${item.pos ? `<div class="word-review-pos">${escapeHtml(item.pos)}</div>` : ""}
+        <div class="word-review-meanings">${meanings.length ? meanings.map((line) => `<div>${escapeHtml(line)}</div>`).join("") : "<div>（该词条暂无中文释义）</div>"}</div>`;
+    }
+
+    function wordReviewAnswerHtml(item) {
+      return `<div class="word-review-answer"><strong>${escapeHtml(item.word)}</strong>${item.phonetic ? ` <span class="dictionary-phonetic">[${escapeHtml(item.phonetic)}]</span>` : ""}</div>
+        ${item.sourceSentence ? `<div class="word-review-source">${escapeHtml(item.sourceSentence)}</div>` : ""}`;
+    }
+
+    function renderRecognizeCard(item) {
+      const review = state.wordReview;
+      const word = String(item.word || "");
+      return `
+        <div class="word-review-prompt">
+          <div class="word-review-headword">
+            <strong>${escapeHtml(word)}</strong>
+            <button type="button" class="word-review-sound" data-word-review-action="speak" title="朗读">🔊</button>
+          </div>
+          ${item.phonetic ? `<div class="dictionary-phonetic">[${escapeHtml(item.phonetic)}]</div>` : ""}
+        </div>
+        ${review.answered ? `
+          <div class="word-review-result">
+            ${wordReviewMeaningsHtml(item)}
+            ${item.sourceSentence ? `<div class="word-review-source">${escapeHtml(item.sourceSentence)}</div>` : ""}
+          </div>
+          <div class="word-review-actions">
+            <button type="button" data-word-review-grade="again">不认识 (1)</button>
+            <button type="button" data-word-review-grade="hard">模糊 (2)</button>
+            <button type="button" class="primary" data-word-review-grade="good">认识 (3)</button>
+          </div>
+          <div class="word-review-keys small-note">按 1 / 2 / 3 评分 · Esc 关闭</div>` : `
+          <div class="word-review-actions">
+            <button type="button" class="primary" data-word-review-action="show">显示释义</button>
+          </div>
+          <div class="word-review-keys small-note">先在心里想出意思 · Enter 或空格显示释义 · Esc 关闭</div>`}`;
+    }
+
+    function renderSpellingCard(item, mode) {
+      const review = state.wordReview;
+      const word = String(item.word || "");
+      const answered = review.answered;
+      const correct = review.correct;
+      const showSound = mode === "listen" || answered;
+      return `
+        <div class="word-review-prompt">
+          ${mode === "spell" ? wordReviewMeaningsHtml(item) : '<div class="word-review-listen-note">听发音，拼出这个单词</div>'}
+          <div class="word-review-pattern-row">
+            ${showSound ? '<button type="button" class="word-review-sound" data-word-review-action="speak" title="朗读">🔊</button>' : ""}
+            <span class="word-review-pattern">${wordReviewPatternHtml(word, answered ? word.length : review.hints)}</span>
+            <span class="word-review-count">${word.replace(/[^a-z]/gi, "").length} 个字母</span>
+          </div>
+        </div>
+        <input id="wordReviewInput" class="word-review-input${answered ? (correct ? " is-correct" : " is-wrong") : ""}" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="拼写这个单词" value="${escapeHtml(review.input)}" ${answered ? "readonly" : ""}>
+        ${answered ? `
+          <div class="word-review-result ${correct ? "is-correct" : "is-wrong"}">
+            <div class="word-review-verdict">${correct ? (review.hints ? "正确（用了提示）" : "正确") : (review.revealed ? "已显示答案" : "拼写错误")}</div>
+            ${correct || !review.input.trim() ? "" : `<div class="word-review-diff">${wordReviewDiffHtml(word, review.input)}</div>`}
+            ${wordReviewAnswerHtml(item)}
+            ${mode === "listen" ? wordReviewMeaningsHtml(item) : ""}
+          </div>` : ""}
+        <div class="word-review-actions">
+          ${answered
+            ? '<button type="button" class="primary" data-word-review-action="next">下一个</button>'
+            : `<button type="button" data-word-review-action="hint">提示字母</button>
+               <button type="button" data-word-review-action="reveal">不会，看答案</button>
+               <button type="button" class="primary" data-word-review-action="check">提交</button>`}
+        </div>
+        <div class="word-review-keys small-note">${answered ? "Enter 下一个" : "Enter 提交 · Tab 提示下一个字母 · Esc 关闭"}</div>`;
+    }
+
+    function renderWordReview() {
+      const review = state.wordReview;
+      const card = $("wordReviewCard");
+      if (!review || !card) return;
+      renderWordReviewModes();
+      const total = review.queue.length;
+      if (review.index >= total) {
+        const due = nextWordReviewDue(review.mode);
+        const label = wordReviewModeLabel(review.mode);
+        $("wordReviewProgress").textContent = total ? `${label} · 本轮完成 ${total} 个` : `${label} · 没有待复习的单词`;
+        card.innerHTML = `
+          <div class="word-review-done">
+            <strong>${total ? "本轮复习完成" : `今天没有需要${label}的单词`}</strong>
+            ${total ? `<div>记得 ${review.results.good} · 模糊 ${review.results.hard} · 忘了 ${review.results.again}</div>` : ""}
+            <div class="small-note">${due ? `下一个单词将在 ${new Date(due).toLocaleString()} 到期` : "收藏新单词后会自动加入复习"}</div>
+            <div class="small-note">${label}只包含 ${wordReviewModeMinStars(review.mode)} 星及以上的收藏词</div>
+            <button type="button" data-word-review-action="close">完成</button>
+          </div>`;
+        card.focus();
+        return;
+      }
+      const item = currentWordReviewItem();
+      if (!item) {
+        review.index += 1;
+        renderWordReview();
+        return;
+      }
+      const isNew = !wordReviewRecord(item, review.mode);
+      $("wordReviewProgress").textContent = `${wordReviewModeLabel(review.mode)} · 第 ${review.index + 1} / ${total} 个${isNew ? " · 新词" : ""}`;
+      card.innerHTML = review.mode === "recognize" ? renderRecognizeCard(item) : renderSpellingCard(item, review.mode);
+      const input = $("wordReviewInput");
+      if (input) {
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+      } else {
+        card.focus();
+      }
+    }
+
+    function startWordReviewCard() {
+      const review = state.wordReview;
+      review.hints = 0;
+      review.answered = false;
+      review.correct = null;
+      review.revealed = false;
+      review.input = "";
+      renderWordReview();
+      const item = currentWordReviewItem();
+      if (item && review.mode !== "spell") speakReviewWord(item.word);
+    }
+
+    function switchWordReviewMode(mode) {
+      window.speechSynthesis?.cancel();
+      state.wordReview = {
+        mode,
+        queue: buildWordReviewQueue(mode),
+        index: 0,
+        hints: 0,
+        answered: false,
+        correct: null,
+        revealed: false,
+        input: "",
+        results: { good: 0, hard: 0, again: 0 }
+      };
+      startWordReviewCard();
+    }
+
+    function openWordReview() {
+      $("wordReviewModal").hidden = false;
+      switchWordReviewMode(state.wordReviewLastMode || "recognize");
+    }
+
+    function closeWordReview() {
+      $("wordReviewModal").hidden = true;
+      window.speechSynthesis?.cancel();
+      if (state.wordReview) state.wordReviewLastMode = state.wordReview.mode;
+      state.wordReview = null;
+      if (!$("userPhrasesModal").hidden) renderUserPhrases();
+    }
+
+    function gradeWordReview(grade) {
+      const review = state.wordReview;
+      const item = currentWordReviewItem();
+      if (!review || !item) return;
+      const key = dictionaryFavoriteKey(item.word);
+      review.results[grade] += 1;
+      saveWordReviewGrade(key, review.mode, grade);
+      if (grade === "again") review.queue.push(key);
+    }
+
+    function showRecognizeMeaning() {
+      const review = state.wordReview;
+      if (!review || review.mode !== "recognize" || review.answered) return;
+      review.answered = true;
+      renderWordReview();
+    }
+
+    function gradeRecognize(grade) {
+      const review = state.wordReview;
+      if (!review || review.mode !== "recognize" || !review.answered) return;
+      gradeWordReview(grade);
+      nextWordReview();
+    }
+
+    function answerWordReview(forceReveal = false) {
+      const review = state.wordReview;
+      if (!review || review.mode === "recognize" || review.answered) return;
+      const item = currentWordReviewItem();
+      if (!item) return;
+      const input = $("wordReviewInput");
+      review.input = input ? input.value : "";
+      if (!forceReveal && !review.input.trim()) return;
+      const correct = !forceReveal && normalizeReviewAnswer(review.input) === normalizeReviewAnswer(item.word);
+      review.answered = true;
+      review.correct = correct;
+      review.revealed = forceReveal;
+      gradeWordReview(correct ? (review.hints ? "hard" : "good") : "again");
+      renderWordReview();
+      speakReviewWord(item.word);
+    }
+
+    function hintWordReview() {
+      const review = state.wordReview;
+      if (!review || review.mode === "recognize" || review.answered) return;
+      const item = currentWordReviewItem();
+      if (!item) return;
+      const input = $("wordReviewInput");
+      review.input = input ? input.value : review.input;
+      review.hints = Math.min(item.word.length, review.hints + 1);
+      renderWordReview();
+    }
+
+    function nextWordReview() {
+      const review = state.wordReview;
+      if (!review) return;
+      review.index += 1;
+      startWordReviewCard();
+    }
+
+    function handleWordReviewAction(action) {
+      if (action === "check") answerWordReview();
+      else if (action === "reveal") answerWordReview(true);
+      else if (action === "hint") hintWordReview();
+      else if (action === "next") nextWordReview();
+      else if (action === "show") showRecognizeMeaning();
+      else if (action === "speak") speakReviewWord(currentWordReviewItem()?.word);
+      else if (action === "close") closeWordReview();
+    }
+
+    function handleWordReviewKeydown(event) {
+      const review = state.wordReview;
+      if (!review || event.isComposing || event.ctrlKey || event.altKey || event.metaKey) return;
+      if (event.target.closest("button") && (event.key === "Enter" || event.key === " ")) return;
+      const finished = review.index >= review.queue.length;
+      if (finished) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          closeWordReview();
+        }
+        return;
+      }
+      if (review.mode === "recognize") {
+        if (!review.answered && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          showRecognizeMeaning();
+        } else if (review.answered && ["1", "2", "3"].includes(event.key)) {
+          event.preventDefault();
+          gradeRecognize({ 1: "again", 2: "hard", 3: "good" }[event.key]);
+        }
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        if (review.answered) nextWordReview();
+        else answerWordReview();
+      } else if (event.key === "Tab" && !review.answered) {
+        event.preventDefault();
+        hintWordReview();
+      }
     }
 
     function resetUserPhrasesSize() {
@@ -4052,6 +4515,7 @@ const fallbackSentences = [
         : "录音完成后会出现在这里。";
       setSpeakingStatus();
       renderVolumeMeter();
+      setLoopCompareButtonState();
     }
 
     function renderVolumeMeter() {
@@ -4077,6 +4541,7 @@ const fallbackSentences = [
     }
 
     function resetSpeakingResult() {
+      stopLoopCompare();
       state.speaking.spokenText = "";
       state.speaking.metrics = null;
       state.speaking.volumeLevel = 0;
@@ -4835,6 +5300,31 @@ const fallbackSentences = [
       const loadButton = event.target.closest("[data-load-sentence]");
       if (loadButton) loadFavoriteSentenceIntoPractice(loadButton.dataset.loadSentence);
     });
+    $("startWordReviewBtn").addEventListener("click", openWordReview);
+    $("closeWordReviewBtn").addEventListener("click", closeWordReview);
+    $("wordReviewModal").addEventListener("click", (event) => {
+      const actionButton = event.target.closest("[data-word-review-action]");
+      if (actionButton) {
+        handleWordReviewAction(actionButton.dataset.wordReviewAction);
+        return;
+      }
+      const gradeButton = event.target.closest("[data-word-review-grade]");
+      if (gradeButton) {
+        gradeRecognize(gradeButton.dataset.wordReviewGrade);
+        return;
+      }
+      const modeButton = event.target.closest("[data-word-review-mode]");
+      if (modeButton) {
+        switchWordReviewMode(modeButton.dataset.wordReviewMode);
+        return;
+      }
+      const clearButton = event.target.closest("[data-word-review-clear]");
+      if (clearButton) clearWordReviewMemory(clearButton.dataset.wordReviewClear);
+    });
+    $("wordReviewModal").addEventListener("keydown", handleWordReviewKeydown);
+    $("wordReviewModal").addEventListener("pointerdown", (event) => {
+      if (event.target === $("wordReviewModal")) closeWordReview();
+    });
     $("userPhrasesModal").addEventListener("pointerdown", (event) => {
       if (event.target === $("userPhrasesModal")) closeUserPhrases();
     });
@@ -4952,6 +5442,7 @@ const fallbackSentences = [
     });
     holdSpeakBtn.addEventListener("click", (event) => event.preventDefault());
     $("pitchCompareBtn").addEventListener("click", comparePitchWithOriginal);
+    $("loopCompareBtn").addEventListener("click", toggleLoopCompare);
     $("pitchCompareChart").addEventListener("click", (event) => {
       const button = event.target.closest("[data-pitch-compare-view]");
       if (!button || !state.speaking.pitchCompareResult) return;

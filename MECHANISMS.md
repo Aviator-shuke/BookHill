@@ -97,6 +97,23 @@ The visible product name is `收藏`. Its word view shares the dictionary window
 
 Relevant implementation: `userWordsStorageKey()`, `toggleDictionaryFavorite()`, and `renderUserPhrases()` in `src/app.js`.
 
+## Word Review (背词)
+
+The full Chinese specification of this mechanism is maintained in [`WORD_REVIEW.md`](WORD_REVIEW.md); keep both in sync when the behavior changes.
+
+`背词` in the `收藏` → `单词` tab opens `#wordReviewModal`, a single-card review dialog layered above the 收藏 dialog. While it is open, global learning shortcuts are suspended (`isTopMenuOpen()` includes it) and Esc closes it first. The dialog has three independent modes, switched by tabs that show each mode's current queue size; the last used mode is remembered for the session.
+
+- `认义` (recognize): shows the English word and phonetic and speaks it; Enter/Space reveals the meaning and source sentence; the learner self-grades 1 `不认识` / 2 `模糊` / 3 `认识`.
+- `听写` (listen): shows only a `_`-pattern with the letter count and speaks the word; the meaning is shown only after answering.
+- `默写` (spell): shows only the meaning and part of speech with the `_`-pattern; no audio before answering, so the sound does not give away the spelling.
+- In both spelling modes Enter submits, Tab reveals the next letter, `不会，看答案` reveals the word. Grading is automatic: exact match (case/whitespace-insensitive) without hints is `good`, with hints `hard`, a mismatch or reveal `again`. Wrong answers show a letter-by-letter diff.
+- Each mode has its own schedule, stored on the favorite record as `reviews: { recognize, listen, spell }`, each `{ interval, ease, reps, lapses, due, lastReviewedAt }`, separate from the star `rating`. `ease` is called 复习间隔增长系数 in Chinese: it starts at 2.5, is the factor by which the next interval grows after a correct answer, and drops when the word is forgotten or only recalled with difficulty, so a lower value means the word is reviewed more often. It describes how fast the interval grows, not whether the word is mastered; mastery is shown by a long current interval that the learner still answers correctly. The modes never affect each other (no unlocking ladder, no cross-mode credit). The earlier single `review` field is ignored and removed on the next save; no migration is performed.
+- The favorite's star rating sets which modes a word enters, cumulatively: 1 star `认义`; 2 stars also `听写`; 3 stars and above also `默写`. 4 and 5 stars currently behave like 3 stars; they mean "very important" and are reserved for later priority features. A word with no rating counts as 1 star.
+- `buildWordReviewQueue(mode)` takes the favorites matching the tab's current category/search/sort and eligible for that mode by stars, then orders that mode's due words (earliest first) before up to 20 words with no record in that mode. `again` words are also appended to the end of the current session.
+- `scheduleWordReview()` is a simplified SM-2: `good` gives 1 day, then 3 days, then `interval × ease`; `hard` multiplies the interval by 1.2 and lowers ease by 0.15; `again` resets repetitions, counts a lapse, lowers ease by 0.2 (floor 1.3) and makes the word due again in 10 minutes. Ease only decreases.
+- The footer's `清除记忆-认义` / `清除记忆-听写` / `清除记忆-默写` buttons, after a confirmation, delete that one mode's record from every favorite of the current identity, so those words return as new words in that mode. The star rating and the other two modes are untouched.
+- Like the rest of the word collection, review records are not yet in backup export or cloud sync.
+
 ## User Sentence Collection
 
 The listening page's English source line has a five-star sentence-favorite control (`sentenceFavoriteButton`), using the same interaction as word favorites: click a level to set it 1-5, click the current level again to remove it. Sentences are matched case- and whitespace-insensitively (`sentenceFavoriteKey`), so re-favoriting the same sentence updates the existing entry instead of duplicating it.
@@ -136,6 +153,10 @@ The built-in common library is a versioned static package with stable source IDs
 - Imported custom material remains user data and is independent of the built-in package.
 - Each preview row in the `句库` dialog has its own `▶` button (`data-load-library-sentence`, handled by `loadLibrarySentenceIntoPractice()`), matching the one on favorite-sentence rows: it loads the whole common library, jumps straight to that row's sentence by matching its stable source ID, closes the dialog, and switches to the listening page. This is separate from `使用此句库`, which always starts at the first sentence.
 - `用户收藏` is not offered as a selectable entry in the `句库` dialog's sidebar (that dialog only lists the built-in common library and custom import/paste). It remains selectable from the toolbar's `currentLibrarySelect` quick-switch dropdown, which loads it via `useFavoritesLibrary()` following the same `setCurrentLibrary()` path as the common library. It can also become the active practice source via `loadFavoriteSentenceIntoPractice()`, triggered by the `▶` button on a row in `收藏`'s `句子` tab, which maps each favorite's `sentence`/`translation`/`sourceId`/`libraryId` into the normal sentence shape, jumps straight to that sentence, and switches to the listening page.
+
+## Speaking Loop Playback
+
+`原声对比` is a separate, always-enabled feature from the pitch/acoustic-analysis experiment below. `toggleLoopCompare()` requires an existing recording, then repeatedly calls `speakTextAndWait()` (TTS reading) and `playRecordedAudioAndWait()` (the existing `#speakingAudio` element playing `state.speaking.recordedAudioUrl`), each awaited in turn with short pauses between, looping until the button is clicked again. It needs no `getDisplayMedia` permission, no capture, and produces no chart — it is just alternating playback for the learner to compare by ear. `resetSpeakingResult()` and leaving `listenPage` both call `stopLoopCompare()` so a loop never keeps running against a stale sentence or in the background.
 
 ## Speaking Voice Comparison
 

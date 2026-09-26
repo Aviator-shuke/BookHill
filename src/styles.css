@@ -3548,6 +3548,11 @@
       cursor: default;
     }
 
+    .audio-option-button.is-active {
+      background: var(--accent);
+      color: #fff;
+    }
+
     .pitch-compare-chart {
       margin-top: 7px;
       padding-top: 7px;
@@ -4201,4 +4206,277 @@
       .grammar-toolbar {
         align-items: flex-start;
       }
+    }
+
+    .word-review-start {
+      grid-column: 1 / -1;
+      min-height: 24px;
+      height: 24px;
+      padding: 0 8px;
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .word-review-modal {
+      z-index: 60;
+    }
+
+    .word-review-dialog {
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      width: min(560px, 100%);
+      max-height: calc(100vh - 36px);
+      border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--ink);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
+      overflow: hidden;
+    }
+
+    .word-review-card {
+      display: grid;
+      gap: 14px;
+      padding: 22px 26px 20px;
+      overflow-y: auto;
+    }
+
+    .word-review-pos {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .word-review-meanings {
+      display: grid;
+      gap: 4px;
+      font-size: 18px;
+      line-height: 1.45;
+    }
+
+    .word-review-pattern-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .word-review-sound {
+      width: 32px;
+      height: 32px;
+      min-height: 32px;
+      padding: 0;
+      border-radius: 50%;
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .word-review-pattern {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      font-family: var(--font-english-content), "Segoe UI", sans-serif;
+      font-size: 20px;
+      letter-spacing: 0.02em;
+    }
+
+    .word-review-letter {
+      color: var(--muted);
+    }
+
+    .word-review-letter.is-shown {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .word-review-gap {
+      width: 10px;
+    }
+
+    .word-review-count {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .word-review-input {
+      width: 100%;
+      min-height: 46px;
+      padding: 8px 12px;
+      border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--ink);
+      font-family: var(--font-english-content), "Segoe UI", sans-serif;
+      font-size: 22px;
+    }
+
+    .word-review-input:focus {
+      border-color: var(--accent);
+      outline: none;
+      box-shadow: 0 0 0 3px var(--ring);
+    }
+
+    .word-review-input.is-correct {
+      border-color: #16a34a;
+    }
+
+    .word-review-input.is-wrong {
+      border-color: #dc2626;
+    }
+
+    .word-review-result {
+      display: grid;
+      gap: 6px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--surface) 60%, var(--panel));
+    }
+
+    .word-review-verdict {
+      font-weight: 700;
+    }
+
+    .word-review-result.is-correct .word-review-verdict {
+      color: #16a34a;
+    }
+
+    .word-review-result.is-wrong .word-review-verdict {
+      color: #dc2626;
+    }
+
+    .word-review-diff {
+      font-family: var(--font-english-content), "Segoe UI", sans-serif;
+      font-size: 20px;
+      letter-spacing: 0.04em;
+    }
+
+    .word-review-diff .is-ok {
+      color: #16a34a;
+    }
+
+    .word-review-diff .is-bad,
+    .word-review-diff .is-extra {
+      color: #dc2626;
+      text-decoration: underline;
+    }
+
+    .word-review-diff .is-extra {
+      text-decoration: line-through;
+    }
+
+    .word-review-answer {
+      font-family: var(--font-english-content), "Segoe UI", sans-serif;
+      font-size: 18px;
+    }
+
+    .word-review-source {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .word-review-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .word-review-keys {
+      text-align: right;
+    }
+
+    .word-review-done {
+      display: grid;
+      justify-items: center;
+      gap: 10px;
+      padding: 18px 0;
+      text-align: center;
+    }
+
+    .word-review-card:focus {
+      outline: none;
+    }
+
+    .word-review-modes {
+      display: flex;
+      gap: 6px;
+      padding: 8px 26px 0;
+    }
+
+    .word-review-modes button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: 0 12px;
+      border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .word-review-modes button span {
+      min-width: 18px;
+      padding: 0 5px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ink) 10%, transparent);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .word-review-modes button.is-active {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .word-review-modes button.is-active span {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    .word-review-headword {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .word-review-headword strong {
+      font-family: var(--font-english-content), "Segoe UI", sans-serif;
+      font-size: 32px;
+    }
+
+    .word-review-listen-note {
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .word-review-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+      padding: 8px 26px 12px;
+      border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+    }
+
+    .word-review-footer button {
+      min-height: 24px;
+      padding: 0 8px;
+      border: 1px solid color-mix(in srgb, var(--bad, #dc2626) 45%, transparent);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .word-review-footer button:hover,
+    .word-review-footer button:focus-visible {
+      color: #dc2626;
+      border-color: #dc2626;
+      outline: none;
     }

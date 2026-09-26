@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260926-139">
+  <link rel="stylesheet" href="src/styles.css?v=20260926-142">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -309,6 +309,7 @@
               <h2>录音回放</h2>
               <div class="audio-options" aria-label="录音回放选项">
                 <span class="audio-option">播放速度</span>
+                <button id="loopCompareBtn" class="audio-option-button" type="button" title="交替循环播放原声朗读和你的录音">原声对比</button>
                 <button id="pitchCompareBtn" class="audio-option-button" type="button" title="需要在弹出的“共享标签页”授权框里勾选“分享音频”" hidden>跟原声对比</button>
               </div>
             </div>
@@ -440,6 +441,26 @@
       </div>
     </div>
   </div>
+  <div id="wordReviewModal" class="library-modal word-review-modal" hidden>
+    <div class="word-review-dialog" role="dialog" aria-modal="true" aria-labelledby="wordReviewTitle">
+      <div class="library-header">
+        <div>
+          <h2 id="wordReviewTitle">背词</h2>
+          <div id="wordReviewProgress" class="small-note"></div>
+        </div>
+        <div class="dialog-header-actions">
+          <button id="closeWordReviewBtn" type="button">关闭</button>
+        </div>
+      </div>
+      <div id="wordReviewModes" class="word-review-modes" role="tablist" aria-label="背词模式"></div>
+      <div id="wordReviewCard" class="word-review-card" tabindex="-1"></div>
+      <div class="word-review-footer">
+        <button type="button" data-word-review-clear="recognize">清除记忆-认义</button>
+        <button type="button" data-word-review-clear="listen">清除记忆-听写</button>
+        <button type="button" data-word-review-clear="spell">清除记忆-默写</button>
+      </div>
+    </div>
+  </div>
   <div id="userPhrasesModal" class="library-modal" hidden>
     <div class="user-phrases-dialog" role="dialog" aria-modal="true" aria-labelledby="userPhrasesTitle">
       <div class="library-header">
@@ -483,6 +504,7 @@
                 <option value="collins">柯林斯星级</option>
               </select>
             </label>
+            <button id="startWordReviewBtn" class="word-review-start" type="button" title="按当前分类和搜索，默写今天待复习的收藏单词">背词</button>
           </div>
           <div id="userWordsCount" class="user-words-count">
             <input id="userWordsSearchInput" type="search" autocomplete="off" placeholder="搜索单词" aria-label="搜索收藏单词">
@@ -539,6 +561,6 @@
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
   <script src="src/dictionary/dictionary-service.js?v=20260925-8"></script>
-  <script src="src/app.js?v=20260926-91"></script>
+  <script src="src/app.js?v=20260926-95"></script>
 </body>
 </html>
