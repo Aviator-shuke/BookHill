@@ -557,6 +557,66 @@
       color: #dc2626;
     }
 
+    .dictionary-mastery {
+      margin-top: 9px;
+      padding-top: 8px;
+      border-top: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+    }
+
+    .dictionary-mastery-items {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+      gap: 5px;
+    }
+
+    .dictionary-mastery-item {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+      padding: 4px 6px;
+      border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+      border-radius: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .dictionary-mastery-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .dictionary-mastery-head b {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .dictionary-mastery-meta {
+      display: grid;
+      gap: 1px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .dictionary-mastery-item.is-learning {
+      border-color: color-mix(in srgb, #d97706 58%, transparent);
+    }
+
+    .dictionary-mastery-item.is-learning .dictionary-mastery-head span {
+      color: #b45309;
+    }
+
+    .dictionary-mastery-item.is-mastered {
+      border-color: color-mix(in srgb, #16a34a 58%, transparent);
+    }
+
+    .dictionary-mastery-item.is-mastered .dictionary-mastery-head span {
+      color: #15803d;
+    }
+
     .app {
       width: min(1240px, calc(100vw - 24px));
       margin: 0 auto;
@@ -4208,18 +4268,63 @@
       }
     }
 
-    .word-review-start {
+    .word-review-launchers {
       grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: auto repeat(3, minmax(0, 1fr));
+      align-items: center;
+      gap: 4px;
+    }
+
+    .word-review-launchers-label {
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .word-review-start {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      width: 100%;
       min-height: 24px;
       height: 24px;
-      padding: 0 8px;
+      min-width: 0;
+      padding: 0 6px;
       border: 1px solid var(--accent);
       border-radius: 6px;
       background: var(--accent);
       color: #fff;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
+      white-space: nowrap;
       cursor: pointer;
+    }
+
+    [data-dictionary-study-mode] {
+      position: relative;
+      width: calc(100% + 1px);
+    }
+
+    [data-dictionary-study-mode="recognize"] {
+      left: -3px;
+    }
+
+    [data-dictionary-study-mode="listen"] {
+      left: -2px;
+    }
+
+    [data-dictionary-study-mode="spell"] {
+      left: -1px;
+    }
+
+    .word-review-start:disabled {
+      border-color: color-mix(in srgb, var(--ink) 18%, transparent);
+      background: transparent;
+      color: var(--muted);
+      cursor: default;
+      opacity: 0.62;
     }
 
     .word-review-modal {
@@ -4228,8 +4333,8 @@
 
     .word-review-dialog {
       display: grid;
-      grid-template-rows: auto auto minmax(0, 1fr) auto;
-      width: min(560px, 100%);
+      grid-template-rows: auto minmax(0, 1fr);
+      width: 100%;
       max-height: calc(100vh - 36px);
       border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
       border-radius: 8px;
@@ -4241,9 +4346,14 @@
 
     .word-review-card {
       display: grid;
-      gap: 14px;
-      padding: 22px 26px 20px;
+      gap: 10px;
+      padding: 14px 20px 14px;
       overflow-y: auto;
+    }
+
+    .word-review-card.is-recognize {
+      gap: 8px;
+      padding: 8px 20px 12px;
     }
 
     .word-review-pos {
@@ -4378,6 +4488,108 @@
       font-size: 13px;
     }
 
+    .word-review-recognize-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-width: 0;
+      gap: 12px;
+    }
+
+    .word-review-recognize-header .word-review-headword {
+      min-width: 0;
+      gap: 8px;
+    }
+
+    .word-review-phonetic {
+      color: var(--muted);
+      font-family: var(--font-english-content), "Segoe UI", sans-serif;
+      font-size: 20px;
+      font-weight: 400;
+      white-space: nowrap;
+    }
+
+    .word-review-recognize-header .word-review-sound {
+      width: 28px;
+      min-width: 28px;
+      height: 28px;
+      min-height: 28px;
+    }
+
+    .word-review-rating {
+      flex: 0 0 auto;
+    }
+
+    .word-review-rating .dictionary-favorite-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 17px;
+      min-width: 17px;
+      height: 26px;
+      min-height: 26px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      line-height: 1;
+    }
+
+    .word-review-choice-loading {
+      padding: 18px 0;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .word-review-choices {
+      display: grid;
+      gap: 6px;
+    }
+
+    .word-review-choice {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      align-items: center;
+      min-height: 34px;
+      padding: 4px 9px;
+      border-color: color-mix(in srgb, var(--ink) 18%, transparent);
+      background: transparent;
+      color: var(--ink);
+      text-align: left;
+    }
+
+    .word-review-choice > span:first-child {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .word-review-choice:hover:not(:disabled),
+    .word-review-choice:focus-visible:not(:disabled) {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+    }
+
+    .word-review-choice.is-focused:not(:disabled) {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      box-shadow: 0 0 0 2px var(--ring);
+    }
+
+    .word-review-choice:disabled {
+      opacity: 1;
+      cursor: default;
+    }
+
+    .word-review-choice.is-correct {
+      border-color: #16a34a;
+      background: color-mix(in srgb, #16a34a 10%, transparent);
+    }
+
+    .word-review-choice.is-wrong {
+      border-color: #dc2626;
+      background: color-mix(in srgb, #dc2626 9%, transparent);
+    }
+
     .word-review-actions {
       display: flex;
       justify-content: flex-end;
@@ -4400,45 +4612,6 @@
       outline: none;
     }
 
-    .word-review-modes {
-      display: flex;
-      gap: 6px;
-      padding: 8px 26px 0;
-    }
-
-    .word-review-modes button {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      min-height: 28px;
-      padding: 0 12px;
-      border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
-      border-radius: 999px;
-      background: transparent;
-      color: var(--muted);
-      font-size: 13px;
-      cursor: pointer;
-    }
-
-    .word-review-modes button span {
-      min-width: 18px;
-      padding: 0 5px;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--ink) 10%, transparent);
-      font-size: 11px;
-      text-align: center;
-    }
-
-    .word-review-modes button.is-active {
-      border-color: var(--accent);
-      background: var(--accent);
-      color: #fff;
-    }
-
-    .word-review-modes button.is-active span {
-      background: rgba(255, 255, 255, 0.25);
-    }
-
     .word-review-headword {
       display: flex;
       align-items: center;
@@ -4455,28 +4628,153 @@
       font-size: 15px;
     }
 
-    .word-review-footer {
+    .word-review-stage {
+      position: relative;
+      display: grid;
+      width: min(560px, 100%);
+      max-height: calc(100vh - 36px);
+    }
+
+    .word-review-result-panel {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: calc(100% + 12px);
+      width: 300px;
+      box-sizing: border-box;
       display: flex;
-      justify-content: flex-end;
-      gap: 6px;
-      padding: 8px 26px 12px;
-      border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px 16px;
+      overflow-y: auto;
+      border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+      border-top: 3px solid var(--accent);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--ink);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
+      animation: word-review-panel-in 160ms ease-out;
     }
 
-    .word-review-footer button {
-      min-height: 24px;
-      padding: 0 8px;
-      border: 1px solid color-mix(in srgb, var(--bad, #dc2626) 45%, transparent);
-      border-radius: 6px;
+    .word-review-result-panel[hidden] {
+      display: none;
+    }
+
+    .word-review-result-panel.is-correct {
+      border-top-color: #16a34a;
+    }
+
+    .word-review-result-panel.is-wrong {
+      border-top-color: #dc2626;
+    }
+
+    .word-review-result-panel .word-review-result {
+      padding: 0;
       background: transparent;
-      color: var(--muted);
-      font-size: 11px;
-      cursor: pointer;
     }
 
-    .word-review-footer button:hover,
-    .word-review-footer button:focus-visible {
-      color: #dc2626;
-      border-color: #dc2626;
-      outline: none;
+    .word-review-result-panel .word-review-meanings {
+      font-size: 15px;
+    }
+
+    .word-review-result-panel .word-review-actions {
+      margin-top: auto;
+    }
+
+    @keyframes word-review-panel-in {
+      from {
+        opacity: 0;
+        transform: translateX(-10px);
+      }
+    }
+
+    @media (max-width: 1220px) {
+      .word-review-result-panel {
+        top: 44px;
+        bottom: 10px;
+        left: auto;
+        right: 10px;
+        width: min(300px, calc(100% - 20px));
+      }
+    }
+
+    .word-review-dialog .library-header {
+      padding: 8px 14px;
+    }
+
+    .word-review-dialog .library-header > div:first-child {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .word-review-dialog .library-header h2 {
+      font-size: 16px;
+    }
+
+    .control-tooltip {
+      position: fixed;
+      z-index: 1000;
+      max-width: min(320px, calc(100vw - 16px));
+      padding: 4px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 4px;
+      background: #3a3a3a;
+      color: #f2f2f2;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre-line;
+      pointer-events: none;
+    }
+
+    .control-tooltip[hidden] {
+      display: none;
+    }
+
+    .word-review-help {
+      margin-top: -11px;
+      display: grid;
+      gap: 10px;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .word-review-help p,
+    .word-review-help ol,
+    .word-review-help ul {
+      margin: 0;
+    }
+
+    .word-review-help ol,
+    .word-review-help ul {
+      display: grid;
+      gap: 2px;
+      padding-left: 20px;
+    }
+
+    .word-review-help section {
+      display: grid;
+      gap: 4px;
+    }
+
+    .word-review-help .dictionary-mastery-items {
+      margin-top: 2px;
+    }
+
+    .word-review-help-title {
+      line-height: 1.2;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .word-review-help-title strong {
+      font-size: 20px;
+    }
+
+    .word-review-help-title span {
+      color: var(--muted);
+      font-size: 13px;
     }

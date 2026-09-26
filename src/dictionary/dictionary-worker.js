@@ -131,6 +131,12 @@ function query(word) {
   return result;
 }
 
+function queryMany(words) {
+  requireDatabase();
+  const uniqueWords = [...new Set((Array.isArray(words) ? words : []).map((word) => String(word || "").trim()).filter(Boolean))];
+  return uniqueWords.map((word) => query(word)).filter(Boolean);
+}
+
 function match({ word, limit = 10, strip = false }) {
   requireDatabase();
   const normalizedLimit = Math.max(1, Math.min(Number(limit) || 10, 50));
@@ -193,7 +199,33 @@ function list({ entryType = "words", category = "all", sort = "alphabetical", qu
   return { rows, total, page: normalizedPage, pageSize: normalizedPageSize, pageCount };
 }
 
-const handlers = { status, install, remove, query, match, count, list };
+function studyList({ category = "all", sort = "alphabetical" } = {}) {
+  requireDatabase();
+  const categories = {
+    oxford: "oxford > 0",
+    zk: "instr(' ' || lower(tag) || ' ', ' zk ') > 0",
+    gk: "instr(' ' || lower(tag) || ' ', ' gk ') > 0",
+    ky: "instr(' ' || lower(tag) || ' ', ' ky ') > 0",
+    cet4: "instr(' ' || lower(tag) || ' ', ' cet4 ') > 0",
+    cet6: "instr(' ' || lower(tag) || ' ', ' cet6 ') > 0",
+    ielts: "instr(' ' || lower(tag) || ' ', ' ielts ') > 0",
+    toefl: "instr(' ' || lower(tag) || ' ', ' toefl ') > 0",
+    gre: "instr(' ' || lower(tag) || ' ', ' gre ') > 0"
+  };
+  const orderBy = {
+    alphabetical: "word COLLATE NOCASE, id",
+    bnc: "CASE WHEN bnc > 0 THEN 0 ELSE 1 END, bnc, word COLLATE NOCASE",
+    frq: "CASE WHEN frq > 0 THEN 0 ELSE 1 END, frq, word COLLATE NOCASE",
+    collins: "collins DESC, word COLLATE NOCASE"
+  };
+  const categoryWhere = categories[category];
+  if (!categoryWhere) throw new Error("请选择具体词表");
+  return database.selectArrays(
+    `SELECT id, word, collins FROM stardict WHERE word GLOB '[A-Za-z]*' AND instr(trim(word), ' ') = 0 AND (${categoryWhere}) ORDER BY ${orderBy[sort] || orderBy.alphabetical}`
+  ).map(([id, word, collins]) => ({ id, word, collins: Number(collins) || 0 }));
+}
+
+const handlers = { status, install, remove, query, queryMany, match, count, list, studyList };
 
 self.addEventListener("message", async (event) => {
   const { id, method, payload } = event.data || {};

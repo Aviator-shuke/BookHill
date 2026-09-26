@@ -202,6 +202,8 @@ const fallbackSentences = [
         loading: false
       },
       wordReview: null,
+      dictionaryStudyLoading: false,
+      dictionaryStudyLoadingMode: "",
       speaking: {
         isRecognizing: false,
         isRecording: false,
@@ -229,6 +231,8 @@ const fallbackSentences = [
         ttsShareStream: null,
         pitchCompareBusy: false,
         loopCompareActive: false,
+        loopCompareRunId: 0,
+        cancelLoopCompareAudio: null,
         pitchCompareView: "pitch",
         pitchCompareResult: null
       }
@@ -1938,7 +1942,7 @@ const fallbackSentences = [
         || !$("libraryModal").hidden
         || !$("dictionaryLibraryModal").hidden
         || !$("userPhrasesModal").hidden
-        || !$("wordReviewModal").hidden
+        || document.querySelector(".word-review-modal:not([hidden])")
       );
     }
 
@@ -1950,7 +1954,7 @@ const fallbackSentences = [
         closeDictionaryLookup();
         return;
       }
-      if (event.key === "Escape" && !$("wordReviewModal").hidden) {
+      if (event.key === "Escape" && document.querySelector(".word-review-modal:not([hidden])")) {
         event.preventDefault();
         closeWordReview();
         return;
@@ -2144,23 +2148,36 @@ const fallbackSentences = [
       });
     }
 
-    function playRecordedAudioAndWait() {
+    function playRecordedAudioAndWait(runId) {
       const audio = $("speakingAudio");
       return new Promise((resolve, reject) => {
-        if (!audio.src) {
+        if (!audio.src || state.speaking.loopCompareRunId !== runId) {
           resolve();
           return;
         }
+        let settled = false;
         const cleanup = () => {
           audio.removeEventListener("ended", onEnded);
           audio.removeEventListener("error", onError);
+          if (state.speaking.cancelLoopCompareAudio === cancel) {
+            state.speaking.cancelLoopCompareAudio = null;
+          }
         };
-        const onEnded = () => { cleanup(); resolve(); };
-        const onError = () => { cleanup(); reject(new Error("录音播放失败")); };
+        const settle = (error) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          if (error) reject(error);
+          else resolve();
+        };
+        const cancel = () => settle();
+        const onEnded = () => settle();
+        const onError = () => settle(new Error("录音播放失败"));
         audio.addEventListener("ended", onEnded);
         audio.addEventListener("error", onError);
+        state.speaking.cancelLoopCompareAudio = cancel;
         audio.currentTime = 0;
-        audio.play().catch((error) => { cleanup(); reject(error); });
+        audio.play().catch((error) => settle(error));
       });
     }
 
@@ -2172,8 +2189,10 @@ const fallbackSentences = [
     }
 
     function stopLoopCompare() {
-      if (!state.speaking.loopCompareActive) return;
+      if (!state.speaking.loopCompareActive && !state.speaking.cancelLoopCompareAudio) return;
       state.speaking.loopCompareActive = false;
+      state.speaking.loopCompareRunId += 1;
+      state.speaking.cancelLoopCompareAudio?.();
       window.speechSynthesis.cancel();
       $("speakingAudio").pause();
       setLoopCompareButtonState();
@@ -2188,23 +2207,30 @@ const fallbackSentences = [
         setPitchCompareStatus("请先录音，再循环对比原声。");
         return;
       }
+      const runId = state.speaking.loopCompareRunId + 1;
+      state.speaking.loopCompareRunId = runId;
       state.speaking.loopCompareActive = true;
       setLoopCompareButtonState();
+      const isCurrentRun = () => state.speaking.loopCompareActive && state.speaking.loopCompareRunId === runId;
       try {
-        while (state.speaking.loopCompareActive) {
+        while (isCurrentRun()) {
           await speakTextAndWait(currentSentence(), { rate: currentReplayRate() });
-          if (!state.speaking.loopCompareActive) break;
+          if (!isCurrentRun()) break;
           await waitMs(300);
-          if (!state.speaking.loopCompareActive) break;
-          await playRecordedAudioAndWait();
-          if (!state.speaking.loopCompareActive) break;
+          if (!isCurrentRun()) break;
+          await playRecordedAudioAndWait(runId);
+          if (!isCurrentRun()) break;
           await waitMs(500);
         }
       } catch (error) {
-        setPitchCompareStatus(`循环对比中断：${error.message || error}`);
+        if (state.speaking.loopCompareRunId === runId) {
+          setPitchCompareStatus(`循环对比中断：${error.message || error}`);
+        }
       } finally {
-        state.speaking.loopCompareActive = false;
-        setLoopCompareButtonState();
+        if (state.speaking.loopCompareRunId === runId) {
+          state.speaking.loopCompareActive = false;
+          setLoopCompareButtonState();
+        }
       }
     }
 
@@ -2361,6 +2387,66 @@ const fallbackSentences = [
       return `<div class="dictionary-exchange"><div class="dictionary-section-label">词形变化</div><div class="dictionary-exchange-groups">${groups.map((group) => `<div class="dictionary-exchange-group"><div class="dictionary-exchange-group-label">${group.label}</div><dl>${group.items.map(({ label, form, type }) => `<div><dt>${escapeHtml(label)}</dt><dd><button class="dictionary-form-link${type === "0" ? " dictionary-form-base" : ""}" type="button" data-dictionary-form="${escapeHtml(form)}" title="查看 ${escapeHtml(form)}">${escapeHtml(form)}</button></dd></div>`).join("")}</dl></div>`).join("")}</div></div>`;
     }
 
+    function wordReviewRecordStarted(record) {
+      return Boolean(record && typeof record === "object" && (
+        record.lastReviewedAt
+        || record.lastGrade
+        || Number(record.reps) > 0
+        || Number(record.lapses) > 0
+        || Number(record.interval) > 0
+      ));
+    }
+
+    function wordMasteryState(record) {
+      if (wordReviewMastered(record)) return { key: "mastered", label: "已掌握" };
+      if (wordReviewRecordStarted(record)) return { key: "learning", label: "学习中" };
+      return { key: "new", label: "未学习" };
+    }
+
+    function wordReviewIntervalLabel(record) {
+      if (!wordReviewRecordStarted(record)) return "尚未安排";
+      const interval = Number(record?.interval);
+      if (interval > 0) return `${Number.isInteger(interval) ? interval : interval.toFixed(1)} 天`;
+      const reviewedAt = Date.parse(record?.lastReviewedAt);
+      const due = Number(record?.due);
+      if (Number.isFinite(reviewedAt) && Number.isFinite(due) && due > reviewedAt) {
+        const minutes = Math.max(1, Math.round((due - reviewedAt) / 60000));
+        return minutes < 60 ? `${minutes} 分钟` : `${(minutes / 60).toFixed(1)} 小时`;
+      }
+      return "尚未安排";
+    }
+
+    function wordReviewDueLabel(record) {
+      const due = Number(record?.due);
+      if (!wordReviewRecordStarted(record) || !Number.isFinite(due) || due <= 0) return "尚未安排";
+      const now = new Date();
+      const target = new Date(due);
+      if (due <= now.getTime()) return "现在（已到期）";
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      const targetDay = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
+      const dayDifference = Math.round((targetDay - startOfToday) / WORD_REVIEW_DAY_MS);
+      const time = target.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+      if (dayDifference === 0) return `今天 ${time}`;
+      if (dayDifference === 1) return `明天 ${time}`;
+      const date = target.toLocaleDateString("zh-CN", {
+        ...(target.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+        month: "numeric",
+        day: "numeric"
+      });
+      return `${date} ${time}`;
+    }
+
+    function dictionaryWordMasteryHtml(word) {
+      const records = loadWordReviewRecords();
+      const wordRecord = records[dictionaryFavoriteKey(word)] || {};
+      const modes = WORD_REVIEW_MODES.map((mode) => ({
+        label: mode.label,
+        state: wordMasteryState(wordRecord[mode.id]),
+        record: wordRecord[mode.id] || null
+      }));
+      return `<div class="dictionary-mastery"><div class="dictionary-section-label">当前单词掌握程度</div><div class="dictionary-mastery-items">${modes.map((mode) => `<div class="dictionary-mastery-item is-${mode.state.key}"><div class="dictionary-mastery-head"><b>${mode.label}</b><span>${mode.state.label}</span></div><div class="dictionary-mastery-meta"><span>复习间隔：${wordReviewIntervalLabel(mode.record)}</span><span>下次复习：${wordReviewDueLabel(mode.record)}</span></div></div>`).join("")}</div></div>`;
+    }
+
     async function openDictionaryFormDetail(button) {
       const word = String(button?.dataset.dictionaryForm || "").trim();
       if (!word || !window.langLSRWDictionary) return;
@@ -2408,7 +2494,8 @@ const fallbackSentences = [
           ${bnc ? `<span><b>BNC</b> 词频 #${bnc}</span>` : ""}
           ${frq ? `<span><b>当代语料</b> 词频 #${frq}</span>` : ""}
         </div>` : ""}
-        ${dictionaryExchangeHtml(exchanges)}`;
+        ${dictionaryExchangeHtml(exchanges)}
+        ${dictionaryWordMasteryHtml(word)}`;
     }
 
     function dictionaryRank(value) {
@@ -2545,7 +2632,8 @@ const fallbackSentences = [
         ${definitions.length ? `<div class="dictionary-definitions">${definitions.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
         ${collins || Number(item.oxford) > 0 || tags.length ? `<div class="dictionary-badges">${collins ? `<span class="dictionary-collins">柯林斯 <span class="dictionary-collins-stars">${"★".repeat(collins)}</span></span>` : ""}${Number(item.oxford) > 0 ? '<span class="dictionary-level-tag dictionary-level-oxford">Oxford 3000</span>' : ""}${dictionaryTagBadges(tags)}</div>` : ""}
         ${bnc || frq ? `<div class="dictionary-frequency">${bnc ? `<span><b>BNC</b> 词频 #${bnc}</span>` : ""}${frq ? `<span><b>当代语料</b> 词频 #${frq}</span>` : ""}</div>` : ""}
-        ${dictionaryExchangeHtml(exchanges)}`;
+        ${dictionaryExchangeHtml(exchanges)}
+        ${dictionaryWordMasteryHtml(item.word)}`;
     }
 
     function openDictionaryLibrary() {
@@ -2578,11 +2666,92 @@ const fallbackSentences = [
       $("dictionarySpecialTabBtn").setAttribute("aria-selected", String(showSpecial));
       const typeLabel = showWords ? "单词" : showSuffixes ? "后缀" : showPhrases ? "短语" : "特殊词条";
       $("dictionaryLibraryDetail").innerHTML = `<div class="user-phrases-empty">将鼠标移到${typeLabel}上查看释义。</div>`;
+      updateDictionaryStudyButton();
       if (refresh) renderDictionaryLibrary();
     }
 
     function closeDictionaryLibrary() {
       $("dictionaryLibraryModal").hidden = true;
+    }
+
+    let dictionaryStudyCountToken = 0;
+    async function updateDictionaryStudyButton() {
+      const buttons = [...document.querySelectorAll("[data-dictionary-study-mode]")];
+      if (!buttons.length) return;
+      const token = ++dictionaryStudyCountToken;
+      const category = $("dictionaryCategorySelect").value;
+      const hasStudyDeck = state.dictionaryLibraryType === "words" && category !== "all";
+      const available = hasStudyDeck && !state.dictionaryStudyLoading;
+      buttons.forEach((button) => {
+        const modeLabel = button.dataset.label || wordReviewModeLabel(button.dataset.dictionaryStudyMode);
+        button.disabled = !available;
+        button.textContent = `${modeLabel} (${hasStudyDeck ? "…" : 0})`;
+      });
+      if (!hasStudyDeck) return;
+      try {
+        const words = await loadDictionaryStudyWords(category, $("dictionarySortSelect").value);
+        if (token !== dictionaryStudyCountToken || category !== $("dictionaryCategorySelect").value) return;
+        buttons.forEach((button) => {
+          const modeLabel = button.dataset.label || wordReviewModeLabel(button.dataset.dictionaryStudyMode);
+          button.textContent = `${modeLabel} (${wordListReviewModeCount(words, button.dataset.dictionaryStudyMode)})`;
+        });
+      } catch {
+        if (token !== dictionaryStudyCountToken) return;
+        buttons.forEach((button) => {
+          const modeLabel = button.dataset.label || wordReviewModeLabel(button.dataset.dictionaryStudyMode);
+          button.textContent = `${modeLabel} (0)`;
+        });
+      }
+    }
+
+    const dictionaryStudyDeckCache = new Map();
+
+    function wordListReviewModeCount(words, mode) {
+      const records = loadWordReviewRecords();
+      const keys = new Set(words.map((item) => dictionaryFavoriteKey(item.word)));
+      return [...keys].filter((key) => wordReviewMastered(records[key]?.[mode])).length;
+    }
+
+    async function loadDictionaryStudyWords(category, sort) {
+      const cacheKey = `${category}:${sort}`;
+      if (!dictionaryStudyDeckCache.has(cacheKey)) {
+        dictionaryStudyDeckCache.set(cacheKey, window.langLSRWDictionary.studyList({ category, sort }).catch((error) => {
+          dictionaryStudyDeckCache.delete(cacheKey);
+          throw error;
+        }));
+      }
+      return dictionaryStudyDeckCache.get(cacheKey);
+    }
+
+    async function openDictionaryWordStudy(mode, free = false) {
+      if (!WORD_REVIEW_MODES.some((item) => item.id === mode)) return;
+      const category = $("dictionaryCategorySelect").value;
+      if (state.dictionaryLibraryType !== "words" || category === "all" || state.dictionaryStudyLoading) return;
+      const label = $("dictionaryCategorySelect").selectedOptions[0]?.textContent || category;
+      const sort = $("dictionarySortSelect").value;
+      state.dictionaryStudyLoading = true;
+      state.dictionaryStudyLoadingMode = mode;
+      updateDictionaryStudyButton();
+      try {
+        const words = await loadDictionaryStudyWords(category, sort);
+        if (!words.length) {
+          alert(`${label}分类中没有可学习的单词。`);
+          return;
+        }
+        openWordReview(mode, {
+          source: "wordList",
+          sourceLabel: label,
+          deckCategory: category,
+          words,
+          wordIndex: new Map(words.map((item) => [dictionaryFavoriteKey(item.word), item]))
+        }, free);
+      } catch (error) {
+        alert(`无法读取${label}词表：${error.message || error}`);
+      } finally {
+        state.dictionaryStudyLoading = false;
+        state.dictionaryStudyLoadingMode = "";
+        updateDictionaryStudyButton();
+      }
     }
 
     function resetDictionaryLibrarySize() {
@@ -2718,16 +2887,20 @@ const fallbackSentences = [
       }
     }
 
+    function userWordMatchesCategory(item, category) {
+      if (category === "all") return true;
+      if (category === "oxford") return Number(item.oxford) > 0;
+      if (category === "collins") return Number(item.collins) > 0;
+      return String(item.tag || "").toLowerCase().split(/\s+/).includes(category);
+    }
+
     function filteredAndSortedUserWords(words) {
       const category = $("userWordsCategorySelect").value;
       const sort = $("userWordsSortSelect").value;
       const query = $("userWordsSearchInput").value.trim().toLocaleLowerCase("en-US");
       const filtered = words.filter((item) => {
         if (query && !String(item.word || "").toLocaleLowerCase("en-US").includes(query)) return false;
-        if (category === "all") return true;
-        if (category === "oxford") return Number(item.oxford) > 0;
-        if (category === "collins") return Number(item.collins) > 0;
-        return String(item.tag || "").toLowerCase().split(/\s+/).includes(category);
+        return userWordMatchesCategory(item, category);
       });
       const rankedValue = (value) => {
         const rank = Number(value);
@@ -2763,6 +2936,7 @@ const fallbackSentences = [
       $("userWordsPrevPageBtn").disabled = state.userWordsPage <= 1;
       $("userWordsNextPageBtn").disabled = state.userWordsPage >= pageCount;
       $("userWordsLastPageBtn").disabled = state.userWordsPage >= pageCount;
+      updateFavoriteReviewLaunchers();
       $("userPhrasesList").innerHTML = pageWords.length
         ? pageWords.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-user-word="${escapeHtml(item.word)}" data-user-word-index="${start + index + 1}"><span class="user-word-label">${escapeHtml(item.word)}</span>${showCollinsRating ? dictionaryCollinsRating(item) : dictionaryFavoriteButton(item.word)}</div>`).join("")
         : `<div class="user-phrases-empty">${allWords.length ? "当前分类没有收藏单词。" : "还没有收藏单词。"}</div>`;
@@ -2829,7 +3003,8 @@ const fallbackSentences = [
         </div>` : ""}
         ${bnc || frq ? `<div class="dictionary-frequency">${bnc ? `<span><b>BNC</b> 词频 #${bnc}</span>` : ""}${frq ? `<span><b>当代语料</b> 词频 #${frq}</span>` : ""}</div>` : ""}
         ${dictionaryExchangeHtml(exchanges)}
-        ${item.sourceSentence ? `<div class="user-phrase-source"><div>${escapeHtml(item.sourceSentence)}</div>${item.sourceTranslation ? `<div>${escapeHtml(item.sourceTranslation)}</div>` : ""}</div>` : ""}`;
+        ${item.sourceSentence ? `<div class="user-phrase-source"><div>${escapeHtml(item.sourceSentence)}</div>${item.sourceTranslation ? `<div>${escapeHtml(item.sourceTranslation)}</div>` : ""}</div>` : ""}
+        ${dictionaryWordMasteryHtml(item.word)}`;
     }
 
     function userSentencesStorageKey() {
@@ -2975,12 +3150,65 @@ const fallbackSentences = [
     }
 
     const WORD_REVIEW_NEW_LIMIT = 20;
+    const WORD_REVIEW_MAX_EASE = 2.5;
+    const WORD_REVIEW_EASE_RECOVERY = 0.05;
     const WORD_REVIEW_DAY_MS = 24 * 60 * 60 * 1000;
+    const WORD_REVIEW_MASTERY_INTERVAL_DAYS = 21;
+    const WORD_REVIEW_MASTERY_REPS = 3;
     const WORD_REVIEW_MODES = [
-      { id: "recognize", label: "认义", minStars: 1, title: "看英文、听发音，回想意思（1 星及以上的收藏词）" },
+      { id: "recognize", label: "识义", minStars: 1, title: "看英文、听发音，回想意思（1 星及以上的收藏词）" },
       { id: "listen", label: "听写", minStars: 2, title: "只听发音，拼出单词（2 星及以上的收藏词）" },
       { id: "spell", label: "默写", minStars: 3, title: "只看中文，拼出单词（3 星及以上的收藏词）" }
     ];
+    const WORD_REVIEW_INTERFACES = {
+      recognize: {
+        modalId: "wordRecognizeReviewModal",
+        titleId: "wordRecognizeReviewTitle",
+        progressId: "wordRecognizeReviewProgress",
+        cardId: "wordRecognizeReviewCard"
+      },
+      listen: {
+        modalId: "wordListenReviewModal",
+        titleId: "wordListenReviewTitle",
+        progressId: "wordListenReviewProgress",
+        cardId: "wordListenReviewCard"
+      },
+      spell: {
+        modalId: "wordSpellReviewModal",
+        titleId: "wordSpellReviewTitle",
+        progressId: "wordSpellReviewProgress",
+        cardId: "wordSpellReviewCard"
+      }
+    };
+
+    function wordReviewElements(mode = state.wordReview?.mode) {
+      const ids = WORD_REVIEW_INTERFACES[mode];
+      return ids ? {
+        modal: $(ids.modalId),
+        title: $(ids.titleId),
+        progress: $(ids.progressId),
+        card: $(ids.cardId),
+        panel: $(ids.modalId)?.querySelector(".word-review-result-panel")
+      } : {};
+    }
+
+    function wordReviewsStorageKey() {
+      if (state.cloudUser?.id) return `langLSRWWordReviews:cloud:${state.cloudUser.id}`;
+      return `langLSRWWordReviews:${state.currentUser || "guest"}`;
+    }
+
+    function loadWordReviewRecords() {
+      try {
+        const data = JSON.parse(localStorage.getItem(wordReviewsStorageKey()) || "{}");
+        return data?.words && typeof data.words === "object" ? data.words : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveWordReviewRecords(records) {
+      localStorage.setItem(wordReviewsStorageKey(), JSON.stringify({ version: 1, words: records }));
+    }
 
     function wordReviewModeLabel(mode) {
       return WORD_REVIEW_MODES.find((item) => item.id === mode)?.label || "";
@@ -2988,6 +3216,23 @@ const fallbackSentences = [
 
     function wordReviewModeMinStars(mode) {
       return WORD_REVIEW_MODES.find((item) => item.id === mode)?.minStars || 1;
+    }
+
+    function updateFavoriteReviewLaunchers() {
+      const category = $("userWordsCategorySelect").value;
+      const words = loadUserWords().filter((item) => userWordMatchesCategory(item, category));
+      const records = loadWordReviewRecords();
+      document.querySelectorAll("[data-favorite-review-mode]").forEach((button) => {
+        const mode = button.dataset.favoriteReviewMode;
+        const count = words.filter((item) => wordReviewEligible(item, mode) && wordReviewMastered(records[dictionaryFavoriteKey(item.word)]?.[mode])).length;
+        button.textContent = `${wordReviewModeLabel(mode)} (${count})`;
+      });
+    }
+
+    function wordReviewMastered(record) {
+      return Number(record?.interval) >= WORD_REVIEW_MASTERY_INTERVAL_DAYS
+        && Number(record?.reps) >= WORD_REVIEW_MASTERY_REPS
+        && record?.lastGrade === "good";
     }
 
     function wordReviewEligible(item, mode) {
@@ -2999,24 +3244,56 @@ const fallbackSentences = [
       return String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("en-US");
     }
 
-    function wordReviewRecord(item, mode) {
-      return item?.reviews?.[mode] || null;
+    function wordReviewSourceItems(review = state.wordReview) {
+      if (review?.source === "wordList") return review.words || [];
+      return filteredAndSortedUserWords(loadUserWords()).filter((item) => wordReviewEligible(item, review?.mode || "recognize"));
     }
 
-    function buildWordReviewQueue(mode) {
+    function wordReviewRecord(item, mode, review = state.wordReview) {
+      return review?.records?.[dictionaryFavoriteKey(item?.word)]?.[mode] || null;
+    }
+
+    function buildWordReviewQueue(mode, review = state.wordReview) {
       const now = Date.now();
-      const words = filteredAndSortedUserWords(loadUserWords()).filter((item) => wordReviewEligible(item, mode));
+      const words = review?.source === "wordList"
+        ? wordReviewSourceItems(review)
+        : filteredAndSortedUserWords(loadUserWords()).filter((item) => wordReviewEligible(item, mode));
       const dueReviewed = words
-        .filter((item) => wordReviewRecord(item, mode) && Number(wordReviewRecord(item, mode).due) <= now)
-        .sort((a, b) => Number(wordReviewRecord(a, mode).due) - Number(wordReviewRecord(b, mode).due));
-      const fresh = words.filter((item) => !wordReviewRecord(item, mode)).slice(0, WORD_REVIEW_NEW_LIMIT);
+        .filter((item) => wordReviewRecord(item, mode, review) && Number(wordReviewRecord(item, mode, review).due) <= now)
+        .sort((a, b) => Number(wordReviewRecord(a, mode, review).due) - Number(wordReviewRecord(b, mode, review).due));
+      const fresh = words.filter((item) => !wordReviewRecord(item, mode, review)).slice(0, WORD_REVIEW_NEW_LIMIT);
+      // New words form groups of WORD_REVIEW_NEW_LIMIT; the group number counts what this scope has already learned.
+      const learned = words.filter((item) => wordReviewRecord(item, mode, review)).length;
+      if (review) review.queueParts = { due: dueReviewed.length, fresh: fresh.length, group: Math.floor(learned / WORD_REVIEW_NEW_LIMIT) + 1 };
       return [...dueReviewed, ...fresh].map((item) => dictionaryFavoriteKey(item.word));
     }
 
-    function nextWordReviewDue(mode) {
-      const upcoming = loadUserWords()
-        .filter((item) => wordReviewEligible(item, mode))
-        .map((item) => Number(wordReviewRecord(item, mode)?.due))
+    function wordReviewResultSummary(review) {
+      return `答对 ${review.results.good} · 答错 ${review.results.again}`;
+    }
+
+    function wordReviewProgressText(review) {
+      const position = review.index + 1;
+      if (review.free) return `自由练习 · 第 ${position} / ${review.queue.length} 个 · 不计入记忆`;
+      const { due = 0, fresh = 0, group = 1 } = review.queueParts || {};
+      if (review.index < due) return `到期复习 · 第 ${position} / ${due} 个`;
+      if (review.index < due + fresh) return `新词学习 · 第 ${group} 组 · 第 ${review.index - due + 1} / ${fresh} 个`;
+      return `忘了再练 · 第 ${review.index - due - fresh + 1} / ${review.queue.length - due - fresh} 个`;
+    }
+
+    // Free practice: already-learned words of this mode in the active scope, regardless of due time.
+    // Results are never saved, so it cannot change the spaced-repetition schedule.
+    function buildFreeWordReviewQueue(mode, review = state.wordReview) {
+      const learned = wordReviewSourceItems(review).filter((item) => wordReviewRecord(item, mode, review));
+      return shuffledWordReviewItems(learned).slice(0, WORD_REVIEW_NEW_LIMIT).map((item) => dictionaryFavoriteKey(item.word));
+    }
+
+    function nextWordReviewDue(mode, review = state.wordReview) {
+      const words = review?.source === "wordList"
+        ? wordReviewSourceItems(review)
+        : loadUserWords().filter((item) => wordReviewEligible(item, mode));
+      const upcoming = words
+        .map((item) => Number(wordReviewRecord(item, mode, review)?.due))
         .filter((due) => Number.isFinite(due) && due > Date.now())
         .sort((a, b) => a - b);
       return upcoming[0] || 0;
@@ -3035,48 +3312,232 @@ const fallbackSentences = [
         next.lapses += 1;
         next.interval = 0;
         next.ease = Math.max(1.3, next.ease - 0.2);
-        return { ...next, due: now + 10 * 60 * 1000, lastReviewedAt: new Date(now).toISOString() };
+        return { ...next, lastGrade: grade, due: now + 10 * 60 * 1000, lastReviewedAt: new Date(now).toISOString() };
       }
-      if (grade === "hard") {
-        next.interval = next.reps === 0 ? 1 : Math.max(1, Math.round(next.interval * 1.2));
-        next.ease = Math.max(1.3, next.ease - 0.15);
-      } else {
-        next.interval = next.reps === 0 ? 1 : next.reps === 1 ? 3 : Math.round(next.interval * next.ease);
-      }
+      next.interval = next.reps === 0 ? 1 : next.reps === 1 ? 3 : Math.round(next.interval * next.ease);
+      // A clean recall slowly restores ease, so early lapses do not slow the word down forever.
+      next.ease = Math.min(WORD_REVIEW_MAX_EASE, Math.round((next.ease + WORD_REVIEW_EASE_RECOVERY) * 100) / 100);
       next.reps += 1;
-      return { ...next, due: now + next.interval * WORD_REVIEW_DAY_MS, lastReviewedAt: new Date(now).toISOString() };
+      return { ...next, lastGrade: grade, due: now + next.interval * WORD_REVIEW_DAY_MS, lastReviewedAt: new Date(now).toISOString() };
     }
 
     function saveWordReviewGrade(key, mode, grade) {
-      const words = loadUserWords();
-      const item = words.find((word) => dictionaryFavoriteKey(word.word) === key);
-      if (!item) return;
-      delete item.review;
-      item.reviews = { ...(item.reviews || {}), [mode]: scheduleWordReview(wordReviewRecord(item, mode), grade) };
-      localStorage.setItem(userWordsStorageKey(), JSON.stringify(words));
+      const review = state.wordReview;
+      if (!review) return;
+      const existing = review.records[key] && typeof review.records[key] === "object" ? review.records[key] : {};
+      review.records[key] = {
+        ...existing,
+        [mode]: scheduleWordReview(existing[mode], grade)
+      };
+      saveWordReviewRecords(review.records);
     }
 
-    function clearWordReviewMemory(mode) {
+    async function clearWordReviewMemory(mode, source) {
       const label = wordReviewModeLabel(mode);
       if (!label) return;
-      if (!confirm(`清除全部收藏单词的“${label}”复习记录？这些单词会在${label}里重新作为新词出现，无法撤销。`)) return;
-      const words = loadUserWords();
-      words.forEach((item) => {
-        delete item.review;
-        if (item.reviews) {
-          delete item.reviews[mode];
-          if (!Object.keys(item.reviews).length) delete item.reviews;
+      let items;
+      let sourceLabel;
+      if (source === "wordList") {
+        const category = $("dictionaryCategorySelect").value;
+        if (state.dictionaryLibraryType !== "words" || category === "all") return;
+        sourceLabel = $("dictionaryCategorySelect").selectedOptions[0]?.textContent || category;
+        try {
+          items = await loadDictionaryStudyWords(category, $("dictionarySortSelect").value);
+        } catch (error) {
+          alert(`无法读取${sourceLabel}词表：${error.message || error}`);
+          return;
         }
+      } else {
+        items = loadUserWords();
+        sourceLabel = "收藏";
+      }
+      if (!confirm(`清除“${sourceLabel}”范围内所有单词的“${label}”学习记录？这些单词在其他词表和收藏中的同一掌握记录也会被清除，无法撤销。`)) return;
+      const records = loadWordReviewRecords();
+      items.forEach((item) => {
+        const key = dictionaryFavoriteKey(item.word);
+        if (!records[key]) return;
+        delete records[key][mode];
+        if (!Object.keys(records[key]).length) delete records[key];
       });
-      localStorage.setItem(userWordsStorageKey(), JSON.stringify(words));
-      if (state.wordReview) switchWordReviewMode(state.wordReview.mode);
+      saveWordReviewRecords(records);
+      updateFavoriteReviewLaunchers();
+      updateDictionaryStudyButton();
+    }
+
+    function openWordReviewLauncherMenu(event, mode, source) {
+      const label = wordReviewModeLabel(mode);
+      if (!label) return;
+      event.preventDefault();
+      const menu = $("wordReviewLauncherMenu");
+      menu.dataset.mode = mode;
+      menu.dataset.source = source;
+      $("wordReviewFreeBtn").textContent = `自由练习${label}（不计入记忆）`;
+      $("wordReviewClearBtn").textContent = `清除${label}记忆`;
+      menu.hidden = false;
+      const rect = menu.getBoundingClientRect();
+      menu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - rect.width - 8))}px`;
+      menu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - rect.height - 8))}px`;
+      $("wordReviewFreeBtn").focus();
+    }
+
+    // Controls keep their explanation in `title`; the shared tooltip takes it over on first hover
+    // so it appears after CONTROL_TOOLTIP_DELAY_MS instead of the browser's slower native tooltip.
+    const CONTROL_TOOLTIP_DELAY_MS = 300;
+    let controlTooltipTimer = 0;
+    let controlTooltipTarget = null;
+    let controlTooltipPoint = { x: 0, y: 0 };
+
+    function hideControlTooltip() {
+      clearTimeout(controlTooltipTimer);
+      controlTooltipTarget = null;
+      $("controlTooltip").hidden = true;
+    }
+
+    function showControlTooltip() {
+      const target = controlTooltipTarget;
+      if (!target?.isConnected || !target.dataset.tooltip) return;
+      const tooltip = $("controlTooltip");
+      tooltip.textContent = target.dataset.tooltip;
+      tooltip.hidden = false;
+      const rect = tooltip.getBoundingClientRect();
+      const { x, y } = controlTooltipPoint;
+      const top = y + 20 + rect.height <= window.innerHeight - 8 ? y + 20 : y - rect.height - 10;
+      tooltip.style.left = `${Math.max(8, Math.min(x, window.innerWidth - rect.width - 8))}px`;
+      tooltip.style.top = `${Math.max(8, top)}px`;
+    }
+
+    function handleControlTooltipOver(event) {
+      if (event.pointerType === "touch") return;
+      const target = event.target.closest?.("[title], [data-tooltip]");
+      if (target && target === controlTooltipTarget && !target.hasAttribute("title")) return;
+      hideControlTooltip();
+      if (!target) return;
+      if (target.hasAttribute("title")) {
+        const text = target.getAttribute("title");
+        target.removeAttribute("title");
+        if (text) target.dataset.tooltip = text;
+      }
+      if (!target.dataset.tooltip) return;
+      controlTooltipTarget = target;
+      controlTooltipPoint = { x: event.clientX, y: event.clientY };
+      controlTooltipTimer = setTimeout(showControlTooltip, CONTROL_TOOLTIP_DELAY_MS);
+    }
+
+    // Hovering a 背单词 launcher replaces the word detail pane with that mode's memory rules. The help stays
+    // after the pointer leaves so it can be scrolled; hovering a word replaces it, and pressing a launcher restores the detail.
+    let wordReviewHelpSaved = null;
+    let wordReviewHelpToken = 0;
+
+    async function wordReviewHelpStats(mode, source) {
+      let words;
+      if (source === "favorites") {
+        const category = $("userWordsCategorySelect").value;
+        words = loadUserWords().filter((item) => userWordMatchesCategory(item, category) && wordReviewEligible(item, mode));
+      } else {
+        const category = $("dictionaryCategorySelect").value;
+        if (state.dictionaryLibraryType !== "words" || category === "all") return null;
+        try {
+          words = await loadDictionaryStudyWords(category, $("dictionarySortSelect").value);
+        } catch {
+          return null;
+        }
+      }
+      const records = loadWordReviewRecords();
+      const now = Date.now();
+      const stats = { fresh: 0, learning: 0, mastered: 0, due: 0 };
+      words.forEach((item) => {
+        const record = records[dictionaryFavoriteKey(item.word)]?.[mode];
+        if (!record) stats.fresh += 1;
+        else if (wordReviewMastered(record)) stats.mastered += 1;
+        else stats.learning += 1;
+        if (record && Number(record.due) <= now) stats.due += 1;
+      });
+      return stats;
+    }
+
+    function wordReviewHelpHtml(mode, source, stats) {
+      const label = wordReviewModeLabel(mode);
+      const scope = source === "favorites"
+        ? `收藏中 ${wordReviewModeMinStars(mode)} 星及以上的单词，按收藏页当前分类（${escapeHtml($("userWordsCategorySelect").selectedOptions[0]?.textContent || "全部")}）统计。`
+        : `词表【${escapeHtml($("dictionaryCategorySelect").selectedOptions[0]?.textContent || "当前分类")}】中的全部单词。`;
+      const statItems = [["未学习", "fresh", ""], ["学习中", "learning", " is-learning"], ["已掌握", "mastered", " is-mastered"], ["现在到期", "due", " is-learning"]];
+      const statsHtml = stats
+        ? `<div class="dictionary-mastery-items">${statItems.map(([name, key, cls]) => `<div class="dictionary-mastery-item${cls}"><div class="dictionary-mastery-head"><b>${name}</b><span>${stats[key].toLocaleString()}</span></div></div>`).join("")}</div>`
+        : '<div class="small-note">正在统计…（词库请先选一个词表）</div>';
+      const method = {
+        recognize: "看英文单词和音标（自动朗读），从 5 个选项中选出正确的中文意思。",
+        listen: "只听发音（自动朗读），看字母格和字母数，拼写出这个单词；答完后才显示中文释义。",
+        spell: "只看中文释义和词性，拼写出这个单词；答完之前不朗读，避免发音泄露拼写。"
+      }[mode];
+      return `
+        <div class="word-review-help">
+          <div class="word-review-help-title"><strong>${label}</strong><span>记忆机制</span></div>
+          <section><div class="dictionary-section-label">1. 练习范围</div><ul><li>${scope}</li></ul>${statsHtml}</section>
+          <section><div class="dictionary-section-label">2. 练习方式</div><ul><li>${method}</li></ul></section>
+          <section><div class="dictionary-section-label">3. 练习组题</div><ul>
+            <li><b>到期复习</b>：已到复习时间的词，最早到期的排最前，不限数量。</li>
+            <li><b>新词学习</b>：从没练过的词，每轮最多 ${WORD_REVIEW_NEW_LIMIT} 个；每 ${WORD_REVIEW_NEW_LIMIT} 个新词为一组，进度栏显示第几组。</li>
+            <li><b>忘了再练</b>：本轮答错的词追加到队尾，本轮再考一次。</li>
+          </ul></section>
+          <section><div class="dictionary-section-label">4. 复习时间怎么定</div>
+            <ul>
+            <li>如果本次<b>答对</b>：<b>下次间隔天数 = 上次间隔天数 × 间隔扩大系数</b>（从答题那一刻算起）。</li>
+            <li><b>前两次例外</b>：新词或答错后，第 1 次答对隔 1 天，第 2 次隔 3 天，第 3 次起用上面的公式。</li>
+            <li><b>答错</b>：间隔天数清零，10 分钟后本轮再考；之后重新从 1 天、3 天开始。</li>
+            </ul>
+            <p><b>间隔扩大系数</b></p><ul>
+            <li>起始＝2.5；答错 −0.2，答对 +${WORD_REVIEW_EASE_RECOVERY}；范围：1.3~${WORD_REVIEW_MAX_EASE}。</li>
+            <li>最低 1.3，保证答对后，间隔天数至少增加 30%，不会永远卡在原地。</li>
+            <li>越常答错的词间隔扩大系数越低、考得越勤；之后一直答对，间隔扩大系数会慢慢恢复。</li>
+            </ul>
+            <p><b>连续答对次数</b></p><ul>
+            <li>答对 +1，答错清零。不影响间隔天数，是判断是否达到掌握标准的条件之一。</li>
+            </ul>
+          </section>
+          <section><div class="dictionary-section-label">5. 掌握</div><ul>
+            <li>同时满足以下两条才算已掌握：复习间隔天数 ≥ ${WORD_REVIEW_MASTERY_INTERVAL_DAYS}；连续答对 ≥ ${WORD_REVIEW_MASTERY_REPS} 次。答错一次会立即取消掌握。</li>
+            <li>按钮“${label}”上的数字就是当前范围内已掌握的词数。</li>
+          </ul></section>
+          <section><div class="dictionary-section-label">6. 其他</div><ul>
+            <li>识义、听写、默写的记录相互独立，互不影响。</li>
+            <li>同一个单词在收藏和各个词表中共用一份记录，在任一处练习都会更新。</li>
+            <li>右键按钮：<b>自由练习</b>（练已学过的词，不影响复习安排）或<b>清除${label}记忆</b>。</li>
+          </ul></section>
+        </div>`;
+    }
+
+    async function showWordReviewHelp(button) {
+      const mode = button.dataset.favoriteReviewMode || button.dataset.dictionaryStudyMode;
+      const source = button.dataset.favoriteReviewMode ? "favorites" : "wordList";
+      const detail = $(source === "favorites" ? "userPhraseDetail" : "dictionaryLibraryDetail");
+      if (!detail || !wordReviewModeLabel(mode)) return;
+      if (!detail.querySelector(".word-review-help")) wordReviewHelpSaved = { detail, html: detail.innerHTML, entry: state.dictionaryLookupEntry, scrollTop: detail.scrollTop };
+      const token = ++wordReviewHelpToken;
+      detail.innerHTML = wordReviewHelpHtml(mode, source, null);
+      detail.scrollTop = 0;
+      const stats = await wordReviewHelpStats(mode, source);
+      if (token !== wordReviewHelpToken || !stats || !detail.querySelector(".word-review-help")) return;
+      const scrollTop = detail.scrollTop;
+      detail.innerHTML = wordReviewHelpHtml(mode, source, stats);
+      detail.scrollTop = scrollTop;
+    }
+
+    function hideWordReviewHelp() {
+      wordReviewHelpToken += 1;
+      const saved = wordReviewHelpSaved;
+      wordReviewHelpSaved = null;
+      if (!saved || !saved.detail.querySelector(".word-review-help")) return;
+      saved.detail.innerHTML = saved.html;
+      saved.detail.scrollTop = saved.scrollTop;
+      state.dictionaryLookupEntry = saved.entry;
+    }
+
+    function closeWordReviewLauncherMenu() {
+      $("wordReviewLauncherMenu").hidden = true;
     }
 
     function currentWordReviewItem() {
-      const review = state.wordReview;
-      if (!review) return null;
-      const key = review.queue[review.index];
-      return loadUserWords().find((word) => dictionaryFavoriteKey(word.word) === key) || null;
+      return state.wordReview?.currentItem || null;
     }
 
     function wordReviewPatternHtml(word, revealed) {
@@ -3102,15 +3563,6 @@ const fallbackSentences = [
       if (word) speakText(word, { rate: currentReplayRate() });
     }
 
-    function renderWordReviewModes() {
-      const review = state.wordReview;
-      $("wordReviewModes").innerHTML = WORD_REVIEW_MODES.map(({ id, label, title }) => {
-        const count = buildWordReviewQueue(id).length;
-        const active = review?.mode === id;
-        return `<button type="button" role="tab" aria-selected="${active}" class="${active ? "is-active" : ""}" data-word-review-mode="${id}" title="${title}">${label}<span>${count}</span></button>`;
-      }).join("");
-    }
-
     function wordReviewMeaningsHtml(item) {
       const meanings = dictionaryTextLines(item.translation).slice(0, 3);
       return `${item.pos ? `<div class="word-review-pos">${escapeHtml(item.pos)}</div>` : ""}
@@ -3122,32 +3574,127 @@ const fallbackSentences = [
         ${item.sourceSentence ? `<div class="word-review-source">${escapeHtml(item.sourceSentence)}</div>` : ""}`;
     }
 
+    function wordReviewChoiceText(item) {
+      const translations = dictionaryTextLines(item?.translation);
+      if (translations.length) return translations.slice(0, 2).join("；");
+      return dictionaryTextLines(item?.definition)[0] || "";
+    }
+
+    function shuffledWordReviewItems(items) {
+      const result = [...items];
+      for (let index = result.length - 1; index > 0; index -= 1) {
+        const target = Math.floor(Math.random() * (index + 1));
+        [result[index], result[target]] = [result[target], result[index]];
+      }
+      return result;
+    }
+
+    async function loadRecognizeDistractors(review, item) {
+      const currentKey = dictionaryFavoriteKey(item.word);
+      const correctText = wordReviewChoiceText(item);
+      const sourceItems = wordReviewSourceItems(review);
+      let fallbackItems = [];
+      if (sourceItems.length < 16) {
+        try {
+          fallbackItems = await loadDictionaryStudyWords("oxford", "alphabetical");
+        } catch {
+          fallbackItems = [];
+        }
+      }
+      const seenWords = new Set([currentKey]);
+      const candidates = shuffledWordReviewItems([...sourceItems, ...fallbackItems]).filter((candidate) => {
+        const key = dictionaryFavoriteKey(candidate?.word);
+        if (!key || seenWords.has(key)) return false;
+        seenWords.add(key);
+        return true;
+      }).slice(0, 18);
+      const resolved = candidates.filter((candidate) => wordReviewChoiceText(candidate));
+      const unresolved = candidates.filter((candidate) => !wordReviewChoiceText(candidate));
+      if (unresolved.length) {
+        try {
+          resolved.push(...await window.langLSRWDictionary.queryMany(unresolved.map((candidate) => candidate.word)));
+        } catch {
+          // The choices below can still use any already-resolved collection entries.
+        }
+      }
+      const seenMeanings = new Set([normalizeReviewAnswer(correctText)]);
+      return resolved.reduce((choices, candidate) => {
+        if (choices.length >= 3) return choices;
+        const text = wordReviewChoiceText(candidate);
+        const normalized = normalizeReviewAnswer(text);
+        if (!text || seenMeanings.has(normalized)) return choices;
+        seenMeanings.add(normalized);
+        choices.push(text);
+        return choices;
+      }, []);
+    }
+
+    async function prepareRecognizeChoices(review, item, loadToken) {
+      const correctText = wordReviewChoiceText(item) || "该词条暂无释义";
+      const distractors = await loadRecognizeDistractors(review, item);
+      if (state.wordReview !== review || review.loadToken !== loadToken) return;
+      const choices = distractors.slice(0, 3);
+      while (choices.length < 3) choices.push("暂无其他候选释义");
+      const includeCorrect = Math.random() < 0.75;
+      const correctIndex = includeCorrect ? Math.floor(Math.random() * 3) : 3;
+      if (includeCorrect) choices[correctIndex] = correctText;
+      review.recognizeChoices = choices;
+      review.recognizeCorrectIndex = correctIndex;
+      renderWordReview();
+    }
+
+    function renderRecognizeHeader(item) {
+      const word = String(item.word || "");
+      return `<div class="word-review-recognize-header"><div class="word-review-headword"><strong>${escapeHtml(word)}</strong>${item.phonetic ? `<span class="word-review-phonetic">[${escapeHtml(item.phonetic)}]</span>` : ""}<button type="button" class="word-review-sound" data-word-review-action="speak" title="朗读">🔊</button></div><div class="word-review-rating">${dictionaryFavoriteButton(word)}</div></div>`;
+    }
+
     function renderRecognizeCard(item) {
       const review = state.wordReview;
       const word = String(item.word || "");
+      if (!review.recognizeChoices) {
+        return `${renderRecognizeHeader(item)}<div class="word-review-choice-loading">正在准备释义选项...</div>`;
+      }
+      const choices = [
+        ...review.recognizeChoices,
+        "以上都不是",
+        "不认识"
+      ];
       return `
-        <div class="word-review-prompt">
-          <div class="word-review-headword">
-            <strong>${escapeHtml(word)}</strong>
-            <button type="button" class="word-review-sound" data-word-review-action="speak" title="朗读">🔊</button>
-          </div>
-          ${item.phonetic ? `<div class="dictionary-phonetic">[${escapeHtml(item.phonetic)}]</div>` : ""}
+        ${renderRecognizeHeader(item)}
+        <div class="word-review-choices">${choices.map((choice, index) => {
+          const isCorrect = index === review.recognizeCorrectIndex;
+          const isSelected = index === review.recognizeSelectedIndex;
+          const isFocused = index === review.recognizeFocusedIndex;
+          const stateClass = review.answered
+            ? `${isCorrect ? " is-correct" : ""}${isSelected && !isCorrect ? " is-wrong" : ""}`
+            : `${isFocused ? " is-focused" : ""}`;
+          return `<button type="button" class="word-review-choice${stateClass}" data-word-review-choice="${index}" ${review.answered ? "disabled" : ""}><span>${index + 1}</span><span>${escapeHtml(choice)}</span></button>`;
+        }).join("")}</div>
+        <div class="word-review-keys small-note">${review.answered ? "Enter 下一个 · Esc 关闭" : "按 1–5 或 ↑↓ 选择答案 · Esc 关闭"}</div>`;
+    }
+
+    function renderWordReviewResultPanel(item, mode) {
+      const review = state.wordReview;
+      let verdict;
+      let body;
+      if (mode === "recognize") {
+        verdict = review.correct ? "回答正确" : review.recognizeSelectedIndex === 4 ? "已记为不认识" : "回答错误";
+        body = `${wordReviewMeaningsHtml(item)}
+          ${item.sourceSentence ? `<div class="word-review-source">${escapeHtml(item.sourceSentence)}</div>` : ""}`;
+      } else {
+        verdict = review.correct ? "正确" : review.revealed ? "已显示答案" : review.spelledRight ? "拼对了，但用了提示，算答错" : "拼写错误";
+        body = `${review.spelledRight || !review.input.trim() ? "" : `<div class="word-review-diff">${wordReviewDiffHtml(item.word, review.input)}</div>`}
+          ${wordReviewAnswerHtml(item)}
+          ${mode === "listen" ? wordReviewMeaningsHtml(item) : ""}`;
+      }
+      return `
+        <div class="word-review-result ${review.correct ? "is-correct" : "is-wrong"}">
+          <div class="word-review-verdict">${verdict}</div>
+          ${body}
         </div>
-        ${review.answered ? `
-          <div class="word-review-result">
-            ${wordReviewMeaningsHtml(item)}
-            ${item.sourceSentence ? `<div class="word-review-source">${escapeHtml(item.sourceSentence)}</div>` : ""}
-          </div>
-          <div class="word-review-actions">
-            <button type="button" data-word-review-grade="again">不认识 (1)</button>
-            <button type="button" data-word-review-grade="hard">模糊 (2)</button>
-            <button type="button" class="primary" data-word-review-grade="good">认识 (3)</button>
-          </div>
-          <div class="word-review-keys small-note">按 1 / 2 / 3 评分 · Esc 关闭</div>` : `
-          <div class="word-review-actions">
-            <button type="button" class="primary" data-word-review-action="show">显示释义</button>
-          </div>
-          <div class="word-review-keys small-note">先在心里想出意思 · Enter 或空格显示释义 · Esc 关闭</div>`}`;
+        <div class="word-review-actions">
+          <button type="button" class="primary" data-word-review-action="next">下一个</button>
+        </div>`;
     }
 
     function renderSpellingCard(item, mode) {
@@ -3165,55 +3712,79 @@ const fallbackSentences = [
             <span class="word-review-count">${word.replace(/[^a-z]/gi, "").length} 个字母</span>
           </div>
         </div>
-        <input id="wordReviewInput" class="word-review-input${answered ? (correct ? " is-correct" : " is-wrong") : ""}" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="拼写这个单词" value="${escapeHtml(review.input)}" ${answered ? "readonly" : ""}>
-        ${answered ? `
-          <div class="word-review-result ${correct ? "is-correct" : "is-wrong"}">
-            <div class="word-review-verdict">${correct ? (review.hints ? "正确（用了提示）" : "正确") : (review.revealed ? "已显示答案" : "拼写错误")}</div>
-            ${correct || !review.input.trim() ? "" : `<div class="word-review-diff">${wordReviewDiffHtml(word, review.input)}</div>`}
-            ${wordReviewAnswerHtml(item)}
-            ${mode === "listen" ? wordReviewMeaningsHtml(item) : ""}
-          </div>` : ""}
+        <input class="word-review-input${answered ? (correct ? " is-correct" : " is-wrong") : ""}" data-word-review-input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="拼写这个单词" value="${escapeHtml(review.input)}" ${answered ? "readonly" : ""}>
         <div class="word-review-actions">
-          ${answered
-            ? '<button type="button" class="primary" data-word-review-action="next">下一个</button>'
-            : `<button type="button" data-word-review-action="hint">提示字母</button>
-               <button type="button" data-word-review-action="reveal">不会，看答案</button>
-               <button type="button" class="primary" data-word-review-action="check">提交</button>`}
+          <button type="button" data-word-review-action="hint" ${answered ? "disabled" : ""}>提示字母</button>
+          <button type="button" data-word-review-action="reveal" ${answered ? "disabled" : ""}>不会，看答案</button>
+          <button type="button" class="primary" data-word-review-action="check" ${answered ? "disabled" : ""}>提交</button>
         </div>
-        <div class="word-review-keys small-note">${answered ? "Enter 下一个" : "Enter 提交 · Tab 提示下一个字母 · Esc 关闭"}</div>`;
+        <div class="word-review-keys small-note">${answered ? "Enter 下一个 · Esc 关闭" : "Enter 提交 · Tab 提示下一个字母 · Esc 关闭"}</div>`;
     }
 
     function renderWordReview() {
       const review = state.wordReview;
-      const card = $("wordReviewCard");
+      const elements = wordReviewElements(review?.mode);
+      const card = elements.card;
       if (!review || !card) return;
-      renderWordReviewModes();
+      const panel = elements.panel;
+      if (panel) panel.hidden = true;
       const total = review.queue.length;
       if (review.index >= total) {
-        const due = nextWordReviewDue(review.mode);
         const label = wordReviewModeLabel(review.mode);
-        $("wordReviewProgress").textContent = total ? `${label} · 本轮完成 ${total} 个` : `${label} · 没有待复习的单词`;
+        if (review.free) {
+          elements.progress.textContent = total ? `自由练习完成 ${total} 个` : "没有可自由练习的单词";
+          card.innerHTML = `
+            <div class="word-review-done">
+              <strong>${total ? "自由练习完成" : `还没有学过${label}的单词`}</strong>
+              ${total ? `<div>${wordReviewResultSummary(review)}</div>` : ""}
+              <div class="small-note">自由练习不计入练习记忆，不改变复习安排</div>
+              <div class="word-review-actions">
+                ${total ? '<button type="button" data-word-review-action="free">再来一轮</button>' : ""}
+                <button type="button" data-word-review-action="close">完成</button>
+              </div>
+            </div>`;
+          card.focus();
+          return;
+        }
+        elements.progress.textContent = total ? `本轮完成 ${total} 个` : "没有待复习的单词";
+        const due = nextWordReviewDue(review.mode, review);
+        const scopeNote = review.source === "wordList"
+          ? `${review.sourceLabel}共 ${review.words.length.toLocaleString()} 个词；每轮最多加入 ${WORD_REVIEW_NEW_LIMIT} 个新词`
+          : `${label}只包含 ${wordReviewModeMinStars(review.mode)} 星及以上的收藏词`;
+        const nextNote = due
+          ? `下一个单词将在 ${new Date(due).toLocaleString()} 到期`
+          : review.source === "wordList"
+            ? `${review.sourceLabel}当前没有待复习或尚未学习的单词`
+            : "收藏新单词后会自动加入复习";
         card.innerHTML = `
           <div class="word-review-done">
             <strong>${total ? "本轮复习完成" : `今天没有需要${label}的单词`}</strong>
-            ${total ? `<div>记得 ${review.results.good} · 模糊 ${review.results.hard} · 忘了 ${review.results.again}</div>` : ""}
-            <div class="small-note">${due ? `下一个单词将在 ${new Date(due).toLocaleString()} 到期` : "收藏新单词后会自动加入复习"}</div>
-            <div class="small-note">${label}只包含 ${wordReviewModeMinStars(review.mode)} 星及以上的收藏词</div>
-            <button type="button" data-word-review-action="close">完成</button>
+            ${total ? `<div>${wordReviewResultSummary(review)}</div>` : ""}
+            <div class="small-note">${nextNote}</div>
+            <div class="small-note">${scopeNote}</div>
+            <div class="word-review-actions">
+              <button type="button" data-word-review-action="free" title="练习已学过的词，不管是否到期；结果不计入练习记忆，不改变复习安排">自由练习</button>
+              <button type="button" data-word-review-action="close">完成</button>
+            </div>
+            <div class="small-note">自由练习不计入练习记忆</div>
           </div>`;
         card.focus();
         return;
       }
       const item = currentWordReviewItem();
       if (!item) {
-        review.index += 1;
-        renderWordReview();
+        card.innerHTML = '<div class="word-review-done"><strong>正在读取单词...</strong></div>';
         return;
       }
-      const isNew = !wordReviewRecord(item, review.mode);
-      $("wordReviewProgress").textContent = `${wordReviewModeLabel(review.mode)} · 第 ${review.index + 1} / ${total} 个${isNew ? " · 新词" : ""}`;
+      elements.progress.textContent = wordReviewProgressText(review);
+      card.classList.toggle("is-recognize", review.mode === "recognize");
       card.innerHTML = review.mode === "recognize" ? renderRecognizeCard(item) : renderSpellingCard(item, review.mode);
-      const input = $("wordReviewInput");
+      if (panel && review.answered) {
+        panel.className = `word-review-result-panel ${review.correct ? "is-correct" : "is-wrong"}`;
+        panel.innerHTML = renderWordReviewResultPanel(item, review.mode);
+        panel.hidden = false;
+      }
+      const input = card.querySelector("[data-word-review-input]");
       if (input) {
         input.focus();
         input.setSelectionRange(input.value.length, input.value.length);
@@ -3222,44 +3793,97 @@ const fallbackSentences = [
       }
     }
 
-    function startWordReviewCard() {
+    async function startWordReviewCard() {
       const review = state.wordReview;
+      if (!review) return;
       review.hints = 0;
       review.answered = false;
       review.correct = null;
       review.revealed = false;
       review.input = "";
+      review.recognizeChoices = null;
+      review.recognizeCorrectIndex = -1;
+      review.recognizeSelectedIndex = -1;
+      review.recognizeFocusedIndex = -1;
+      review.currentItem = null;
+      if (review.index >= review.queue.length) {
+        renderWordReview();
+        return;
+      }
+      const key = review.queue[review.index];
+      const loadToken = (review.loadToken || 0) + 1;
+      review.loadToken = loadToken;
       renderWordReview();
-      const item = currentWordReviewItem();
+      let item;
+      if (review.source === "wordList") {
+        try {
+          item = await window.langLSRWDictionary.query(review.wordIndex.get(key)?.word || key);
+        } catch {
+          item = null;
+        }
+        item = item || review.wordIndex.get(key) || { word: key };
+      } else {
+        item = loadUserWords().find((word) => dictionaryFavoriteKey(word.word) === key) || null;
+      }
+      if (state.wordReview !== review || review.loadToken !== loadToken) return;
+      if (!item) {
+        review.index += 1;
+        startWordReviewCard();
+        return;
+      }
+      review.currentItem = item;
+      state.dictionaryLookupEntry = item;
+      renderWordReview();
+      if (review.mode === "recognize") prepareRecognizeChoices(review, item, loadToken);
       if (item && review.mode !== "spell") speakReviewWord(item.word);
     }
 
-    function switchWordReviewMode(mode) {
+    function switchWordReviewMode(mode, context = state.wordReview, free = false) {
       window.speechSynthesis?.cancel();
+      const source = context?.source === "wordList" ? "wordList" : "favorites";
       state.wordReview = {
+        source,
+        sourceLabel: source === "wordList" ? context.sourceLabel : "收藏",
+        deckCategory: source === "wordList" ? context.deckCategory : "",
+        words: source === "wordList" ? context.words : [],
+        wordIndex: source === "wordList" ? context.wordIndex : new Map(),
+        records: loadWordReviewRecords(),
         mode,
-        queue: buildWordReviewQueue(mode),
+        free,
+        queue: [],
         index: 0,
         hints: 0,
         answered: false,
         correct: null,
         revealed: false,
         input: "",
-        results: { good: 0, hard: 0, again: 0 }
+        recognizeChoices: null,
+        recognizeCorrectIndex: -1,
+        recognizeSelectedIndex: -1,
+        recognizeFocusedIndex: -1,
+        results: { good: 0, again: 0 }
       };
+      state.wordReview.queue = free ? buildFreeWordReviewQueue(mode, state.wordReview) : buildWordReviewQueue(mode, state.wordReview);
       startWordReviewCard();
     }
 
-    function openWordReview() {
-      $("wordReviewModal").hidden = false;
-      switchWordReviewMode(state.wordReviewLastMode || "recognize");
+    function openWordReview(mode, context = null, free = false) {
+      if (!WORD_REVIEW_INTERFACES[mode]) return;
+      const sourceContext = context?.source === "wordList" ? context : { source: "favorites", sourceLabel: "收藏" };
+      document.querySelectorAll(".word-review-modal").forEach((modal) => { modal.hidden = true; });
+      const elements = wordReviewElements(mode);
+      elements.title.textContent = sourceContext.source === "wordList"
+        ? `${sourceContext.sourceLabel} · ${wordReviewModeLabel(mode)}`
+        : `收藏 · ${wordReviewModeLabel(mode)}`;
+      elements.modal.hidden = false;
+      switchWordReviewMode(mode, sourceContext, free);
     }
 
     function closeWordReview() {
-      $("wordReviewModal").hidden = true;
+      document.querySelectorAll(".word-review-modal").forEach((modal) => { modal.hidden = true; });
       window.speechSynthesis?.cancel();
-      if (state.wordReview) state.wordReviewLastMode = state.wordReview.mode;
       state.wordReview = null;
+      updateDictionaryStudyButton();
       if (!$("userPhrasesModal").hidden) renderUserPhrases();
     }
 
@@ -3269,22 +3893,29 @@ const fallbackSentences = [
       if (!review || !item) return;
       const key = dictionaryFavoriteKey(item.word);
       review.results[grade] += 1;
-      saveWordReviewGrade(key, review.mode, grade);
+      if (!review.free) saveWordReviewGrade(key, review.mode, grade);
       if (grade === "again") review.queue.push(key);
     }
 
-    function showRecognizeMeaning() {
+    function answerRecognizeChoice(index) {
       const review = state.wordReview;
-      if (!review || review.mode !== "recognize" || review.answered) return;
+      if (!review || review.mode !== "recognize" || review.answered || !review.recognizeChoices) return;
+      const selectedIndex = Number(index);
+      if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex > 4) return;
+      review.recognizeSelectedIndex = selectedIndex;
+      review.correct = selectedIndex === review.recognizeCorrectIndex;
       review.answered = true;
+      gradeWordReview(review.correct ? "good" : "again");
       renderWordReview();
     }
 
-    function gradeRecognize(grade) {
+    function moveRecognizeChoice(step) {
       const review = state.wordReview;
-      if (!review || review.mode !== "recognize" || !review.answered) return;
-      gradeWordReview(grade);
-      nextWordReview();
+      if (!review || review.mode !== "recognize" || review.answered || !review.recognizeChoices) return;
+      const current = review.recognizeFocusedIndex;
+      review.recognizeFocusedIndex = current < 0 ? (step > 0 ? 0 : 4) : (current + step + 5) % 5;
+      renderWordReview();
+      wordReviewElements("recognize").card?.querySelector(`[data-word-review-choice="${review.recognizeFocusedIndex}"]`)?.focus();
     }
 
     function answerWordReview(forceReveal = false) {
@@ -3292,14 +3923,16 @@ const fallbackSentences = [
       if (!review || review.mode === "recognize" || review.answered) return;
       const item = currentWordReviewItem();
       if (!item) return;
-      const input = $("wordReviewInput");
+      const input = wordReviewElements(review.mode).card?.querySelector("[data-word-review-input]");
       review.input = input ? input.value : "";
       if (!forceReveal && !review.input.trim()) return;
       const correct = !forceReveal && normalizeReviewAnswer(review.input) === normalizeReviewAnswer(item.word);
       review.answered = true;
-      review.correct = correct;
+      // Any hint means the word was not recalled on its own, so a hinted correct spelling still counts as wrong.
+      review.spelledRight = correct;
+      review.correct = correct && !review.hints;
       review.revealed = forceReveal;
-      gradeWordReview(correct ? (review.hints ? "hard" : "good") : "again");
+      gradeWordReview(review.correct ? "good" : "again");
       renderWordReview();
       speakReviewWord(item.word);
     }
@@ -3309,7 +3942,7 @@ const fallbackSentences = [
       if (!review || review.mode === "recognize" || review.answered) return;
       const item = currentWordReviewItem();
       if (!item) return;
-      const input = $("wordReviewInput");
+      const input = wordReviewElements(review.mode).card?.querySelector("[data-word-review-input]");
       review.input = input ? input.value : review.input;
       review.hints = Math.min(item.word.length, review.hints + 1);
       renderWordReview();
@@ -3327,15 +3960,15 @@ const fallbackSentences = [
       else if (action === "reveal") answerWordReview(true);
       else if (action === "hint") hintWordReview();
       else if (action === "next") nextWordReview();
-      else if (action === "show") showRecognizeMeaning();
       else if (action === "speak") speakReviewWord(currentWordReviewItem()?.word);
       else if (action === "close") closeWordReview();
+      else if (action === "free" && state.wordReview) switchWordReviewMode(state.wordReview.mode, state.wordReview, true);
     }
 
     function handleWordReviewKeydown(event) {
       const review = state.wordReview;
       if (!review || event.isComposing || event.ctrlKey || event.altKey || event.metaKey) return;
-      if (event.target.closest("button") && (event.key === "Enter" || event.key === " ")) return;
+      if (event.target.closest("button:not([data-word-review-choice])") && (event.key === "Enter" || event.key === " ")) return;
       const finished = review.index >= review.queue.length;
       if (finished) {
         if (event.key === "Enter") {
@@ -3345,12 +3978,18 @@ const fallbackSentences = [
         return;
       }
       if (review.mode === "recognize") {
-        if (!review.answered && (event.key === "Enter" || event.key === " ")) {
+        if (!review.answered && ["1", "2", "3", "4", "5"].includes(event.key)) {
           event.preventDefault();
-          showRecognizeMeaning();
-        } else if (review.answered && ["1", "2", "3"].includes(event.key)) {
+          answerRecognizeChoice(Number(event.key) - 1);
+        } else if (!review.answered && ["ArrowUp", "ArrowDown"].includes(event.key)) {
           event.preventDefault();
-          gradeRecognize({ 1: "again", 2: "hard", 3: "good" }[event.key]);
+          moveRecognizeChoice(event.key === "ArrowUp" ? -1 : 1);
+        } else if (!review.answered && event.key === "Enter") {
+          event.preventDefault();
+          if (review.recognizeFocusedIndex >= 0) answerRecognizeChoice(review.recognizeFocusedIndex);
+        } else if (review.answered && event.key === "Enter") {
+          event.preventDefault();
+          nextWordReview();
         }
         return;
       }
@@ -5194,6 +5833,7 @@ const fallbackSentences = [
     $("dictionarySpecialTabBtn").addEventListener("click", () => setDictionaryLibraryType("special"));
     $("dictionaryCategorySelect").addEventListener("change", () => {
       state.dictionaryLibraryPage = 1;
+      updateDictionaryStudyButton();
       renderDictionaryLibrary();
     });
     $("dictionarySortSelect").addEventListener("change", () => {
@@ -5222,6 +5862,9 @@ const fallbackSentences = [
       event.preventDefault();
       goToEnteredDictionaryPage();
       $("dictionaryPageInput").select();
+    });
+    document.querySelectorAll("[data-dictionary-study-mode]").forEach((button) => {
+      button.addEventListener("click", () => openDictionaryWordStudy(button.dataset.dictionaryStudyMode));
     });
     $("dictionaryLibraryDetail").addEventListener("click", (event) => {
       const formButton = event.target.closest("[data-dictionary-form]");
@@ -5300,30 +5943,50 @@ const fallbackSentences = [
       const loadButton = event.target.closest("[data-load-sentence]");
       if (loadButton) loadFavoriteSentenceIntoPractice(loadButton.dataset.loadSentence);
     });
-    $("startWordReviewBtn").addEventListener("click", openWordReview);
-    $("closeWordReviewBtn").addEventListener("click", closeWordReview);
-    $("wordReviewModal").addEventListener("click", (event) => {
-      const actionButton = event.target.closest("[data-word-review-action]");
-      if (actionButton) {
-        handleWordReviewAction(actionButton.dataset.wordReviewAction);
-        return;
-      }
-      const gradeButton = event.target.closest("[data-word-review-grade]");
-      if (gradeButton) {
-        gradeRecognize(gradeButton.dataset.wordReviewGrade);
-        return;
-      }
-      const modeButton = event.target.closest("[data-word-review-mode]");
-      if (modeButton) {
-        switchWordReviewMode(modeButton.dataset.wordReviewMode);
-        return;
-      }
-      const clearButton = event.target.closest("[data-word-review-clear]");
-      if (clearButton) clearWordReviewMemory(clearButton.dataset.wordReviewClear);
+    document.querySelectorAll("[data-favorite-review-mode]").forEach((button) => {
+      button.addEventListener("click", () => openWordReview(button.dataset.favoriteReviewMode));
     });
-    $("wordReviewModal").addEventListener("keydown", handleWordReviewKeydown);
-    $("wordReviewModal").addEventListener("pointerdown", (event) => {
-      if (event.target === $("wordReviewModal")) closeWordReview();
+    document.querySelectorAll("[data-favorite-review-mode], [data-dictionary-study-mode]").forEach((button) => {
+      button.addEventListener("pointerenter", () => showWordReviewHelp(button));
+      button.addEventListener("pointerdown", hideWordReviewHelp);
+      button.addEventListener("contextmenu", (event) => {
+        const mode = button.dataset.favoriteReviewMode || button.dataset.dictionaryStudyMode;
+        openWordReviewLauncherMenu(event, mode, button.dataset.favoriteReviewMode ? "favorites" : "wordList");
+      });
+    });
+    $("wordReviewFreeBtn").addEventListener("click", () => {
+      const menu = $("wordReviewLauncherMenu");
+      closeWordReviewLauncherMenu();
+      if (menu.dataset.source === "wordList") openDictionaryWordStudy(menu.dataset.mode, true);
+      else openWordReview(menu.dataset.mode, null, true);
+    });
+    $("wordReviewClearBtn").addEventListener("click", () => {
+      const menu = $("wordReviewLauncherMenu");
+      closeWordReviewLauncherMenu();
+      clearWordReviewMemory(menu.dataset.mode, menu.dataset.source);
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if (!$("wordReviewLauncherMenu").contains(event.target)) closeWordReviewLauncherMenu();
+    });
+    document.querySelectorAll(".word-review-modal").forEach((modal) => {
+      modal.addEventListener("click", (event) => {
+        const favoriteButton = event.target.closest("[data-dictionary-favorite]");
+        if (favoriteButton) {
+          toggleDictionaryFavorite(favoriteButton);
+          return;
+        }
+        const actionButton = event.target.closest("[data-word-review-action]");
+        if (actionButton) {
+          handleWordReviewAction(actionButton.dataset.wordReviewAction);
+          return;
+        }
+        const choiceButton = event.target.closest("[data-word-review-choice]");
+        if (choiceButton) answerRecognizeChoice(choiceButton.dataset.wordReviewChoice);
+      });
+      modal.addEventListener("keydown", handleWordReviewKeydown);
+      modal.addEventListener("pointerdown", (event) => {
+        if (event.target === modal) closeWordReview();
+      });
     });
     $("userPhrasesModal").addEventListener("pointerdown", (event) => {
       if (event.target === $("userPhrasesModal")) closeUserPhrases();
@@ -5742,9 +6405,12 @@ const fallbackSentences = [
     });
 
     document.addEventListener("keydown", (event) => {
-      handleDictionaryLibraryKeys(event);
-      handleUserWordsKeys(event);
+      if (!document.querySelector(".word-review-modal:not([hidden])")) {
+        handleDictionaryLibraryKeys(event);
+        handleUserWordsKeys(event);
+      }
       if (event.key === "Escape") {
+        closeWordReviewLauncherMenu();
         closeLibraryModal();
         closeAiTextModal();
         closeTopMenus();
@@ -5753,8 +6419,21 @@ const fallbackSentences = [
     });
 
     window.addEventListener("resize", closeGrammarContextMenu);
+    window.addEventListener("resize", closeWordReviewLauncherMenu);
     window.addEventListener("resize", syncTypingShellHeight);
     window.addEventListener("scroll", closeGrammarContextMenu, true);
+    window.addEventListener("scroll", closeWordReviewLauncherMenu, true);
+    document.addEventListener("pointerover", handleControlTooltipOver);
+    document.addEventListener("pointermove", (event) => {
+      if (controlTooltipTarget && $("controlTooltip").hidden) controlTooltipPoint = { x: event.clientX, y: event.clientY };
+    });
+    document.addEventListener("pointerout", (event) => {
+      if (controlTooltipTarget && !controlTooltipTarget.contains(event.relatedTarget)) hideControlTooltip();
+    });
+    document.addEventListener("pointerdown", hideControlTooltip, true);
+    document.addEventListener("keydown", hideControlTooltip, true);
+    window.addEventListener("scroll", hideControlTooltip, true);
+    window.addEventListener("blur", hideControlTooltip);
 
     let dragDepth = 0;
 

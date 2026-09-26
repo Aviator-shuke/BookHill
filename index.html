@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260926-142">
+  <link rel="stylesheet" href="src/styles.css?v=20260927-165">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -423,6 +423,12 @@
               <option value="alphabetical">字母 A-Z</option><option value="bnc">BNC 词频</option>
               <option value="frq">当代语料词频</option><option value="collins">柯林斯星级</option>
             </select></label>
+            <div class="word-review-launchers" aria-label="词表学习方式">
+              <span class="word-review-launchers-label">背单词：</span>
+              <button class="word-review-start" type="button" data-dictionary-study-mode="recognize" data-label="识义">识义 (0)</button>
+              <button class="word-review-start" type="button" data-dictionary-study-mode="listen" data-label="听写">听写 (0)</button>
+              <button class="word-review-start" type="button" data-dictionary-study-mode="spell" data-label="默写">默写 (0)</button>
+            </div>
           </div>
           <div id="dictionaryLibraryCount" class="user-words-count">
             <input id="dictionaryLibrarySearchInput" type="search" autocomplete="off" placeholder="搜索单词" aria-label="搜索完整词库">
@@ -441,24 +447,55 @@
       </div>
     </div>
   </div>
-  <div id="wordReviewModal" class="library-modal word-review-modal" hidden>
-    <div class="word-review-dialog" role="dialog" aria-modal="true" aria-labelledby="wordReviewTitle">
+  <div id="wordRecognizeReviewModal" class="library-modal word-review-modal" data-word-review-interface="recognize" hidden>
+    <div class="word-review-stage" role="dialog" aria-modal="true" aria-labelledby="wordRecognizeReviewTitle">
+    <div class="word-review-dialog">
       <div class="library-header">
         <div>
-          <h2 id="wordReviewTitle">背词</h2>
-          <div id="wordReviewProgress" class="small-note"></div>
+          <h2 id="wordRecognizeReviewTitle">识义</h2>
+          <div id="wordRecognizeReviewProgress" class="small-note"></div>
         </div>
         <div class="dialog-header-actions">
-          <button id="closeWordReviewBtn" type="button">关闭</button>
+          <button type="button" data-word-review-action="close">关闭</button>
         </div>
       </div>
-      <div id="wordReviewModes" class="word-review-modes" role="tablist" aria-label="背词模式"></div>
-      <div id="wordReviewCard" class="word-review-card" tabindex="-1"></div>
-      <div class="word-review-footer">
-        <button type="button" data-word-review-clear="recognize">清除记忆-认义</button>
-        <button type="button" data-word-review-clear="listen">清除记忆-听写</button>
-        <button type="button" data-word-review-clear="spell">清除记忆-默写</button>
+      <div id="wordRecognizeReviewCard" class="word-review-card" tabindex="-1"></div>
+    </div>
+    <aside class="word-review-result-panel" aria-live="polite" hidden></aside>
+    </div>
+  </div>
+  <div id="wordListenReviewModal" class="library-modal word-review-modal" data-word-review-interface="listen" hidden>
+    <div class="word-review-stage" role="dialog" aria-modal="true" aria-labelledby="wordListenReviewTitle">
+    <div class="word-review-dialog">
+      <div class="library-header">
+        <div>
+          <h2 id="wordListenReviewTitle">听写</h2>
+          <div id="wordListenReviewProgress" class="small-note"></div>
+        </div>
+        <div class="dialog-header-actions">
+          <button type="button" data-word-review-action="close">关闭</button>
+        </div>
       </div>
+      <div id="wordListenReviewCard" class="word-review-card" tabindex="-1"></div>
+    </div>
+    <aside class="word-review-result-panel" aria-live="polite" hidden></aside>
+    </div>
+  </div>
+  <div id="wordSpellReviewModal" class="library-modal word-review-modal" data-word-review-interface="spell" hidden>
+    <div class="word-review-stage" role="dialog" aria-modal="true" aria-labelledby="wordSpellReviewTitle">
+    <div class="word-review-dialog">
+      <div class="library-header">
+        <div>
+          <h2 id="wordSpellReviewTitle">默写</h2>
+          <div id="wordSpellReviewProgress" class="small-note"></div>
+        </div>
+        <div class="dialog-header-actions">
+          <button type="button" data-word-review-action="close">关闭</button>
+        </div>
+      </div>
+      <div id="wordSpellReviewCard" class="word-review-card" tabindex="-1"></div>
+    </div>
+    <aside class="word-review-result-panel" aria-live="polite" hidden></aside>
     </div>
   </div>
   <div id="userPhrasesModal" class="library-modal" hidden>
@@ -504,7 +541,12 @@
                 <option value="collins">柯林斯星级</option>
               </select>
             </label>
-            <button id="startWordReviewBtn" class="word-review-start" type="button" title="按当前分类和搜索，默写今天待复习的收藏单词">背词</button>
+            <div class="word-review-launchers" aria-label="收藏单词学习方式">
+              <span class="word-review-launchers-label">背单词：</span>
+              <button class="word-review-start" type="button" data-favorite-review-mode="recognize">识义 (0)</button>
+              <button class="word-review-start" type="button" data-favorite-review-mode="listen">听写 (0)</button>
+              <button class="word-review-start" type="button" data-favorite-review-mode="spell">默写 (0)</button>
+            </div>
           </div>
           <div id="userWordsCount" class="user-words-count">
             <input id="userWordsSearchInput" type="search" autocomplete="off" placeholder="搜索单词" aria-label="搜索收藏单词">
@@ -554,13 +596,19 @@
     <div class="grammar-context-separator"></div>
     <button id="reanalyzeGrammarBtn" type="button" role="menuitem">重新分析</button>
   </div>
+  <div id="controlTooltip" class="control-tooltip" role="tooltip" hidden></div>
+  <div id="wordReviewLauncherMenu" class="grammar-context-menu" role="menu" hidden>
+    <button id="wordReviewFreeBtn" type="button" role="menuitem" title="练习已学过的词，不管是否到期；结果不计入练习记忆，不改变复习安排">自由练习</button>
+    <div class="grammar-context-separator"></div>
+    <button id="wordReviewClearBtn" type="button" role="menuitem">清除记忆</button>
+  </div>
   <div id="dictionaryLookupPopover" class="dictionary-lookup-popover" role="dialog" aria-label="单词查询" hidden></div>
   <script src="src/cloud-config.js?v=20260925-1"></script>
   <script src="src/vendor/supabase/supabase-2.117.1.js"></script>
   <script src="src/auth/supabase-auth-service.js?v=20260925-1"></script>
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
-  <script src="src/dictionary/dictionary-service.js?v=20260925-8"></script>
-  <script src="src/app.js?v=20260926-95"></script>
+  <script src="src/dictionary/dictionary-service.js?v=20260926-10"></script>
+  <script src="src/app.js?v=20260927-129"></script>
 </body>
 </html>

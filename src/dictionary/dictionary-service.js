@@ -2,7 +2,7 @@
   class DictionaryService {
     constructor(options = {}) {
       this.manifestUrl = options.manifestUrl || "assets/dictionaries/runtime/ecdict/manifest.json";
-      this.workerUrl = options.workerUrl || "src/dictionary/dictionary-worker.js?v=20260925-8";
+      this.workerUrl = options.workerUrl || "src/dictionary/dictionary-worker.js?v=20260926-10";
       this.worker = null;
       this.sequence = 0;
       this.pending = new Map();
@@ -81,6 +81,10 @@
       return this.call("query", String(word || "").trim());
     }
 
+    queryMany(words) {
+      return this.call("queryMany", Array.isArray(words) ? words : []);
+    }
+
     match(word, limit = 10, strip = false) {
       return this.call("match", { word: String(word || "").trim(), limit, strip });
     }
@@ -91,6 +95,10 @@
 
     list(options = {}) {
       return this.call("list", options);
+    }
+
+    studyList(options = {}) {
+      return this.call("studyList", options);
     }
 
     onProgress(listener) {
