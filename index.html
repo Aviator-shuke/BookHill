@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260925-133">
+  <link rel="stylesheet" href="src/styles.css?v=20260926-138">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -309,11 +309,13 @@
               <h2>录音回放</h2>
               <div class="audio-options" aria-label="录音回放选项">
                 <span class="audio-option">播放速度</span>
-                <span class="audio-option">原声对比</span>
+                <button id="pitchCompareBtn" class="audio-option-button" type="button" title="需要在弹出的“共享标签页”授权框里勾选“分享音频”">跟原声对比</button>
               </div>
             </div>
             <audio id="speakingAudio" class="audio-player" controls></audio>
             <div id="recordingStatus" class="small-note" hidden></div>
+            <div id="pitchCompareChart" class="pitch-compare-chart" hidden></div>
+            <div id="pitchCompareStatus" class="small-note pitch-compare-status" aria-live="polite" hidden></div>
           </section>
         </div>
       </section>
@@ -537,6 +539,6 @@
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
   <script src="src/dictionary/dictionary-service.js?v=20260925-8"></script>
-  <script src="src/app.js?v=20260926-81"></script>
+  <script src="src/app.js?v=20260926-90"></script>
 </body>
 </html>

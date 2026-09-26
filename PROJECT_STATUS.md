@@ -84,6 +84,7 @@ Local testing remains the default development workflow. Run `tools/start-langlsr
 - Live bar-style volume indication and active-listening border feedback.
 - Similarity, omitted-word, wrong-word, extra-word, and volume feedback.
 - Recording playback and model-sentence comparison controls.
+- A `跟原声对比` button captures the TTS model reading (via reusable current-tab audio sharing) and the learner's own recording, then locally extracts, octave-stabilizes, smooths, and overlays their relative-pitch contours. The compact chart includes semitone guides and remains a visual pitch-shape comparison only, not a pronunciation score.
 
 ### AI grammar analysis
 

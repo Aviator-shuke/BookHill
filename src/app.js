@@ -222,7 +222,11 @@ const fallbackSentences = [
         audioChunks: [],
         spokenText: "",
         recordedAudioUrl: "",
-        metrics: null
+        recordedAudioBlob: null,
+        metrics: null,
+        ttsAudioCache: new Map(),
+        ttsShareStream: null,
+        pitchCompareBusy: false
       }
     };
 
@@ -2106,6 +2110,29 @@ const fallbackSentences = [
       speakText(getSpeechText(), { rate: currentReplayRate() });
     }
 
+    function speakTextAndWait(text, options = {}) {
+      return new Promise((resolve, reject) => {
+        if (!("speechSynthesis" in window)) {
+          reject(new Error("当前浏览器不支持朗读功能。"));
+          return;
+        }
+        if (!text) {
+          resolve();
+          return;
+        }
+        if (options.interrupt !== false) window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = $("accentSelect").value;
+        utterance.rate = options.rate || 1;
+        utterance.pitch = 1;
+        const voice = chooseVoice();
+        if (voice) utterance.voice = voice;
+        utterance.onend = () => resolve();
+        utterance.onerror = (event) => reject(new Error(event.error || "朗读失败"));
+        window.speechSynthesis.speak(utterance);
+      });
+    }
+
     function currentReplayRate() {
       return Math.min(2, Math.max(0.5, Number(state.replayRate) || 1));
     }
@@ -3202,6 +3229,473 @@ const fallbackSentences = [
       return window.SpeechRecognition || window.webkitSpeechRecognition || null;
     }
 
+    function ttsCacheKey() {
+      return [currentSentence(), $("accentSelect").value, $("voiceSelect").value, currentReplayRate()].join("||");
+    }
+
+    function waitMs(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function clearSharedTtsAudioStream() {
+      const stream = state.speaking.ttsShareStream;
+      if (stream) stream.getTracks().forEach((track) => track.stop());
+      state.speaking.ttsShareStream = null;
+    }
+
+    async function getSharedTtsAudioStream() {
+      const existing = state.speaking.ttsShareStream;
+      if (existing && existing.getAudioTracks().some((track) => track.readyState === "live")) {
+        return existing;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        throw new Error("当前浏览器不支持共享标签页音频，无法录制范读。");
+      }
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      const audioTracks = displayStream.getAudioTracks();
+      displayStream.getVideoTracks().forEach((track) => track.stop());
+      if (!audioTracks.length) {
+        displayStream.getTracks().forEach((track) => track.stop());
+        throw new Error("共享时没有勾选“分享音频”，无法录制范读。");
+      }
+      const audioTrack = audioTracks[0];
+      const audioOnlyStream = new MediaStream([audioTrack]);
+      audioTrack.addEventListener("ended", () => {
+        if (state.speaking.ttsShareStream === audioOnlyStream) state.speaking.ttsShareStream = null;
+      });
+      state.speaking.ttsShareStream = audioOnlyStream;
+      return audioOnlyStream;
+    }
+
+    async function captureTtsPlayback() {
+      const audioOnlyStream = await getSharedTtsAudioStream();
+      const preferredMimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"]
+        .find((type) => MediaRecorder.isTypeSupported?.(type));
+      const recorder = new MediaRecorder(audioOnlyStream, preferredMimeType ? { mimeType: preferredMimeType } : undefined);
+      const chunks = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size) chunks.push(event.data);
+      };
+      const stopped = new Promise((resolve) => { recorder.onstop = resolve; });
+      recorder.start();
+      await waitMs(150);
+      try {
+        await speakTextAndWait(currentSentence(), { rate: currentReplayRate() });
+      } finally {
+        await waitMs(150);
+        recorder.stop();
+        await stopped;
+      }
+      const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+      if (!blob.size) throw new Error("没有录到范读音频，请重新共享此标签页并勾选“分享音频”。");
+      return blob;
+    }
+
+    async function getOrCaptureTtsAudio() {
+      const key = ttsCacheKey();
+      const cached = state.speaking.ttsAudioCache.get(key);
+      if (cached) return cached;
+      const blob = await captureTtsPlayback();
+      state.speaking.ttsAudioCache.set(key, blob);
+      return blob;
+    }
+
+    function medianValue(values) {
+      if (!values.length) return 0;
+      const sorted = [...values].sort((a, b) => a - b);
+      const middle = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+    }
+
+    function downmixAudioBuffer(audioBuffer) {
+      const mono = new Float32Array(audioBuffer.length);
+      for (let channel = 0; channel < audioBuffer.numberOfChannels; channel += 1) {
+        const samples = audioBuffer.getChannelData(channel);
+        for (let i = 0; i < samples.length; i += 1) mono[i] += samples[i] / audioBuffer.numberOfChannels;
+      }
+      return mono;
+    }
+
+    function resampleAudio(samples, sourceRate, targetRate = 16000) {
+      if (sourceRate <= targetRate) return { samples, sampleRate: sourceRate };
+      const length = Math.max(1, Math.floor(samples.length * targetRate / sourceRate));
+      const output = new Float32Array(length);
+      const ratio = sourceRate / targetRate;
+      for (let i = 0; i < length; i += 1) {
+        const sourceIndex = i * ratio;
+        const left = Math.floor(sourceIndex);
+        const right = Math.min(samples.length - 1, left + 1);
+        const mix = sourceIndex - left;
+        output[i] = samples[left] * (1 - mix) + samples[right] * mix;
+      }
+      return { samples: output, sampleRate: targetRate };
+    }
+
+    function detectPitchYin(frame, sampleRate) {
+      let mean = 0;
+      let energy = 0;
+      for (let i = 0; i < frame.length; i += 1) mean += frame[i];
+      mean /= frame.length;
+      const centered = new Float32Array(frame.length);
+      for (let i = 0; i < frame.length; i += 1) {
+        centered[i] = frame[i] - mean;
+        energy += centered[i] * centered[i];
+      }
+      if (Math.sqrt(energy / frame.length) < 0.006) return null;
+
+      const minLag = Math.max(2, Math.floor(sampleRate / 500));
+      const maxLag = Math.min(Math.floor(sampleRate / 55), Math.floor(frame.length / 2));
+      const difference = new Float32Array(maxLag + 1);
+      const normalized = new Float32Array(maxLag + 1);
+      for (let lag = 1; lag <= maxLag; lag += 1) {
+        let sum = 0;
+        for (let i = 0; i < frame.length - lag; i += 1) {
+          const delta = centered[i] - centered[i + lag];
+          sum += delta * delta;
+        }
+        difference[lag] = sum;
+      }
+      normalized[0] = 1;
+      let runningSum = 0;
+      for (let lag = 1; lag <= maxLag; lag += 1) {
+        runningSum += difference[lag];
+        normalized[lag] = runningSum ? difference[lag] * lag / runningSum : 1;
+      }
+
+      let bestLag = -1;
+      for (let lag = minLag; lag < maxLag; lag += 1) {
+        if (normalized[lag] < 0.2) {
+          while (lag + 1 <= maxLag && normalized[lag + 1] < normalized[lag]) lag += 1;
+          bestLag = lag;
+          break;
+        }
+      }
+      if (bestLag < 0) {
+        let bestValue = 1;
+        for (let lag = minLag; lag <= maxLag; lag += 1) {
+          if (normalized[lag] < bestValue) {
+            bestValue = normalized[lag];
+            bestLag = lag;
+          }
+        }
+        if (bestValue > 0.45) return null;
+      }
+
+      const left = normalized[bestLag - 1] || normalized[bestLag];
+      const center = normalized[bestLag];
+      const right = normalized[bestLag + 1] || normalized[bestLag];
+      const denominator = 2 * (2 * center - left - right);
+      const refinedLag = denominator ? bestLag + (right - left) / denominator : bestLag;
+      const frequency = sampleRate / refinedLag;
+      return frequency >= 55 && frequency <= 500 ? frequency : null;
+    }
+
+    function detectPitchAutocorrelation(frame, sampleRate) {
+      let mean = 0;
+      for (let i = 0; i < frame.length; i += 1) mean += frame[i];
+      mean /= frame.length;
+      let energy = 0;
+      const centered = new Float32Array(frame.length);
+      for (let i = 0; i < frame.length; i += 1) {
+        centered[i] = frame[i] - mean;
+        energy += centered[i] * centered[i];
+      }
+      if (Math.sqrt(energy / frame.length) < 0.006) return null;
+
+      const minLag = Math.max(2, Math.floor(sampleRate / 500));
+      const maxLag = Math.min(Math.floor(sampleRate / 55), Math.floor(frame.length / 2));
+      const scores = new Float32Array(maxLag + 1);
+      let bestLag = -1;
+      let bestScore = 0;
+      for (let lag = minLag; lag <= maxLag; lag += 1) {
+        let product = 0;
+        let leftEnergy = 0;
+        let rightEnergy = 0;
+        for (let i = 0; i < frame.length - lag; i += 1) {
+          product += centered[i] * centered[i + lag];
+          leftEnergy += centered[i] * centered[i];
+          rightEnergy += centered[i + lag] * centered[i + lag];
+        }
+        const score = product / Math.sqrt(Math.max(leftEnergy * rightEnergy, 1e-12));
+        scores[lag] = score;
+        if (score > bestScore) {
+          bestScore = score;
+          bestLag = lag;
+        }
+      }
+      if (bestLag < 0 || bestScore < 0.42) return null;
+      const left = scores[bestLag - 1] || scores[bestLag];
+      const center = scores[bestLag];
+      const right = scores[bestLag + 1] || scores[bestLag];
+      const denominator = 2 * (2 * center - left - right);
+      const refinedLag = denominator ? bestLag + (right - left) / denominator : bestLag;
+      const frequency = sampleRate / refinedLag;
+      return frequency >= 55 && frequency <= 500 ? frequency : null;
+    }
+
+    function stabilizePitchContour(contour) {
+      const voiced = contour.filter((point) => point.freq).map((point) => point.freq);
+      if (!voiced.length) return contour;
+      const globalMedian = medianValue(voiced);
+      let previous = globalMedian;
+      let gapFrames = 0;
+      const corrected = contour.map((point) => {
+        if (!point.freq) {
+          gapFrames += 1;
+          return { ...point };
+        }
+        const candidates = [point.freq / 2, point.freq, point.freq * 2]
+          .filter((frequency) => frequency >= 55 && frequency <= 500);
+        const afterPause = gapFrames >= 8;
+        const reference = afterPause ? globalMedian : (previous || globalMedian);
+        const frequency = candidates.reduce((best, candidate) => (
+          Math.abs(12 * Math.log2(candidate / reference)) < Math.abs(12 * Math.log2(best / reference)) ? candidate : best
+        ), candidates[0]);
+        const jump = Math.abs(12 * Math.log2(frequency / reference));
+        if (jump > (afterPause ? 12 : 7)) {
+          gapFrames += 1;
+          return { ...point, freq: null };
+        }
+        previous = frequency;
+        gapFrames = 0;
+        return { ...point, freq: frequency };
+      });
+
+      return corrected.map((point, index) => {
+        if (!point.freq) return point;
+        const nearby = corrected
+          .slice(Math.max(0, index - 2), index + 3)
+          .filter((item) => item.freq)
+          .map((item) => Math.log2(item.freq));
+        return { ...point, freq: 2 ** medianValue(nearby) };
+      });
+    }
+
+    async function extractPitchContour(blob) {
+      const arrayBuffer = await blob.arrayBuffer();
+      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+      const audioContext = new AudioContextCtor();
+      let audioBuffer;
+      try {
+        audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+      } finally {
+        audioContext.close().catch(() => {});
+      }
+      const rawChannelData = downmixAudioBuffer(audioBuffer);
+      let peak = 0;
+      for (let i = 0; i < rawChannelData.length; i += 1) {
+        const abs = Math.abs(rawChannelData[i]);
+        if (abs > peak) peak = abs;
+      }
+      const gain = peak > 0.0001 ? 0.9 / peak : 1;
+      if (peak < 0.0001) return { contour: [], duration: 0 };
+      const normalizedData = gain === 1 ? rawChannelData : Float32Array.from(rawChannelData, (sample) => sample * gain);
+      const resampled = resampleAudio(normalizedData, audioBuffer.sampleRate);
+      const channelData = resampled.samples;
+      const sampleRate = resampled.sampleRate;
+      const windowSize = 1024;
+      const hopSize = Math.round(sampleRate * 0.01);
+      const contour = [];
+      for (let start = 0; start + windowSize <= channelData.length; start += hopSize) {
+        const frame = channelData.subarray(start, start + windowSize);
+        const frequency = detectPitchYin(frame, sampleRate) || detectPitchAutocorrelation(frame, sampleRate);
+        contour.push({ t: (start + windowSize / 2) / sampleRate, freq: frequency });
+      }
+      const duration = channelData.length / sampleRate;
+      return { contour: fillShortPitchGaps(stabilizePitchContour(contour)), duration };
+    }
+
+    function fillShortPitchGaps(contour, maxGapSeconds = 0.06) {
+      const filled = contour.map((point) => ({ ...point }));
+      let i = 0;
+      while (i < filled.length) {
+        if (filled[i].freq !== null) {
+          i += 1;
+          continue;
+        }
+        let j = i;
+        while (j < filled.length && filled[j].freq === null) j += 1;
+        const prev = i > 0 ? filled[i - 1] : null;
+        const next = j < filled.length ? filled[j] : null;
+        if (prev && next && (next.t - prev.t) <= maxGapSeconds) {
+          for (let k = i; k < j; k += 1) {
+            const ratio = (filled[k].t - prev.t) / (next.t - prev.t);
+            filled[k].freq = prev.freq + (next.freq - prev.freq) * ratio;
+            filled[k].filled = true;
+          }
+        }
+        i = j;
+      }
+      return filled;
+    }
+
+    function normalizePitchContour({ contour }) {
+      const voicedPoints = contour.filter((point) => point.freq);
+      if (!voicedPoints.length) return [];
+      const freqs = voicedPoints.map((point) => point.freq).sort((a, b) => a - b);
+      const median = medianValue(freqs);
+      const startT = voicedPoints[0].t;
+      const endT = voicedPoints[voicedPoints.length - 1].t;
+      const span = Math.max(endT - startT, 0.05);
+      return contour
+        .filter((point) => point.t >= startT && point.t <= endT)
+        .map((point) => ({
+          tPct: ((point.t - startT) / span) * 100,
+          semitone: point.freq ? 12 * Math.log2(point.freq / median) : null,
+          filled: Boolean(point.filled)
+        }));
+    }
+
+    function pitchContourDuration({ contour }) {
+      const voicedPoints = contour.filter((point) => point.freq);
+      if (voicedPoints.length < 2) return 0;
+      return Math.max(0, voicedPoints[voicedPoints.length - 1].t - voicedPoints[0].t);
+    }
+
+    function formatPitchTime(seconds) {
+      const safeSeconds = Math.max(0, Number(seconds) || 0);
+      if (safeSeconds < 60) return `${safeSeconds.toFixed(1)}s`;
+      const minutes = Math.floor(safeSeconds / 60);
+      return `${minutes}:${String(Math.round(safeSeconds % 60)).padStart(2, "0")}`;
+    }
+
+    function pitchTimeScale(label, source, duration) {
+      return `<div class="pitch-compare-time-row pitch-compare-time-${source}">
+        <span class="pitch-compare-time-label">${label}</span>
+        <span>${formatPitchTime(0)}</span>
+        <span>${formatPitchTime(duration / 2)}</span>
+        <span>${formatPitchTime(duration)}</span>
+      </div>`;
+    }
+
+    function pitchContourToSegments(points) {
+      const clamp = (value) => Math.max(-12, Math.min(12, value));
+      const toXY = (point) => `${point.tPct.toFixed(2)},${(50 - clamp(point.semitone) * (40 / 12)).toFixed(2)}`;
+      const runs = [];
+      let current = [];
+      points.forEach((point) => {
+        if (point.semitone === null || !Number.isFinite(point.semitone)) {
+          if (current.length > 1) runs.push(current);
+          current = [];
+          return;
+        }
+        current.push(point);
+      });
+      if (current.length > 1) runs.push(current);
+      const segments = [];
+      runs.forEach((run) => {
+        let piece = [];
+        let pieceType = null;
+        run.forEach((point) => {
+          const type = point.filled ? "filled" : "real";
+          if (pieceType && type !== pieceType) {
+            piece.push(point);
+            if (piece.length > 1) segments.push({ type: pieceType, points: piece });
+            piece = [point];
+          } else {
+            piece.push(point);
+          }
+          pieceType = type;
+        });
+        if (piece.length > 1) segments.push({ type: pieceType, points: piece });
+      });
+      return segments.map((segment) => ({
+        type: segment.type,
+        d: `M${segment.points.map(toXY).join(" L")}`
+      }));
+    }
+
+    function pitchSegmentsToSvg(points, source) {
+      return pitchContourToSegments(points).map((segment) => {
+        const cls = `pitch-compare-line pitch-compare-line-${source}${segment.type === "filled" ? " is-estimated" : ""}`;
+        return `<path d="${segment.d}" class="${cls}" />`;
+      }).join("");
+    }
+
+    function renderPitchCompareChart(ttsPoints, ownPoints, durations) {
+      const chart = $("pitchCompareChart");
+      if (!chart) return;
+      chart.innerHTML = `
+        <div class="pitch-compare-head">
+          <span>相对音高</span>
+          <div class="pitch-compare-legend">
+            <span class="pitch-compare-legend-item pitch-compare-legend-tts">范读</span>
+            <span class="pitch-compare-legend-item pitch-compare-legend-own">我的录音</span>
+          </div>
+        </div>
+        <div class="pitch-compare-plot">
+          <div class="pitch-compare-scale" aria-hidden="true"><span>+12</span><span>0</span><span>−12</span></div>
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="pitch-compare-svg" role="img" aria-label="范读与我的录音相对音高曲线">
+            <line x1="0" y1="10" x2="100" y2="10" class="pitch-compare-grid" />
+            <line x1="0" y1="50" x2="100" y2="50" class="pitch-compare-grid is-baseline" />
+            <line x1="0" y1="90" x2="100" y2="90" class="pitch-compare-grid" />
+            ${pitchSegmentsToSvg(ttsPoints, "tts")}
+            ${pitchSegmentsToSvg(ownPoints, "own")}
+          </svg>
+        </div>
+        <div class="pitch-compare-time-scales" aria-label="录音时间刻度">
+          ${pitchTimeScale("范读", "tts", durations.tts)}
+          ${pitchTimeScale("我的", "own", durations.own)}
+        </div>
+      `;
+      chart.hidden = false;
+    }
+
+    function setPitchCompareStatus(message) {
+      const status = $("pitchCompareStatus");
+      if (!status) return;
+      status.textContent = message;
+      status.hidden = !message;
+    }
+
+    async function comparePitchWithOriginal() {
+      if (state.speaking.pitchCompareBusy) return;
+      if (!state.speaking.recordedAudioBlob) {
+        setPitchCompareStatus("请先录音，再跟原声对比。");
+        return;
+      }
+      state.speaking.pitchCompareBusy = true;
+      const button = $("pitchCompareBtn");
+      const buttonText = button?.textContent || "跟原声对比";
+      if (button) {
+        button.disabled = true;
+        button.textContent = "分析中…";
+      }
+      setPitchCompareStatus("正在获取原声…");
+      try {
+        const ttsBlob = await getOrCaptureTtsAudio();
+        setPitchCompareStatus("正在分析音高…");
+        const [ttsContour, ownContour] = await Promise.all([
+          extractPitchContour(ttsBlob),
+          extractPitchContour(state.speaking.recordedAudioBlob)
+        ]);
+        const ttsPoints = normalizePitchContour(ttsContour);
+        const ownPoints = normalizePitchContour(ownContour);
+        if (ttsPoints.length < 2) {
+          state.speaking.ttsAudioCache.delete(ttsCacheKey());
+          clearSharedTtsAudioStream();
+          throw new Error("范读音频没有捕获到有效声音，已清除本次共享，请重新选择此标签页并保持“分享音频”开启。");
+        }
+        if (ownPoints.length < 2) throw new Error("你的录音中没有检测到稳定音高，请重新录音并保持声音清晰。");
+        renderPitchCompareChart(ttsPoints, ownPoints, {
+          tts: pitchContourDuration(ttsContour),
+          own: pitchContourDuration(ownContour)
+        });
+        setPitchCompareStatus("对比图仅显示音高升降趋势，不代表发音评分。");
+      } catch (error) {
+        const message = error?.name === "NotAllowedError"
+          ? "已取消共享，未生成对比图。"
+          : `对比失败：${error.message || error}`;
+        setPitchCompareStatus(message);
+      } finally {
+        state.speaking.pitchCompareBusy = false;
+        if (button) {
+          button.disabled = false;
+          button.textContent = buttonText;
+        }
+      }
+    }
+
     function speakingCapabilityText() {
       const notes = [];
       if (!speechRecognitionCtor()) notes.push("当前浏览器不支持自动识别，可先使用录音回放练习。");
@@ -3270,7 +3764,10 @@ const fallbackSentences = [
       state.speaking.volumeSamples = 0;
       if (state.speaking.recordedAudioUrl) URL.revokeObjectURL(state.speaking.recordedAudioUrl);
       state.speaking.recordedAudioUrl = "";
+      state.speaking.recordedAudioBlob = null;
       state.speaking.audioChunks = [];
+      if ($("pitchCompareChart")) $("pitchCompareChart").hidden = true;
+      setPitchCompareStatus("");
       renderSpeakingPage();
     }
 
@@ -3381,6 +3878,7 @@ const fallbackSentences = [
         if (state.speaking.recordedAudioUrl) URL.revokeObjectURL(state.speaking.recordedAudioUrl);
         const blob = new Blob(state.speaking.audioChunks, { type: recorder.mimeType || "audio/webm" });
         state.speaking.recordedAudioUrl = URL.createObjectURL(blob);
+        state.speaking.recordedAudioBlob = blob;
         state.speaking.isRecording = false;
         state.speaking.mediaRecorder = null;
         if (state.speaking.mediaStream) {
@@ -4131,6 +4629,7 @@ const fallbackSentences = [
       scheduleStopSpeakingPractice();
     });
     holdSpeakBtn.addEventListener("click", (event) => event.preventDefault());
+    $("pitchCompareBtn").addEventListener("click", comparePitchWithOriginal);
     $("previousUnifiedBtn").addEventListener("click", (event) => {
       switchSpeakingSentence(pickSentenceIndex(-1), true);
       event.currentTarget.blur();
