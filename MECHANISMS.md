@@ -1,6 +1,6 @@
 # langLSRW Mechanisms
 
-Last updated: 2026-09-25
+Last updated: 2026-09-26
 
 This document records how implemented product behavior works. It describes the current code, not planned behavior. Update it whenever a trigger, storage rule, identity boundary, synchronization scope, or deployment mechanism changes.
 
@@ -16,7 +16,7 @@ langLSRW has two independent identity modes:
 
 ## Local Persistence
 
-The application is local-first. Settings, practice records, learned count, imported material, cached analysis, and user collections are stored in browser storage unless a mechanism below says otherwise.
+The currently implemented development-stage application is local-first. Settings, practice records, learned count, imported material, cached analysis, and user collections are stored in browser storage unless a mechanism below says otherwise.
 
 - Local users can export and import their data as JSON.
 - Google-account browser data acts as the working local copy for that account.
@@ -37,6 +37,16 @@ Supabase stores one synchronized state row per Google account.
 - Supabase Row Level Security must keep every account limited to its own row.
 
 Relevant implementation: `src/app.js`, `src/auth/supabase-auth-service.js`, and `supabase/schema.sql`.
+
+### Formal-release direction
+
+The formal-release account experience is intended to be cloud-first, but this is a product direction rather than current implemented behavior.
+
+- For a signed-in account, cloud storage will become the authoritative cross-device record.
+- Browser storage will become an offline cache and performance layer rather than the sole working source of truth.
+- Local-user mode will remain explicitly local-only and independent from account data.
+- Switching to cloud-first requires complete synchronization coverage, queued offline writes, deterministic conflict resolution, schema/data migrations, retry and recovery behavior, and visible synchronization status.
+- The current whole-row manual upload and disabled 1.2-second automatic path are development-stage mechanisms and must not simply be enabled as the formal cloud-first implementation.
 
 ## Learned Count
 
@@ -124,7 +134,8 @@ The built-in common library is a versioned static package with stable source IDs
 - Preview renders 50 rows per page.
 - Selecting the package exposes all 30,150 entries to listening and speaking practice.
 - Imported custom material remains user data and is independent of the built-in package.
-- The `句库` picker also offers `用户收藏`: a library built on demand from the current identity's favorited sentences (`loadUserSentences()`), searchable, with no pagination since the list is small. Selecting it maps each favorite's `sentence`/`translation`/`sourceId`/`libraryId` into the normal sentence shape and loads it via `useFavoritesLibrary()`, following the same `setCurrentLibrary()` path as the common library and custom import.
+- Each preview row in the `句库` dialog has its own `▶` button (`data-load-library-sentence`, handled by `loadLibrarySentenceIntoPractice()`), matching the one on favorite-sentence rows: it loads the whole common library, jumps straight to that row's sentence by matching its stable source ID, closes the dialog, and switches to the listening page. This is separate from `使用此句库`, which always starts at the first sentence.
+- `用户收藏` is not offered as a selectable entry in the `句库` dialog's sidebar (that dialog only lists the built-in common library and custom import/paste). It remains selectable from the toolbar's `currentLibrarySelect` quick-switch dropdown, which loads it via `useFavoritesLibrary()` following the same `setCurrentLibrary()` path as the common library. It can also become the active practice source via `loadFavoriteSentenceIntoPractice()`, triggered by the `▶` button on a row in `收藏`'s `句子` tab, which maps each favorite's `sentence`/`translation`/`sourceId`/`libraryId` into the normal sentence shape, jumps straight to that sentence, and switches to the listening page.
 
 ## Random-Mode Navigation History
 

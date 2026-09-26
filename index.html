@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260925-102">
+  <link rel="stylesheet" href="src/styles.css?v=20260925-125">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -219,6 +219,7 @@
                 <input id="autoSpeakToggle" type="checkbox">
                 <span>自动朗读</span>
               </label>
+              <button id="speakBtn" type="button">朗读 📢</button>
               <select id="accentSelect" class="compact-select" aria-label="口音">
                 <option value="en-GB">英音</option>
                 <option value="en-US">美音</option>
@@ -226,10 +227,14 @@
               <select id="voiceSelect" class="voice-select" aria-label="可用声音">
                 <option value="">自动声音</option>
               </select>
-              <div id="speechRateIndicator" class="metric">
-                <strong>1.00x</strong><span>原速</span>
+              <span class="current-library-label speech-rate-label">语速：</span>
+              <div id="speechRateIndicator" class="speech-rate-control" aria-label="朗读速度">
+                <output id="speechRateValue">1.0</output>
+                <span class="speech-rate-stepper">
+                  <button id="increaseSpeechRateBtn" type="button" title="加快朗读" aria-label="加快朗读">▲</button>
+                  <button id="decreaseSpeechRateBtn" type="button" title="减慢朗读" aria-label="减慢朗读">▼</button>
+                </span>
               </div>
-              <button id="speakBtn" type="button">朗读</button>
               <button id="analyzeGrammarBtn" type="button">Ai语法分析</button>
               <div class="sentence-tool-end">
                 <div id="learnedCount" class="learned-count">已学习：0</div>
@@ -341,7 +346,6 @@
         <aside class="library-sidebar" aria-label="句库分类">
           <button id="librarySettingsTabBtn" class="library-type-button library-settings-button" type="button">自定义句库</button>
           <button id="commonLibraryTabBtn" class="library-type-button is-active" type="button" aria-current="true">常用句库</button>
-          <button id="favoritesLibraryTabBtn" class="library-type-button" type="button" aria-current="false">用户收藏</button>
           <button class="library-type-button" type="button" disabled>情景句库</button>
           <button class="library-type-button" type="button" disabled>语法句库</button>
           <button class="library-type-button" type="button" disabled>等级句库</button>
@@ -368,21 +372,6 @@
             <button id="libraryNextPageBtn" type="button" disabled>下一页</button>
             <button id="libraryLastPageBtn" type="button" disabled>最后页</button>
             <span id="libraryStatus" class="library-status" aria-live="polite">尚未加载</span>
-          </div>
-        </section>
-        <section id="favoritesLibraryPanel" class="library-content" hidden>
-          <div class="library-summary">
-            <div class="library-title-line">
-              <h3>用户收藏</h3>
-              <div id="favoritesLibraryMeta" class="small-note">0 句</div>
-            </div>
-            <button id="useFavoritesLibraryBtn" class="primary" type="button" disabled>使用此句库</button>
-          </div>
-          <label class="library-search-label" for="favoritesLibrarySearchInput">搜索英文或中文</label>
-          <input id="favoritesLibrarySearchInput" class="library-search" type="search" autocomplete="off" placeholder="输入关键词">
-          <div id="favoritesLibrarySentenceList" class="library-sentence-list"></div>
-          <div class="library-pagination">
-            <span id="favoritesLibraryStatus" class="library-status" aria-live="polite">还没有收藏句子</span>
           </div>
         </section>
         <section id="librarySettingsPanel" class="library-settings-panel" hidden>
@@ -548,6 +537,6 @@
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
   <script src="src/dictionary/dictionary-service.js?v=20260925-8"></script>
-  <script src="src/app.js?v=20260925-59"></script>
+  <script src="src/app.js?v=20260926-76"></script>
 </body>
 </html>
