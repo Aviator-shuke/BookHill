@@ -146,22 +146,34 @@ Relevant implementation: `userSentencesStorageKey()`, `loadUserSentences()`, `se
 
 ## Local Dictionary
 
-ECDICT is distributed as a generated compressed SQLite package.
+Runtime dictionaries are distributed as generated compressed SQLite packages.
+The Settings panel manages them by dictionary ID:
+
+- `ecdict`: English ECDICT, currently the active package for right-click lookup,
+  `词库`, collection details, and word review.
+- `spanish-wiktionary`: Spanish Wiktionary / Kaikki, installable and
+  test-queryable as a separate local package, but not yet wired into the
+  learning-language switch, right-click lookup, collection isolation, or word
+  review.
+
+Each package has its own manifest and OPFS SQLite filename. The shared Worker
+opens the requested package by ID, validates schema and dictionary identity on
+install, and keeps the database read-only after installation.
 
 The word-lookup popover header shows a `自动发音` checkbox before the favorite stars; the header actions are centre-aligned, and the label text is nudged 1.5px up with the checkbox moved back down 1.5px so their optical centres match the stars. It is on by default; unticking stores `"0"` in `localStorage` key `langLSRWDictionaryAutoSpeak`; when on, `autoSpeakLookedUpWord()` reads the word with TTS after each lookup (right-click or shortcut) and after switching to an inflected form inside the popover, and turning it on reads the word currently shown. Favorite changes do not trigger it. The popover's minimum width is three 145px mastery cards plus gaps, padding, and border (471px, capped by the viewport), so 识义 / 听写 / 默写 always fit in one row; the cards' own sizing rules are unchanged. Its maximum is 800px wide and 640px tall (both capped by the viewport): meaning and definition lines wrap instead of stretching it, only the first five English definitions are shown until `展开全部（共 n 条）` is clicked, and any remaining overflow scrolls inside the popover. `positionDictionaryLookup()` applies that 640px cap (it sets the inline `max-height` from the measured content, so without the cap a long popover had no scrollbar) and reuses the last anchor stored in `state.dictionaryLookupAnchor`. `展开全部` keeps the popover at its current height and lets the extra definitions scroll inside it; the same button then reads `收起`, which folds them again and re-runs positioning to restore the natural height. In the popover the three mastery cards keep a fixed 145px width (`repeat(3, 145px)`) instead of stretching with it.
 
-- The browser downloads the package only when the user installs the dictionary.
+- The browser downloads a package only when the user installs that dictionary.
 - SQLite WASM runs in a Worker and stores the database in browser OPFS.
 - Queries are local and do not call AI or a remote dictionary service.
 - The database is read-only and can be removed or replaced independently of user data.
-- `DictionaryService` is the stable interface so a future server/MySQL adapter can replace the local adapter without rewriting the UI.
-- Exact lookup normally returns ECDICT's `exchange` field unchanged. If a single-`l` American `-ling`, `-led`, or `-ler` entry has an empty field, the Worker checks the corresponding double-`l` spelling and copies only an explicit `0:` lemma from that record. No fallback is applied unless both the alternate entry and its lemma exist.
-- The `词库` view requests only one 100-entry page at a time. ECDICT has no dedicated entry-type column, so classification is mutually exclusive and text-based: a leading `-` means suffix; otherwise a first character outside `A-Z`/`a-z` means special; remaining entries with an internal ASCII space are phrases; and the rest are words. This means multiword proper names beginning with a letter appear under phrases, while entries such as `'hood`, `.45-caliber`, and `'s Gravenhage` appear under special. Type/category filtering, total counting, sorting, limits, and offsets run inside SQLite; the browser never loads all entries into the DOM or application memory.
+- `DictionaryService` is the stable package-aware interface so a future server/MySQL adapter can replace the local adapter without rewriting the UI.
+- Exact ECDICT lookup normally returns ECDICT's `exchange` field unchanged. If a single-`l` American `-ling`, `-led`, or `-ler` entry has an empty field, the Worker checks the corresponding double-`l` spelling and copies only an explicit `0:` lemma from that record. No fallback is applied unless both the alternate entry and its lemma exist. This ECDICT-specific fallback is not applied to `spanish-wiktionary`.
+- The `词库` view requests only one 100-entry page at a time from the active ECDICT package. ECDICT has no dedicated entry-type column, so classification is mutually exclusive and text-based: a leading `-` means suffix; otherwise a first character outside `A-Z`/`a-z` means special; remaining entries with an internal ASCII space are phrases; and the rest are words. This means multiword proper names beginning with a letter appear under phrases, while entries such as `'hood`, `.45-caliber`, and `'s Gravenhage` appear under special. Type/category filtering, total counting, sorting, limits, and offsets run inside SQLite; the browser never loads all entries into the DOM or application memory.
 - While the dictionary view is open, Up/Down selects words within the current page and Left/Right changes pages. These shortcuts are suspended while an input, select, or textarea has focus.
 - The dictionary dialog is user-resizable. A `ResizeObserver` derives page size from the list's available height and the fixed 26-pixel row height, then re-queries SQLite while preserving the previous first-visible global position. The list itself has no vertical scrollbar.
 - `词库` and `收藏` share the same browsing controls and interaction pattern, including the count/search row, adaptive pagination, resize/reset behavior, and arrow-key navigation. Changes to these common interactions should be applied to both views unless their data source requires an explicit difference. Dictionary search is debounced and executed inside SQLite; collection search runs against the already-local saved array.
 
-Relevant implementation: `src/dictionary/dictionary-service.js`, `src/dictionary/dictionary-worker.js`, and `tools/build-ecdict.py`.
+Relevant implementation: `src/dictionary/dictionary-service.js`, `src/dictionary/dictionary-worker.js`, `tools/build-ecdict.py`, and `tools/build-spanish-dictionary.py`.
 
 ## Sentence Libraries
 

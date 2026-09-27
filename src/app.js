@@ -2352,94 +2352,148 @@ const fallbackSentences = [
       return `${(value / (1024 * 1024)).toFixed(1)} MB`;
     }
 
-    function setDictionaryBusy(busy) {
-      $("installDictionaryBtn").disabled = busy;
-      $("testDictionaryBtn").disabled = busy || $("testDictionaryBtn").dataset.installed !== "true";
-      $("removeDictionaryBtn").disabled = busy || $("removeDictionaryBtn").dataset.installed !== "true";
+    let dictionaryBusyId = "";
+    const dictionaryStatusResults = new Map();
+
+    function dictionaryPackageLabel(item) {
+      const pkg = item?.package || item;
+      const languageLabel = pkg?.languageId === "es" ? "西班牙语" : "英语";
+      return `${pkg?.label || languageLabel} · ${item?.manifest?.name || pkg?.id || "词典"}`;
     }
 
-    function renderDictionaryStatus(result) {
-      const installed = Boolean(result?.installed);
-      const manifest = result?.manifest;
-      const metadata = result?.metadata;
-      $("testDictionaryBtn").dataset.installed = String(installed);
-      $("removeDictionaryBtn").dataset.installed = String(installed);
-      $("testDictionaryBtn").disabled = !installed;
-      $("removeDictionaryBtn").disabled = !installed;
-      $("installDictionaryBtn").textContent = installed
-        ? (result.updateAvailable ? "更新词典" : "重新安装")
-        : "安装词典";
+    function dictionaryStatusText(item) {
+      if (item?.error) return `词典不可用：${item.error.message || item.error}`;
+      const installed = Boolean(item?.installed);
+      const manifest = item?.manifest;
+      const metadata = item?.metadata;
       if (installed) {
         const count = Number(metadata?.entry_count || manifest?.entryCount || 0).toLocaleString();
-        $("dictionaryStatus").textContent = `已安装 ${manifest?.name || "ECDICT"} · ${count} 词条 · v${metadata?.dictionary_version || manifest?.version || "未知"}`;
-      } else if (manifest) {
-        $("dictionaryStatus").textContent = `未安装 · ${manifest.name} · ${Number(manifest.entryCount).toLocaleString()} 词条 · 下载 ${formatBytes(manifest.downloadBytes || manifest.databaseBytes)} · 本地 ${formatBytes(manifest.databaseBytes)}`;
-      } else {
-        $("dictionaryStatus").textContent = "本地词典尚未准备好。";
+        return `已安装 · ${count} 词条 · v${metadata?.dictionary_version || manifest?.version || "未知"}`;
       }
+      if (manifest) {
+        return `未安装 · ${Number(manifest.entryCount).toLocaleString()} 词条 · 下载 ${formatBytes(manifest.downloadBytes || manifest.databaseBytes)} · 本地 ${formatBytes(manifest.databaseBytes)}`;
+      }
+      return "本地词典尚未准备好。";
+    }
+
+    function renderDictionarySettings(results = [...dictionaryStatusResults.values()]) {
+      const list = $("dictionarySettingsList");
+      if (!window.langLSRWDictionary) {
+        list.innerHTML = '<div class="dictionary-status">本地词典服务不可用。</div>';
+        return;
+      }
+      const byId = new Map(results.map((item) => [item.package?.id, item]));
+      const packages = window.langLSRWDictionary.listPackages();
+      list.innerHTML = packages.map((pkg) => {
+        const item = byId.get(pkg.id) || dictionaryStatusResults.get(pkg.id) || { package: pkg };
+        const installed = Boolean(item.installed);
+        const busy = Boolean(dictionaryBusyId);
+        const installLabel = installed ? (item.updateAvailable ? "更新" : "重装") : "安装";
+        const testWord = pkg.testWord || "dictionary";
+        return `
+          <div class="dictionary-settings-card" data-dictionary-card="${escapeHtml(pkg.id)}">
+            <div class="dictionary-settings-head">
+              <div class="dictionary-settings-name">${escapeHtml(item.manifest?.name || pkg.id)}</div>
+              <div class="dictionary-settings-lang">${escapeHtml(pkg.label || pkg.languageId)}</div>
+            </div>
+            <div class="dictionary-status" data-dictionary-status>${escapeHtml(dictionaryStatusText(item))}</div>
+            <progress class="dictionary-install-progress" data-dictionary-progress max="100" value="0" hidden></progress>
+            <div class="dictionary-settings-actions">
+              <button type="button" data-dictionary-action="install" data-dictionary-id="${escapeHtml(pkg.id)}" title="${escapeHtml(installLabel)} ${escapeHtml(dictionaryPackageLabel(item))}" ${busy ? "disabled" : ""}>${installLabel}</button>
+              <button type="button" data-dictionary-action="test" data-dictionary-id="${escapeHtml(pkg.id)}" title="查询测试词：${escapeHtml(testWord)}" ${busy || !installed ? "disabled" : ""}>测试</button>
+              <button type="button" data-dictionary-action="remove" data-dictionary-id="${escapeHtml(pkg.id)}" title="删除当前浏览器中安装的${escapeHtml(item.manifest?.name || pkg.id)}" ${busy || !installed ? "disabled" : ""}>删除</button>
+            </div>
+            <div class="small-note" data-dictionary-test-result></div>
+          </div>`;
+      }).join("");
     }
 
     async function refreshDictionaryStatus() {
       if (!window.langLSRWDictionary) return;
-      try {
-        setDictionaryBusy(true);
-        renderDictionaryStatus(await window.langLSRWDictionary.status());
-      } catch (error) {
-        $("dictionaryStatus").textContent = `词典不可用：${error.message || error}`;
-      } finally {
-        setDictionaryBusy(false);
-      }
+      renderDictionarySettings();
+      const results = await window.langLSRWDictionary.statuses();
+      dictionaryStatusResults.clear();
+      results.forEach((item) => dictionaryStatusResults.set(item.package?.id, item));
+      renderDictionarySettings(results);
     }
 
-    async function installDictionary() {
-      if (!window.langLSRWDictionary) return;
-      const progress = $("dictionaryInstallProgress");
-      progress.hidden = false;
-      progress.value = 0;
-      $("dictionaryTestResult").textContent = "";
-      setDictionaryBusy(true);
-      const stopProgress = window.langLSRWDictionary.onProgress(({ received, total }) => {
-        progress.max = total || Math.max(received, 1);
-        progress.value = received;
-        $("dictionaryStatus").textContent = total
+    function dictionaryCard(dictionaryId) {
+      return document.querySelector(`[data-dictionary-card="${CSS.escape(dictionaryId)}"]`);
+    }
+
+    function setDictionaryCardMessage(dictionaryId, message) {
+      const card = dictionaryCard(dictionaryId);
+      const status = card?.querySelector("[data-dictionary-status]");
+      if (status) status.textContent = message;
+    }
+
+    async function installDictionary(dictionaryId = "ecdict") {
+      if (!window.langLSRWDictionary || dictionaryBusyId) return;
+      const pkg = window.langLSRWDictionary.dictionary(dictionaryId);
+      const card = dictionaryCard(dictionaryId);
+      const progress = card?.querySelector("[data-dictionary-progress]");
+      const result = card?.querySelector("[data-dictionary-test-result]");
+      if (progress) {
+        progress.hidden = false;
+        progress.value = 0;
+      }
+      if (result) result.textContent = "";
+      dictionaryBusyId = dictionaryId;
+      renderDictionarySettings();
+      const stopProgress = window.langLSRWDictionary.onProgress(({ dictionaryId: progressId, received, total }) => {
+        if (progressId !== dictionaryId) return;
+        const currentProgress = dictionaryCard(dictionaryId)?.querySelector("[data-dictionary-progress]");
+        if (currentProgress) {
+          currentProgress.hidden = false;
+          currentProgress.max = total || Math.max(received, 1);
+          currentProgress.value = received;
+        }
+        setDictionaryCardMessage(dictionaryId, total
           ? `正在安装：${formatBytes(received)} / ${formatBytes(total)}`
-          : `正在安装：${formatBytes(received)}`;
+          : `正在安装：${formatBytes(received)}`);
       });
       try {
-        await window.langLSRWDictionary.install();
+        await window.langLSRWDictionary.install(dictionaryId);
         await refreshDictionaryStatus();
       } catch (error) {
-        $("dictionaryStatus").textContent = `安装失败：${error.message || error}`;
+        setDictionaryCardMessage(dictionaryId, `安装失败：${error.message || error}`);
       } finally {
         stopProgress();
-        progress.hidden = true;
-        setDictionaryBusy(false);
+        dictionaryBusyId = "";
+        await refreshDictionaryStatus();
       }
     }
 
-    async function testDictionary() {
-      $("dictionaryTestResult").textContent = "正在查询 dictionary...";
+    async function testDictionary(dictionaryId = "ecdict") {
+      const pkg = window.langLSRWDictionary?.dictionary(dictionaryId);
+      const testWord = pkg?.testWord || "dictionary";
+      const resultBox = dictionaryCard(dictionaryId)?.querySelector("[data-dictionary-test-result]");
+      if (resultBox) resultBox.textContent = `正在查询 ${testWord}...`;
       try {
-        const result = await window.langLSRWDictionary.query("dictionary");
-        $("dictionaryTestResult").textContent = result
-          ? `${result.word} ${result.phonetic ? `[${result.phonetic}] ` : ""}${String(result.translation || result.definition || "").split("\n")[0]}`
-          : "未找到 dictionary。";
+        const result = await window.langLSRWDictionary.query(testWord, dictionaryId);
+        if (resultBox) {
+          resultBox.textContent = result
+            ? `${result.word} ${result.phonetic ? `[${result.phonetic}] ` : ""}${String(result.translation || result.definition || "").split("\n")[0]}`
+            : `未找到 ${testWord}。`;
+        }
       } catch (error) {
-        $("dictionaryTestResult").textContent = `查询失败：${error.message || error}`;
+        if (resultBox) resultBox.textContent = `查询失败：${error.message || error}`;
       }
     }
 
-    async function removeDictionary() {
-      if (!confirm("删除当前浏览器中的本地词典吗？以后可以重新安装。")) return;
+    async function removeDictionary(dictionaryId = "ecdict") {
+      const pkg = window.langLSRWDictionary?.dictionary(dictionaryId);
+      if (!confirm(`删除当前浏览器中的${pkg?.label || ""}本地词典吗？以后可以重新安装。`)) return;
       try {
-        setDictionaryBusy(true);
-        await window.langLSRWDictionary.remove();
-        $("dictionaryTestResult").textContent = "";
+        dictionaryBusyId = dictionaryId;
+        renderDictionarySettings();
+        await window.langLSRWDictionary.remove(dictionaryId);
         await refreshDictionaryStatus();
       } catch (error) {
-        $("dictionaryStatus").textContent = `删除失败：${error.message || error}`;
+        setDictionaryCardMessage(dictionaryId, `删除失败：${error.message || error}`);
       } finally {
-        setDictionaryBusy(false);
+        dictionaryBusyId = "";
+        await refreshDictionaryStatus();
       }
     }
 
@@ -6994,9 +7048,14 @@ ${orderNote}`;
     $("googleLoginBtn").addEventListener("click", signInWithGoogle);
     $("syncCloudBtn").addEventListener("click", pushCloudState);
     $("cloudLogoutBtn").addEventListener("click", signOutCloudUser);
-    $("installDictionaryBtn").addEventListener("click", installDictionary);
-    $("testDictionaryBtn").addEventListener("click", testDictionary);
-    $("removeDictionaryBtn").addEventListener("click", removeDictionary);
+    $("dictionarySettingsList").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-dictionary-action]");
+      if (!button) return;
+      const dictionaryId = button.dataset.dictionaryId || "ecdict";
+      if (button.dataset.dictionaryAction === "install") installDictionary(dictionaryId);
+      if (button.dataset.dictionaryAction === "test") testDictionary(dictionaryId);
+      if (button.dataset.dictionaryAction === "remove") removeDictionary(dictionaryId);
+    });
     $("clearTranslationCacheBtn").addEventListener("click", clearTranslationCache);
     $("openLibraryBtn").addEventListener("click", openLibraryModal);
     $("openDictionaryLibraryBtn").addEventListener("click", openDictionaryLibrary);

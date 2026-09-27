@@ -38,6 +38,11 @@ same storage and lookup contract. The first build stores Kaikki/Wiktionary
 English glosses as the meaning text; cached Chinese learning explanations are a
 future layer, not part of the raw dictionary import.
 
+The runtime dictionary service manages packages by dictionary ID. `ecdict`
+remains the active package for the current English-only learning runtime, while
+`spanish-wiktionary` can be installed, removed, and test-queried independently
+from Settings.
+
 The first complete build from the 2026-09-27 owner-provided source produced:
 
 - 770,716 merged dictionary entries.

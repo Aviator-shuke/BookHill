@@ -1652,6 +1652,52 @@
       line-height: 1.5;
     }
 
+    .dictionary-settings-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .dictionary-settings-card {
+      display: grid;
+      gap: 7px;
+      border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+      border-radius: 8px;
+      padding: 8px;
+      background: color-mix(in srgb, var(--surface) 90%, var(--accent) 10%);
+    }
+
+    .dictionary-settings-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .dictionary-settings-name {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .dictionary-settings-lang {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .dictionary-settings-actions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .dictionary-settings-actions button {
+      min-width: 0;
+      padding-inline: 6px;
+      white-space: nowrap;
+    }
+
     .dictionary-install-progress {
       width: 100%;
       height: 8px;

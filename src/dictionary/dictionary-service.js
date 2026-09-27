@@ -1,13 +1,33 @@
 (() => {
+  const DICTIONARY_PACKAGES = {
+    ecdict: {
+      id: "ecdict",
+      languageId: "en",
+      label: "英语",
+      manifestUrl: "assets/dictionaries/runtime/ecdict/manifest.json",
+      databaseName: "/ecdict.sqlite",
+      testWord: "dictionary"
+    },
+    "spanish-wiktionary": {
+      id: "spanish-wiktionary",
+      languageId: "es",
+      label: "西语",
+      manifestUrl: "assets/dictionaries/runtime/spanish-wiktionary/manifest.json",
+      databaseName: "/spanish-wiktionary.sqlite",
+      testWord: "gratis"
+    }
+  };
+
   class DictionaryService {
     constructor(options = {}) {
-      this.manifestUrl = options.manifestUrl || "assets/dictionaries/runtime/ecdict/manifest.json";
-      this.workerUrl = options.workerUrl || "src/dictionary/dictionary-worker.js?v=20260926-10";
+      this.packages = options.packages || DICTIONARY_PACKAGES;
+      this.activeDictionaryId = options.activeDictionaryId || "ecdict";
+      this.workerUrl = options.workerUrl || "src/dictionary/dictionary-worker.js?v=20260927-1";
       this.worker = null;
       this.sequence = 0;
       this.pending = new Map();
       this.progressListeners = new Set();
-      this.manifest = null;
+      this.manifests = new Map();
     }
 
     ensureWorker() {
@@ -40,65 +60,106 @@
       });
     }
 
-    async loadManifest() {
-      if (this.manifest) return this.manifest;
-      const response = await fetch(this.manifestUrl, { cache: "no-store" });
-      if (!response.ok) throw new Error(`无法读取词典清单（${response.status}）`);
-      this.manifest = await response.json();
-      return this.manifest;
+    dictionary(id = this.activeDictionaryId) {
+      const dictionary = this.packages[id];
+      if (!dictionary) throw new Error(`未知词典：${id}`);
+      return dictionary;
     }
 
-    async status() {
+    listPackages() {
+      return Object.values(this.packages);
+    }
+
+    setActiveDictionary(id) {
+      this.dictionary(id);
+      this.activeDictionaryId = id;
+    }
+
+    activeDictionary() {
+      return this.dictionary(this.activeDictionaryId);
+    }
+
+    async loadManifest(id = this.activeDictionaryId) {
+      const dictionary = this.dictionary(id);
+      if (this.manifests.has(id)) return this.manifests.get(id);
+      const response = await fetch(dictionary.manifestUrl, { cache: "no-store" });
+      if (!response.ok) throw new Error(`无法读取词典清单（${response.status}）`);
+      const manifest = await response.json();
+      this.manifests.set(id, manifest);
+      return manifest;
+    }
+
+    workerDictionary(id = this.activeDictionaryId) {
+      const dictionary = this.dictionary(id);
+      return {
+        id: dictionary.id,
+        languageId: dictionary.languageId,
+        databaseName: dictionary.databaseName
+      };
+    }
+
+    async status(id = this.activeDictionaryId) {
       const [manifest, installed] = await Promise.all([
-        this.loadManifest(),
-        this.call("status")
+        this.loadManifest(id),
+        this.call("status", { dictionary: this.workerDictionary(id) })
       ]);
       const currentVersion = installed.metadata?.dictionary_version;
       return {
         ...installed,
         manifest,
+        package: this.dictionary(id),
         updateAvailable: Boolean(installed.installed && currentVersion && currentVersion !== manifest.version)
       };
     }
 
-    async install() {
-      const manifest = await this.loadManifest();
-      const databaseUrl = new URL(manifest.file, new URL(this.manifestUrl, location.href)).href;
+    async statuses() {
+      const entries = await Promise.all(this.listPackages().map((dictionary) => (
+        this.status(dictionary.id).catch((error) => ({ package: dictionary, error }))
+      )));
+      return entries;
+    }
+
+    async install(id = this.activeDictionaryId) {
+      const dictionary = this.dictionary(id);
+      const manifest = await this.loadManifest(id);
+      const databaseUrl = new URL(manifest.file, new URL(dictionary.manifestUrl, location.href)).href;
       return this.call("install", {
+        dictionary: this.workerDictionary(id),
         databaseUrl,
         totalBytes: manifest.downloadBytes || manifest.databaseBytes,
         compression: manifest.format === "sqlite+gzip" ? "gzip" : "none",
         schemaVersion: manifest.schemaVersion,
-        version: manifest.version
+        version: manifest.version,
+        dictionaryId: manifest.id || dictionary.id
       });
     }
 
-    remove() {
-      return this.call("remove");
+    remove(id = this.activeDictionaryId) {
+      return this.call("remove", { dictionary: this.workerDictionary(id) });
     }
 
-    query(word) {
-      return this.call("query", String(word || "").trim());
+    query(word, id = this.activeDictionaryId) {
+      return this.call("query", { dictionary: this.workerDictionary(id), word: String(word || "").trim() });
     }
 
-    queryMany(words) {
-      return this.call("queryMany", Array.isArray(words) ? words : []);
+    queryMany(words, id = this.activeDictionaryId) {
+      return this.call("queryMany", { dictionary: this.workerDictionary(id), words: Array.isArray(words) ? words : [] });
     }
 
-    match(word, limit = 10, strip = false) {
-      return this.call("match", { word: String(word || "").trim(), limit, strip });
+    match(word, limit = 10, strip = false, id = this.activeDictionaryId) {
+      return this.call("match", { dictionary: this.workerDictionary(id), word: String(word || "").trim(), limit, strip });
     }
 
-    count() {
-      return this.call("count");
+    count(id = this.activeDictionaryId) {
+      return this.call("count", { dictionary: this.workerDictionary(id) });
     }
 
-    list(options = {}) {
-      return this.call("list", options);
+    list(options = {}, id = this.activeDictionaryId) {
+      return this.call("list", { dictionary: this.workerDictionary(id), options });
     }
 
-    studyList(options = {}) {
-      return this.call("studyList", options);
+    studyList(options = {}, id = this.activeDictionaryId) {
+      return this.call("studyList", { dictionary: this.workerDictionary(id), options });
     }
 
     onProgress(listener) {

@@ -1,10 +1,15 @@
 import sqlite3InitModule from "../vendor/sqlite-wasm/index.js";
 
-const DATABASE_NAME = "/ecdict.sqlite";
+const DEFAULT_DICTIONARY = {
+  id: "ecdict",
+  languageId: "en",
+  databaseName: "/ecdict.sqlite"
+};
+
 let sqlite3;
 let pool;
 let database;
-let manifest;
+let currentDictionary;
 
 function reply(id, result, error) {
   self.postMessage({ id, result, error: error ? String(error.message || error) : undefined });
@@ -25,12 +30,25 @@ async function initialize() {
 function closeDatabase() {
   if (database) database.close();
   database = undefined;
+  currentDictionary = undefined;
 }
 
-function openDatabase() {
+function normalizeDictionary(payload = {}) {
+  const dictionary = payload.dictionary || payload;
+  const id = String(dictionary.id || DEFAULT_DICTIONARY.id);
+  const databaseName = String(dictionary.databaseName || DEFAULT_DICTIONARY.databaseName);
+  const languageId = String(dictionary.languageId || (id === "spanish-wiktionary" ? "es" : "en"));
+  if (!databaseName.startsWith("/") || databaseName.includes("..")) {
+    throw new Error("词典数据库文件名无效");
+  }
+  return { id, languageId, databaseName };
+}
+
+function openDatabase(dictionary = DEFAULT_DICTIONARY) {
   closeDatabase();
-  database = new pool.OpfsSAHPoolDb(DATABASE_NAME);
+  database = new pool.OpfsSAHPoolDb(dictionary.databaseName);
   database.exec("PRAGMA query_only=ON");
+  currentDictionary = dictionary;
 }
 
 function metadata() {
@@ -39,15 +57,17 @@ function metadata() {
   return Object.fromEntries(rows);
 }
 
-async function status() {
+async function status(payload = {}) {
   await initialize();
-  const installed = pool.getFileNames().includes(DATABASE_NAME);
-  if (installed && !database) openDatabase();
+  const dictionary = normalizeDictionary(payload);
+  const installed = pool.getFileNames().includes(dictionary.databaseName);
+  if (installed && (!database || currentDictionary?.databaseName !== dictionary.databaseName)) openDatabase(dictionary);
   return { installed, metadata: installed ? metadata() : null };
 }
 
 async function install(payload) {
   await initialize();
+  const dictionary = normalizeDictionary(payload);
   closeDatabase();
   const response = await fetch(payload.databaseUrl, { cache: "no-store" });
   if (!response.ok || !response.body) {
@@ -61,7 +81,7 @@ async function install(payload) {
   const progressStream = new TransformStream({
     transform(chunk, controller) {
       received += chunk.byteLength;
-      self.postMessage({ type: "progress", received, total: payload.totalBytes || 0 });
+      self.postMessage({ type: "progress", dictionaryId: dictionary.id, received, total: payload.totalBytes || 0 });
       controller.enqueue(chunk);
     }
   });
@@ -70,39 +90,46 @@ async function install(payload) {
     ? downloadedBody.pipeThrough(new DecompressionStream("gzip"))
     : downloadedBody;
   const reader = databaseBody.getReader();
-  await pool.importDb(DATABASE_NAME, async () => {
+  await pool.importDb(dictionary.databaseName, async () => {
     const { done, value } = await reader.read();
     if (done) return undefined;
     return value;
   });
 
-  openDatabase();
+  openDatabase(dictionary);
   const dbMeta = metadata();
   if (String(dbMeta.schema_version) !== String(payload.schemaVersion)) {
     closeDatabase();
-    pool.unlink(DATABASE_NAME);
+    pool.unlink(dictionary.databaseName);
     throw new Error("词典数据库版本不兼容");
+  }
+  if (payload.dictionaryId && dbMeta.dictionary_id && String(dbMeta.dictionary_id) !== String(payload.dictionaryId)) {
+    closeDatabase();
+    pool.unlink(dictionary.databaseName);
+    throw new Error("词典数据库身份不匹配");
   }
   const integrity = database.selectValue("PRAGMA quick_check");
   if (integrity !== "ok") {
     closeDatabase();
-    pool.unlink(DATABASE_NAME);
+    pool.unlink(dictionary.databaseName);
     throw new Error(`词典完整性检查失败：${integrity}`);
   }
-  manifest = payload;
   return { installed: true, metadata: dbMeta, received };
 }
 
-async function remove() {
+async function remove(payload = {}) {
   await initialize();
-  closeDatabase();
-  const removed = pool.unlink(DATABASE_NAME);
-  manifest = undefined;
+  const dictionary = normalizeDictionary(payload);
+  if (currentDictionary?.databaseName === dictionary.databaseName) closeDatabase();
+  const removed = pool.unlink(dictionary.databaseName);
   return { removed };
 }
 
-function requireDatabase() {
-  if (!database) throw new Error("本地词典尚未安装");
+function requireDatabase(payload = {}) {
+  const dictionary = normalizeDictionary(payload);
+  if (!pool.getFileNames().includes(dictionary.databaseName)) throw new Error("本地词典尚未安装");
+  if (!database || currentDictionary?.databaseName !== dictionary.databaseName) openDatabase(dictionary);
+  return dictionary;
 }
 
 function selectEntry(word) {
@@ -116,10 +143,11 @@ function selectEntry(word) {
   return rows[0] || null;
 }
 
-function query(word) {
-  requireDatabase();
+function query(payload) {
+  const dictionary = requireDatabase(payload);
+  const word = typeof payload === "string" ? payload : payload?.word;
   const result = selectEntry(word);
-  if (!result || String(result.exchange || "").trim()) return result;
+  if (!result || dictionary.id !== "ecdict" || String(result.exchange || "").trim()) return result;
 
   const doubledLVariant = String(result.word || word).replace(/l(ing|ed|er)$/i, "ll$1");
   if (doubledLVariant.toLowerCase() === String(result.word || word).toLowerCase()) return result;
@@ -131,14 +159,16 @@ function query(word) {
   return result;
 }
 
-function queryMany(words) {
-  requireDatabase();
+function queryMany(payload) {
+  requireDatabase(payload);
+  const words = Array.isArray(payload) ? payload : payload?.words;
   const uniqueWords = [...new Set((Array.isArray(words) ? words : []).map((word) => String(word || "").trim()).filter(Boolean))];
-  return uniqueWords.map((word) => query(word)).filter(Boolean);
+  return uniqueWords.map((word) => query({ ...payload, word })).filter(Boolean);
 }
 
-function match({ word, limit = 10, strip = false }) {
-  requireDatabase();
+function match(payload = {}) {
+  requireDatabase(payload);
+  const { word, limit = 10, strip = false } = payload;
   const normalizedLimit = Math.max(1, Math.min(Number(limit) || 10, 50));
   const key = strip ? String(word).replace(/[^\p{L}\p{N}]/gu, "").toLowerCase() : word;
   const field = strip ? "sw" : "word";
@@ -148,13 +178,14 @@ function match({ word, limit = 10, strip = false }) {
   ).map(([id, entryWord]) => ({ id, word: entryWord }));
 }
 
-function count() {
-  requireDatabase();
+function count(payload = {}) {
+  requireDatabase(payload);
   return database.selectValue("SELECT count(*) FROM stardict");
 }
 
-function list({ entryType = "words", category = "all", sort = "alphabetical", query = "", page = 1, pageSize = 100 } = {}) {
-  requireDatabase();
+function list(payload = {}) {
+  requireDatabase(payload);
+  const { entryType = "words", category = "all", sort = "alphabetical", query = "", page = 1, pageSize = 100 } = payload.options || payload;
   const categories = {
     all: ["1=1", []],
     oxford: ["oxford > 0", []],
@@ -199,8 +230,9 @@ function list({ entryType = "words", category = "all", sort = "alphabetical", qu
   return { rows, total, page: normalizedPage, pageSize: normalizedPageSize, pageCount };
 }
 
-function studyList({ category = "all", sort = "alphabetical" } = {}) {
-  requireDatabase();
+function studyList(payload = {}) {
+  requireDatabase(payload);
+  const { category = "all", sort = "alphabetical" } = payload.options || payload;
   const categories = {
     oxford: "oxford > 0",
     zk: "instr(' ' || lower(tag) || ' ', ' zk ') > 0",
