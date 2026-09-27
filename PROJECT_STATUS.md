@@ -16,7 +16,7 @@ Local testing remains the default development workflow. Run `tools/start-langlsr
 
 - Four-part navigation: `听说 -> 读 -> 写`; reading and writing currently remain placeholders.
 - A compact `英 / 西` learning-language control sits left of the `听说读写` navigation. The selected learning language is stored locally. English remains the complete runtime language; selecting `西` switches the active local dictionary to `spanish-wiktionary` for lookup and the dictionary browser, while still leaving built-in materials, listening/speaking behavior, collection, word review, grammar analysis, backup, and cloud sync on the existing English-oriented paths.
-- Selecting `西` switches practice to the built-in `常用西语句库` (`assets/libraries/common-spanish-134910/`, 134,910 Tatoeba sentences via manythings.org `spa-eng`, Spanish + English translation, CC BY 2.0 FR) and resumes a separate Spanish last position. TTS and speech recognition follow the Spanish accent region chosen in the accent select (`西班牙` es-ES by default, `墨西哥`, `美国`, `阿根廷`, `哥伦比亚`, `智利`, plus `原声` for audio material; materials and records are not region-specific yet), with Spanish accent/voice choices saved separately from English. Sentence favorites, the `用户收藏` library option, and AI grammar analysis are off for Spanish until they are language-scoped; Spanish dictation tokenization and grading remain English-oriented (accented words are split) pending the accent-strictness decision.
+- Selecting `西` switches practice to the built-in `常用西语句库` (`assets/libraries/common-spanish-134910/`, 134,910 Tatoeba sentences via manythings.org `spa-eng`, Spanish + English translation, CC BY 2.0 FR) and resumes a separate Spanish last position. TTS and speech recognition follow the Spanish accent region chosen in the accent select (`西班牙` es-ES by default, `墨西哥`, `美国`, `阿根廷`, `哥伦比亚`, `智利`, plus `原声` for audio material; materials and records are not region-specific yet), with Spanish accent/voice choices saved separately from English. Sentence favorites, the `用户收藏` library option, and AI grammar analysis are off for Spanish until they are language-scoped; Word splitting and dictation grading use separate per-language rules (`src/languages/en/text.js`, `src/languages/es/text.js`): Spanish keeps accented words whole and grades accents strictly (owner decision 2026-09-28: a missing or wrong accent is an error, `ñ` is never `n`), while English keeps its own ASCII rules.
 - The Spanish default locale is Spain Spanish `es-ES`. By the owner's 2026-09-28 decision the accent select also offers `es-MX`, `es-US`, `es-AR`, `es-CO`, and `es-CL` (Edge online natural voices); regions currently affect TTS voices and speech recognition only, not materials, records, or caches.
 - Browser-dependent Spanish capabilities are explicitly scoped. Owner-side Edge has verified `speechSynthesis` Spanish voices, including `es-ES`. Spanish sentence-library Chinese translations are planned as browser `Translator API` machine translations from Spanish directly to Chinese (`es -> zh`); if that language pair is unavailable, the tooling must report an error instead of translating from the existing English column.
 - Local users, browser storage, user switching, JSON import/export, and settings reset.
@@ -124,6 +124,9 @@ langLSRW/
   src/
     app.js
     library.js
+    languages/
+      en/text.js  # English word splitting and dictation comparison rules
+      es/text.js  # Spanish word splitting and dictation comparison rules
     dictionary/
       dictionary-service.js
       dictionary-worker.js
@@ -134,6 +137,10 @@ langLSRW/
   assets/libraries/common-english-30150/
     manifest.json
     sentences.tsv
+  assets/libraries/common-spanish-134910/
+    manifest.json
+    sentences.tsv
+    LICENSE.md
   assets/dictionaries/runtime/ecdict/  # generated manifest, package, and license
   tools/build-web.mjs
   tools/build-ecdict.py
@@ -232,6 +239,7 @@ Verified on 2026-09-28:
 
 - The Spanish common library package (`assets/libraries/common-spanish-134910/`) was parsed in Node with the site's `src/library.js` loader: 134,910 rows, matching the manifest count. Language switching, per-language last position, `es-ES` accents/voices, and the Spanish feature switches pass `node --check`; in-browser behavior awaits the owner's check.
 - The Spanish accent regions (`es-ES`, `es-MX`, `es-US`, `es-AR`, `es-CO`, `es-CL`) pass `node --check`; the voice names come from the owner's Edge voice export (`third-party/Spanish/libraries/spa-eng/Edge_language.txt`), and in-browser selection awaits the owner's check.
+- The per-language text rules were checked in Node by loading both language files and calling the site's own functions: under the Spanish rules `Váyase.` stays one word, `¿Dónde está el baño? ¡Ñandú, pingüino!` splits into six whole words, `Vayase`/`Váyase`, `el`/`él`, and `nino`/`niño` are graded wrong, and `VÁYASE`/`Váyase` is correct; under the English rules the original ASCII algorithm runs.
 
 ## Next Priorities
 
@@ -244,4 +252,4 @@ Verified on 2026-09-28:
 7. Before formal release, implement the cloud-first account data model: authoritative cloud records, complete synchronization coverage, offline caching and queued writes, conflict handling, migrations, recovery, and visible sync state. Preserve local-only users as a separate offline mode.
 8. Add a backend proxy, authentication, quotas, and cloud storage controls before broader public use.
 9. Introduce the generic language registry and adapter boundaries described in `MULTILINGUAL_ARCHITECTURE.md`, register existing English behavior without changing it, and then add Spanish as the first new language package. Validate extensibility with a minimal German or French package before building all Spanish-specific advanced capabilities.
-10. Spanish next steps: decide dictation accent strictness, then make word tokenization, lookup, and grading Unicode-aware (accented words are currently split); language-scope sentence favorites, translation and grammar caches; add the machine-translated Chinese column when `sentences.zh.tsv` is complete.
+10. Spanish next steps: language-scope sentence favorites, translation and grammar caches (then enable Spanish sentence favorites); add the machine-translated Chinese column when `sentences.zh.tsv` is complete; consider a dedicated accent-error hint in dictation feedback.

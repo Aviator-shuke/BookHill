@@ -1273,7 +1273,7 @@ const fallbackSentences = [
         group.push(item);
         const next = items[index + 1];
         const endsSentence = /[.?!…]["'”’)\]]*$/.test(item.text);
-        const continues = /[,;:\-–—]$/.test(item.text) || /^[a-z]/.test(next?.text || "");
+        const continues = /[,;:\-–—]$/.test(item.text) || languageText().startsLowercase(next?.text || "");
         if (!next || endsSentence || !continues || group.length >= TIMED_MERGE_MAX_LINES) flush();
       });
       return merged;
@@ -5412,7 +5412,7 @@ ${orderNote}`;
 
     function getTargetWordEndingAt(position) {
       const target = currentSentence();
-      const wordPattern = /[A-Za-z]+(?:['’.-][A-Za-z]+)*/g;
+      const wordPattern = languageText().typedWordRegex();
       let match;
       while ((match = wordPattern.exec(target)) !== null) {
         const word = match[0];
@@ -5449,8 +5449,15 @@ ${orderNote}`;
       return char;
     }
 
+    // Word splitting and dictation comparison come from the current learning language's own text rules
+    // (src/languages/<id>/text.js); English and Spanish use separate algorithms.
+    function languageText() {
+      const languages = window.langLSRWLanguages || {};
+      return languages[state.learningLanguageId]?.text || languages.en.text;
+    }
+
     function isCheckChar(char) {
-      return /[A-Za-z0-9]/.test(char || "");
+      return languageText().isCheckChar(char);
     }
 
     function getCheckChars(text) {
@@ -5458,7 +5465,7 @@ ${orderNote}`;
       for (let i = 0; i < text.length; i += 1) {
         const char = text[i];
         if (isCheckChar(char)) {
-          chars.push({ char, normalized: char.toLowerCase(), pos: i + 1 });
+          chars.push({ char, normalized: languageText().normalizeChar(char), pos: i + 1 });
         }
       }
       return chars;
@@ -5470,7 +5477,7 @@ ${orderNote}`;
 
     function getWordMatches(text) {
       const words = [];
-      const wordPattern = /[A-Za-z0-9]+(?:['’.-][A-Za-z0-9]+)*/g;
+      const wordPattern = languageText().wordRegex();
       let match;
       while ((match = wordPattern.exec(text)) !== null) {
         const value = match[0];
@@ -5489,7 +5496,7 @@ ${orderNote}`;
       const targetWords = getWordMatches(target);
       const pairs = [];
       let targetIndex = 0;
-      const trailingWord = /[A-Za-z0-9'’.-]$/.test(input);
+      const trailingWord = languageText().endsInWord(input);
 
       inputWords.forEach((inputWord, inputIndex) => {
         let foundIndex = -1;
@@ -5527,7 +5534,7 @@ ${orderNote}`;
 
     function getTargetWordPieces(target) {
       const pieces = [];
-      const wordPattern = /[A-Za-z0-9]+(?:['’.-][A-Za-z0-9]+)*/g;
+      const wordPattern = languageText().wordRegex();
       let lastIndex = 0;
       let match;
       while ((match = wordPattern.exec(target)) !== null) {
