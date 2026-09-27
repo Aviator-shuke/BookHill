@@ -5064,7 +5064,7 @@
       padding-right: calc(10px + 75px + 12px);
     }
 
-    .target .translation-prompt:not(.translation-editor) > .translation-edit-button {
+    .target .translation-prompt:not(.translation-editor) > .translation-actions {
       position: absolute;
       top: 50%;
       right: 10px;
@@ -5075,7 +5075,7 @@
       padding-right: calc(75px + 12px);
     }
 
-    .long-text-target .long-text-item .translation-prompt:not(.translation-editor) > .translation-edit-button {
+    .long-text-target .long-text-item .translation-prompt:not(.translation-editor) > .translation-actions {
       right: 0;
     }
 
@@ -5132,4 +5132,36 @@
     /* The mastery cards keep their fixed 145px width in the lookup popover; a wider popover does not stretch them. */
     .dictionary-lookup-popover .dictionary-mastery-items {
       grid-template-columns: repeat(3, 145px);
+    }
+
+    /* 🌈 (saved AI grammar analysis) sits left of 编辑 inside the star column. */
+    .translation-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .translation-grammar-button {
+      min-width: 0;
+      min-height: 0;
+      height: 22px;
+      padding: 0 3px;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      background: transparent;
+      font-size: 13px;
+      line-height: 1;
+      opacity: 0.75;
+    }
+
+    .translation-grammar-button:hover,
+    .translation-grammar-button.is-active {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      opacity: 1;
+    }
+
+    .long-text-target .long-text-item .translation-grammar-button {
+      height: 18px;
+      font-size: 12px;
     }

@@ -668,6 +668,23 @@ const fallbackSentences = [
       }
     }
 
+    // 🌈 marks sentences that already have an AI grammar analysis; clicking it shows (or hides) that analysis.
+    function grammarToggleButton(visible) {
+      return `<button class="translation-grammar-button${visible ? " is-active" : ""}" type="button" data-grammar-toggle title="${visible ? "隐藏 Ai 语法分析" : "显示已保存的 Ai 语法分析"}" aria-pressed="${visible}">🌈</button>`;
+    }
+
+    function grammarCacheKeySet() {
+      return new Set(loadGrammarCache()
+        .filter((item) => item && String(item.grammar || "").trim() && (item.framework || grammarFrameworkFromContent(item.grammar)) === "traditional")
+        .map((item) => grammarCacheSentenceKey(item.key || item.sentence)));
+    }
+
+    function sentenceHasGrammar(item, keys) {
+      const normalized = normalizeSentenceItem(item);
+      if (normalized.grammar && grammarFrameworkFromContent(normalized.grammar) === "traditional") return true;
+      return keys.has(grammarCacheSentenceKey(normalized.text));
+    }
+
     function findCachedGrammar(sentence) {
       const key = grammarCacheSentenceKey(sentence);
       const record = loadGrammarCache().find((item) => (
@@ -1957,8 +1974,13 @@ const fallbackSentences = [
       openAiTextModal("Ai询问", buildGrammarPrompt(sentence, currentTranslation()));
     }
 
+    // The "analysing" placeholder belongs to the sentence being analysed, not to whichever sentence is current.
+    function isAnalysingCurrentSentence() {
+      return state.grammarLoading && state.sentences === state.grammarLoadingSentences && state.index === state.grammarLoadingIndex;
+    }
+
     function renderGrammarAnalysis() {
-      if (state.grammarLoading) {
+      if (isAnalysingCurrentSentence()) {
         return '<div class="grammar-panel is-loading">正在分析语法...</div>';
       }
       if (!state.grammarVisible) return "";
@@ -2180,9 +2202,15 @@ const fallbackSentences = [
         alert("请先在“设置”的“AI 接口”中填写并保存 API Key。");
         return;
       }
+      // Remember the analysed sentence: the learner (or 全文 reading) may move on while the request is running.
+      const analysedIndex = state.index;
+      const analysedSentences = state.sentences;
       state.grammarLoading = true;
+      state.grammarLoadingIndex = analysedIndex;
+      state.grammarLoadingSentences = analysedSentences;
       state.grammarVisible = true;
       renderTarget();
+      let finishedOk = false;
       $("analyzeGrammarBtn").disabled = true;
       $("analyzeGrammarBtn").textContent = "分析中";
       try {
@@ -2208,22 +2236,36 @@ const fallbackSentences = [
         const data = await response.json();
         const content = chatCompletionContent(data).trim();
         if (!content) throw new Error("AI 没有返回语法分析内容。");
-        const item = normalizeSentenceItem(state.sentences[state.index]);
-        item.grammar = content;
-        item.grammarRaw = content;
-        state.sentences[state.index] = item;
+        if (sentenceText(analysedSentences[analysedIndex]) === sentence) {
+          const item = normalizeSentenceItem(analysedSentences[analysedIndex]);
+          item.grammar = content;
+          item.grammarRaw = content;
+          analysedSentences[analysedIndex] = item;
+        }
         saveGrammarCache(sentence, content, content);
         scheduleCloudSync();
+        finishedOk = true;
         $("sourceStatus").textContent = force
           ? "当前句已重新分析并更新缓存。"
           : "当前句语法分析已保存。";
       } catch (error) {
-        state.grammarVisible = Boolean(cachedGrammar);
+        if (state.sentences === analysedSentences && state.index === analysedIndex) state.grammarVisible = Boolean(cachedGrammar);
         alert(`语法分析失败：${error.message || error}`);
       } finally {
         state.grammarLoading = false;
+        state.grammarLoadingIndex = -1;
+        state.grammarLoadingSentences = null;
         $("analyzeGrammarBtn").disabled = false;
         $("analyzeGrammarBtn").textContent = "Ai语法分析";
+        // A finished analysis stops 全文 reading and returns to the analysed sentence to show the result,
+        // unless the library has been switched in the meantime.
+        if (finishedOk) stopFullTextReading();
+        if (finishedOk && state.sentences === analysedSentences && state.index !== analysedIndex) {
+          state.index = analysedIndex;
+          saveLastPosition();
+          resetCurrent(false);
+        }
+        if (finishedOk && state.sentences === analysedSentences) state.grammarVisible = true;
         renderTarget();
       }
     }
@@ -6498,7 +6540,7 @@ ${orderNote}`;
           </div>`
         : `<div class="translation-prompt ${showTranslation ? "" : "is-hidden"}">
             <span aria-hidden="${showTranslation ? "false" : "true"}">${translationText}</span>
-            <button class="translation-edit-button" type="button" data-translation-action="edit">编辑</button>
+            <div class="translation-actions">${hasGrammarCache ? grammarToggleButton(state.grammarVisible) : ""}<button class="translation-edit-button" type="button" data-translation-action="edit">编辑</button></div>
           </div>`;
       const grammarHtml = renderGrammarAnalysis();
       const input = typingBox.value;
@@ -6598,6 +6640,7 @@ ${orderNote}`;
       const previousScroll = targetEl.scrollTop;
       const showSource = $("showSourceToggle").checked;
       const showTranslation = $("showTranslationToggle").checked;
+      const analysedKeys = grammarCacheKeySet();
       const rows = [];
       for (let index = start; index < end; index += 1) {
         if (index === state.index) {
@@ -6607,7 +6650,7 @@ ${orderNote}`;
         const item = normalizeSentenceItem(state.sentences[index]);
         rows.push(`<div class="long-text-item" data-long-text-index="${index}" title="点击切换到这一句">
           <span class="target-english"><span class="target-english-text${showSource ? "" : " long-text-hidden-note"}">${showSource ? longTextEnglishHtml(item.text) : "原文已隐藏"}</span>${sentenceFavoriteButton(item.text)}</span>
-          <div class="translation-prompt ${showTranslation ? "" : "is-hidden"}"><span aria-hidden="${showTranslation ? "false" : "true"}">${escapeHtml(item.translation || "暂无翻译")}</span><button class="translation-edit-button long-text-edit-spacer" type="button" tabindex="-1" aria-hidden="true">编辑</button></div>
+          <div class="translation-prompt ${showTranslation ? "" : "is-hidden"}"><span aria-hidden="${showTranslation ? "false" : "true"}">${escapeHtml(item.translation || "暂无翻译")}</span><div class="translation-actions">${sentenceHasGrammar(item, analysedKeys) ? grammarToggleButton(false) : ""}<button class="translation-edit-button long-text-edit-spacer" type="button" tabindex="-1" aria-hidden="true">编辑</button></div></div>
         </div>`);
       }
       targetEl.className = `target long-text-target${focus ? " is-focus" : ""}${hiddenSource ? " hidden-source" : ""}`;
@@ -7348,6 +7391,21 @@ ${orderNote}`;
         if (action === "edit") beginTranslationEdit();
         if (action === "save") saveCurrentTranslation();
         if (action === "cancel") cancelTranslationEdit();
+        return;
+      }
+
+      const grammarToggle = event.target.closest("[data-grammar-toggle]");
+      if (grammarToggle) {
+        const row = grammarToggle.closest(".long-text-item:not(.is-current)");
+        const index = row ? Number(row.dataset.longTextIndex) : state.index;
+        if (row && Number.isInteger(index) && index !== state.index) {
+          state.index = index;
+          resetCurrent(true);
+          state.grammarVisible = true;
+        } else {
+          state.grammarVisible = !state.grammarVisible;
+        }
+        renderTarget();
         return;
       }
 

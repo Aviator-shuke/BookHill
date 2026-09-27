@@ -240,6 +240,8 @@ Grammar analysis is manually triggered and never runs automatically during ordin
 - Cached results retain schema and convention provenance.
 - A convention change does not silently relabel, delete, or regenerate older analysis.
 - Reanalysis is always an explicit user action.
+- Sentences that already have an analysis (on the sentence item or in the grammar cache, traditional framework) show a 🌈 button (`[data-grammar-toggle]`) left of `编辑` in their translation line; `编辑` and 🌈 share the `.translation-actions` group positioned in the star column. On the current sentence it toggles `state.grammarVisible`; on a neighbouring long-text row it switches to that sentence and shows its analysis. Long-text rows check a `grammarCacheKeySet()` built once per render.
+- While a request runs, `analyzeCurrentGrammar()` pins the analysed sentence (`state.grammarLoadingIndex` / `state.grammarLoadingSentences`): the `正在分析语法...` placeholder only shows on that sentence, so it no longer follows the learner or `全文` reading to other sentences, and the result is written to that sentence rather than to whichever one is current. When the analysis succeeds it stops `全文` reading, returns to the analysed sentence if the view had moved on (same library only), and shows the result.
 
 ## Control Tooltips
 

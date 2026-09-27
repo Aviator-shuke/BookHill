@@ -98,7 +98,7 @@ Local testing remains the default development workflow. Run `tools/start-langlsr
 
 ### AI grammar analysis
 
-- Manual AI trigger; sentence switching and ordinary practice never trigger paid requests.
+- Manual AI trigger; sentence switching and ordinary practice never trigger paid requests. Sentences with a saved analysis show 🌈 left of the translation's `编辑`; clicking it shows or hides the analysis (on a neighbouring long-text sentence it switches there first). A running analysis stays with the sentence it was started on: the loading placeholder does not follow navigation or `全文` reading, and when the result arrives `全文` reading stops and the view returns to that sentence to show it.
 - Personal local API settings stored in browser storage for the current private-use stage.
 - Traditional English teaching grammar is the only enabled runtime framework.
 - Hierarchical grammar JSON rendering with main, first-level, and all-node views.
@@ -216,6 +216,7 @@ Verified on 2026-09-27:
 - The bilingual `Audio_Example.lrc` written through `翻译字幕` was parsed in Node: 136 sentences, every one translated, and a second `buildBilingualLrc()` pass inserts nothing. The check exposed a parser bug where Chinese translations containing a colon were taken as `English: 中文` inline pairs, creating two fake sentences and leaving their English lines untranslated; `splitInlineTranslation()` now requires a non-Chinese left side.
 - The display-mode select (`单句显示` / `长文显示` / `长文聚焦`), click-to-switch rows, per-row stars, typing-width alignment, and Up / Down in-order navigation pass `node --check`; their in-browser look and behavior are verified by the owner.
 - The lookup popover's `自动发音` alignment was measured in the in-app browser with a stubbed dictionary result: checkbox, label text ink, and star ink share one vertical centre within 0.5px; the owner then fine-tuned the text offset by eye. `全文` reading, the popover size limits, and the collapse button pass `node --check` and await the owner's in-browser check.
+- Grammar-analysis pinning (placeholder stays on the analysed sentence, the result is saved to it, `全文` stops and the view returns to it) and the 🌈 analysis toggle pass `node --check`; a live AI request and the in-browser look await the owner's check.
 - `node --check src/app.js` passes.
 
 ## Next Priorities
