@@ -3486,39 +3486,14 @@ ${orderNote}`;
       return tags.map((tag) => `<span class="dictionary-level-tag dictionary-level-${tag.key}">${escapeHtml(tag.label)}</span>`).join("");
     }
 
+    // Word forms are read by the current learning language's dictionary rules (src/languages/<id>/dictionary.js).
     function dictionaryExchanges(value) {
-      const labels = {
-        p: "过去式",
-        d: "过去分词",
-        i: "现在分词",
-        3: "第三人称单数",
-        r: "比较级",
-        t: "最高级",
-        s: "复数",
-        0: "原形",
-        1: "原形类别"
-      };
-      return String(value || "")
-        .split("/")
-        .map((item) => {
-          const separator = item.indexOf(":");
-          if (separator < 1) return null;
-          const type = item.slice(0, separator).trim();
-          const form = item.slice(separator + 1).trim();
-          return form ? { type, label: labels[type] || type, form } : null;
-        })
-        .filter(Boolean);
+      return languageDictionary().exchanges(value);
     }
 
     function dictionaryExchangeHtml(exchanges) {
       if (!exchanges.length) return "";
-      const groupDefinitions = [
-        { key: "base", label: "原形", types: ["0", "1"] },
-        { key: "noun", label: "名词", types: ["s"] },
-        { key: "tense", label: "时态", types: ["3", "p"] },
-        { key: "participle", label: "分词", types: ["i", "d"] },
-        { key: "comparison", label: "比较", types: ["r", "t"] }
-      ];
+      const groupDefinitions = languageDictionary().exchangeGroups;
       const knownTypes = new Set(groupDefinitions.flatMap((group) => group.types));
       const groups = groupDefinitions
         .map((group) => ({
@@ -3528,7 +3503,7 @@ ${orderNote}`;
         .filter((group) => group.items.length);
       const otherItems = exchanges.filter((item) => !knownTypes.has(item.type));
       if (otherItems.length) groups.push({ key: "other", label: "其他", items: otherItems });
-      return `<div class="dictionary-exchange"><div class="dictionary-section-label">词形变化</div><div class="dictionary-exchange-groups">${groups.map((group) => `<div class="dictionary-exchange-group"><div class="dictionary-exchange-group-label">${group.label}</div><dl>${group.items.map(({ label, form, type }) => `<div><dt>${escapeHtml(label)}</dt><dd><button class="dictionary-form-link${type === "0" ? " dictionary-form-base" : ""}" type="button" data-dictionary-form="${escapeHtml(form)}" title="查看 ${escapeHtml(form)}">${escapeHtml(form)}</button></dd></div>`).join("")}</dl></div>`).join("")}</div></div>`;
+      return `<div class="dictionary-exchange"><div class="dictionary-section-label">词形变化</div><div class="dictionary-exchange-groups">${groups.map((group) => `<div class="dictionary-exchange-group"><div class="dictionary-exchange-group-label">${group.label}</div><dl>${group.items.map(({ label, form, isBase }) => `<div><dt>${escapeHtml(label)}</dt><dd><button class="dictionary-form-link${isBase ? " dictionary-form-base" : ""}" type="button" data-dictionary-form="${escapeHtml(form)}" title="查看 ${escapeHtml(form)}">${escapeHtml(form)}</button></dd></div>`).join("")}</dl></div>`).join("")}</div></div>`;
     }
 
     function wordReviewRecordStarted(record) {
@@ -5483,6 +5458,11 @@ ${orderNote}`;
     function languageText() {
       const languages = window.langLSRWLanguages || {};
       return languages[state.learningLanguageId]?.text || languages.en.text;
+    }
+
+    function languageDictionary() {
+      const languages = window.langLSRWLanguages || {};
+      return languages[state.learningLanguageId]?.dictionary || languages.en.dictionary;
     }
 
     function isCheckChar(char) {

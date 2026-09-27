@@ -233,7 +233,9 @@ locale = 已保存口音或 en-GB
 
 ECDICT 是英语词典，不能用于西班牙语。西语第一版词典原料采用 Kaikki Spanish Wiktionary JSONL，源文件保存在 `../third-party/Spanish/kaikki.org-dictionary-Spanish.jsonl`，由 `tools/build-spanish-dictionary.py` 构建为 `assets/dictionaries/runtime/spanish-wiktionary/` 下的 SQLite gzip 包。该包沿用 ECDICT 兼容表结构，方便未来复用本地安装、查询、收藏和背词链路。
 
-2026-09-27 的首次完整构建已经完成：770,716 个合并词条，SQLite 原始大小 436,391,936 bytes，gzip 包 70,042,471 bytes。设置页已经能把它作为独立词典包安装、删除和测试查询；`西` 学习语言入口已经能用它进行右键查词和词库浏览。收藏隔离、背词入口、中文解释缓存和西语分级/词频分类仍未接入。
+2026-09-27 的首次完整构建已经完成：770,716 个合并词条，SQLite 原始大小 436,391,936 bytes，gzip 包 70,042,471 bytes。设置页已经能把它作为独立词典包安装、删除和测试查询；`西` 学习语言入口已经能用它进行右键查词和词库浏览。收藏已按语言隔离（2026-09-28）；背词入口、中文解释缓存和西语分级/词频分类仍未接入。
+
+西语包的 `exchange` 字段每行一条 `标签:词形`（原形为 `0:原形`，例如 `0:abogado` 与 `plural:abogadas` 各占一行），而 ECDICT 用 `/` 连接各项。英语和西语各用独立的词形规则：`src/languages/en/dictionary.js` 按 `/` 读 ECDICT 并分成原形、名词、时态、分词、比较组；`src/languages/es/dictionary.js` 按行读西语包（词形本身可以含 `/`），原形单列，其余词形暂归 `其他` 组；`app.js` 通过 `languageDictionary()` 取当前学习语言的规则，只负责显示。2026-09-28 修复前，西语多项词形被当成一项，显示成 `abogado plural:abogadas` 一个链接，点击后查不到，原形无法跳转。西语词形标签（`plural`、`feminine` 等）目前仍显示 Wiktionary 英文原文；改成中文标签和分组时只改 `es/dictionary.js`。
 
 Kaikki/Wiktionary 释义当前主要是英文 gloss；中文学习解释、例句精修和学习提示应作为显式生成并缓存的上层数据。`../third-party/Spanish/spa-eng/spa.txt` 是 Tatoeba / manythings.org 的西英句库候选，不是词典来源，不能导入词库。
 

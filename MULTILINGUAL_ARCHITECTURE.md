@@ -63,7 +63,7 @@ src/languages/de/
 src/languages/fr/
 ```
 
-已实现的第一部分（2026-09-28）：各语言的单词切分和听写比较规则放在 `src/languages/<语言>/text.js`（目前有 `en`、`es`），在 `app.js` 之前加载并注册到 `window.langLSRWLanguages`；`app.js` 通过 `languageText()` 按当前学习语言调用，不再内置某一种语言的规则。
+已实现的第一部分（2026-09-28）：各语言的单词切分和听写比较规则放在 `src/languages/<语言>/text.js`，词典词形（`exchange`）的读取和分组规则放在 `src/languages/<语言>/dictionary.js`（目前都有 `en`、`es`），在 `app.js` 之前加载并注册到 `window.langLSRWLanguages`；`app.js` 通过 `languageText()`、`languageDictionary()` 按当前学习语言调用，不再内置某一种语言的规则。
 
 语言包包括：
 

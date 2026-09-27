@@ -126,7 +126,9 @@ langLSRW/
     library.js
     languages/
       en/text.js  # English word splitting and dictation comparison rules
+      en/dictionary.js  # English (ECDICT) word-form parsing and grouping
       es/text.js  # Spanish word splitting and dictation comparison rules
+      es/dictionary.js  # Spanish (Wiktionary) word-form parsing and grouping
     dictionary/
       dictionary-service.js
       dictionary-worker.js
