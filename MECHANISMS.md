@@ -1,6 +1,6 @@
 # langLSRW Mechanisms
 
-Last updated: 2026-09-26
+Last updated: 2026-09-27
 
 This document records how implemented product behavior works. It describes the current code, not planned behavior. Update it whenever a trigger, storage rule, identity boundary, synchronization scope, or deployment mechanism changes.
 
@@ -13,6 +13,17 @@ langLSRW has two independent identity modes:
 - A Google account is never converted into an email-named local user.
 - Signing out clears the active cloud identity and returns to user selection.
 - Local-user data and cloud-account data use separate browser-storage namespaces.
+
+## Learning Language Entry
+
+The header places a compact `英 / 西` learning-language control between the brand and the `听 / 说 / 读 / 写` navigation. It selects the language being learned, not the Chinese interface language.
+
+- English is the only active runtime language. Its button is selected and does not change the current page or data.
+- The Spanish button is a planning-state entry. Selecting it shows that Spanish support is still being prepared and leaves English active.
+- The placeholder does not persist a language choice or change materials, storage keys, TTS, speech recognition, translation, dictionary, word review, grammar analysis, or synchronization behavior.
+- Do not turn the placeholder into a partial switch by routing Spanish content through English implementations. Functional switching begins only after the language registry, capability adapters, and language-scoped data identities in `MULTILINGUAL_ARCHITECTURE.md` are in place.
+
+Relevant implementation: `.language-nav` in `index.html` and its click handler in `src/app.js`.
 
 ## Local Persistence
 

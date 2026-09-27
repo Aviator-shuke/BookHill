@@ -2,7 +2,7 @@
 
 Last updated: 2026-09-27
 
-Detailed behavior, storage, synchronization, and build rules are maintained in [`MECHANISMS.md`](MECHANISMS.md).
+Detailed behavior, storage, synchronization, and build rules are maintained in [`MECHANISMS.md`](MECHANISMS.md). The accepted multi-language adapter direction, including future German and French packages, is documented in [`MULTILINGUAL_ARCHITECTURE.md`](MULTILINGUAL_ARCHITECTURE.md). Spanish is the first planned additional language; its specific rollout and linguistic risks are documented in [`SPANISH.md`](SPANISH.md). These plans are not implemented yet.
 
 ## Current Stage
 
@@ -15,6 +15,7 @@ Local testing remains the default development workflow. Run `tools/start-langlsr
 ### Shared application
 
 - Four-part navigation: `听说 -> 读 -> 写`; reading and writing currently remain placeholders.
+- A compact `英 / 西` learning-language control sits left of the `听说读写` navigation. English is the only enabled runtime language; selecting `西` currently gives an explicit planning-state notice and does not switch or reuse English data as Spanish.
 - Local users, browser storage, user switching, JSON import/export, and settings reset.
 - Four themes, cycled in this order: eye-care (default), light, gray, black.
 - Separate English-content and Chinese UI/translation font settings.
@@ -229,3 +230,4 @@ Verified on 2026-09-27:
 6. Add AI-generated learning materials based on level and interests, using manual triggers, caching, and result reuse.
 7. Before formal release, implement the cloud-first account data model: authoritative cloud records, complete synchronization coverage, offline caching and queued writes, conflict handling, migrations, recovery, and visible sync state. Preserve local-only users as a separate offline mode.
 8. Add a backend proxy, authentication, quotas, and cloud storage controls before broader public use.
+9. Introduce the generic language registry and adapter boundaries described in `MULTILINGUAL_ARCHITECTURE.md`, register existing English behavior without changing it, and then add Spanish as the first new language package. Validate extensibility with a minimal German or French package before building all Spanish-specific advanced capabilities.

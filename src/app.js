@@ -7644,6 +7644,13 @@ ${orderNote}`;
       tab.addEventListener("click", () => setActivePage(tab.dataset.pageTarget));
     });
 
+    document.querySelectorAll("[data-language-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (button.dataset.languageId === "en") return;
+        alert("西班牙语支持正在规划中。当前学习语言仍为英语。");
+      });
+    });
+
     $("exportDataBtn").addEventListener("click", exportData);
 
     $("importDataBtn").addEventListener("click", () => {

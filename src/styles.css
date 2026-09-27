@@ -875,6 +875,39 @@
       letter-spacing: 0;
     }
 
+    .language-nav {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 3px;
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+    }
+
+    .language-tab {
+      box-sizing: border-box;
+      width: 30px;
+      min-width: 30px;
+      min-height: 30px;
+      padding: 0;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: #dbeafe;
+      font-size: 14px;
+    }
+
+    .language-tab:hover {
+      border-color: transparent;
+      background: rgba(255,255,255,0.08);
+    }
+
+    .language-tab.active {
+      background: #f8fafc;
+      color: #111827;
+    }
+
     .page-nav {
       display: flex;
       align-items: center;

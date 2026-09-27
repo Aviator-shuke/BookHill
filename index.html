@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260927-208">
+  <link rel="stylesheet" href="src/styles.css?v=20260927-209">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -55,6 +55,10 @@
     <header class="topbar">
       <div class="brand-area">
         <h1 class="brand">langLSRW</h1>
+        <div class="language-nav" role="group" aria-label="学习语言">
+          <button class="language-tab active" type="button" data-language-id="en" title="当前学习语言：英语" aria-pressed="true">英</button>
+          <button class="language-tab" type="button" data-language-id="es" title="西班牙语支持正在规划中" aria-pressed="false">西</button>
+        </div>
         <nav class="page-nav" aria-label="学习页面">
           <button class="page-tab dual-tab active" type="button" data-page-target="listenPage"><span>听</span><span>说</span></button>
           <button class="page-tab" type="button" data-page-target="readPage">读</button>
@@ -646,6 +650,6 @@
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
   <script src="src/dictionary/dictionary-service.js?v=20260926-10"></script>
-  <script src="src/app.js?v=20260927-200"></script>
+  <script src="src/app.js?v=20260927-201"></script>
 </body>
 </html>
