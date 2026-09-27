@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260927-195">
+  <link rel="stylesheet" href="src/styles.css?v=20260927-207">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -209,6 +209,7 @@
               <select id="modeSelect" class="compact-select" aria-label="练习模式">
                 <option value="ordered">顺序</option>
                 <option value="random" selected>随机</option>
+                <option value="fulltext">全文</option>
                 <option value="mistakes">错句</option>
               </select>
               <button id="previousUnifiedBtn" class="sentence-nav-button" type="button" aria-label="上一句">◀</button>
@@ -227,8 +228,8 @@
                 <span>显示翻译</span>
               </label>
               <label class="check-row">
-                <input id="autoSpeakToggle" type="checkbox">
-                <span>自动朗读</span>
+                <input id="autoSpeakToggle" type="checkbox" title="打开后，切换到新句子时自动发音一遍">
+                <span>自动发音</span>
               </label>
               <button id="speakBtn" type="button">朗读 📢</button>
               <select id="accentSelect" class="compact-select" aria-label="口音" title="朗读声音：英音 / 美音用合成声音；载入音频字幕时默认为原声，也可以切换到英音或美音">
@@ -645,6 +646,6 @@
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
   <script src="src/dictionary/dictionary-service.js?v=20260926-10"></script>
-  <script src="src/app.js?v=20260927-189"></script>
+  <script src="src/app.js?v=20260927-195"></script>
 </body>
 </html>

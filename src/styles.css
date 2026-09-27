@@ -158,9 +158,10 @@
       position: fixed;
       z-index: 110;
       width: fit-content;
-      min-width: min(360px, calc(100vw - 16px));
-      max-width: calc(100vw - 16px);
-      max-height: calc(100vh - 16px);
+      min-width: min(calc(3 * 145px + 2 * 5px + 2 * 12px + 2px), calc(100vw - 16px));
+      /* Wide enough for the three 145px mastery cards in one row (+ gaps, padding, border). */
+      max-width: min(800px, calc(100vw - 16px));
+      max-height: min(640px, calc(100vh - 16px));
       overflow-y: auto;
       padding: 10px 12px;
       border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--ink));
@@ -175,9 +176,24 @@
 
     .dictionary-lookup-popover[hidden] { display: none; }
 
+    /* Lines wrap inside the popover's 800px maximum instead of stretching it to the longest definition. */
     .dictionary-lookup-popover .dictionary-meanings > div,
     .dictionary-lookup-popover .dictionary-definitions > div {
-      white-space: nowrap;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    /* Only the first five English definitions until the learner expands them. */
+    .dictionary-lookup-popover .dictionary-definitions.is-collapsed > div:nth-child(n+6) {
+      display: none;
+    }
+
+    .dictionary-definitions-more {
+      min-height: 0;
+      margin-top: 3px;
+      padding: 1px 8px;
+      color: var(--muted);
+      font-size: 12px;
     }
 
     .dictionary-lookup-header {
@@ -200,6 +216,8 @@
 
     .dictionary-lookup-actions {
       display: flex;
+      /* Checkbox, label text, stars and the close button share one vertical centre line. */
+      align-items: center;
       flex: 0 0 auto;
       gap: 6px;
     }
@@ -5088,4 +5106,30 @@
 
     .long-text-target .long-text-item:not(.is-current) {
       cursor: pointer;
+    }
+
+    .dictionary-auto-speak {
+      display: inline-flex;
+      /* Text sits 1.5px above the shared centre line; the checkbox is moved back down 1.5px to stay on it. */
+      position: relative;
+      top: -1.5px;
+      align-items: center;
+      gap: 3px;
+      margin-right: 4px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .dictionary-auto-speak input {
+      margin: 0;
+      position: relative;
+      top: 1.5px;
+    }
+
+    /* The mastery cards keep their fixed 145px width in the lookup popover; a wider popover does not stretch them. */
+    .dictionary-lookup-popover .dictionary-mastery-items {
+      grid-template-columns: repeat(3, 145px);
     }

@@ -318,6 +318,7 @@ const fallbackSentences = [
     }
 
     function setCurrentLibrary(label, statusText = "") {
+      stopFullTextReading();
       clearAudioMaterial();
       state.currentLibraryLabel = label || "自定义句库";
       syncCurrentLibrarySelect(state.currentLibraryLabel);
@@ -2594,7 +2595,7 @@ const fallbackSentences = [
         nextInOrder: shortcutDisplayName(state.shortcuts.nextSentenceInOrder)
       };
       const orderNote = `顺序模式：${keys.previousInOrder}/${keys.nextInOrder}=上/下一句；${keys.previous}/${keys.next}=上/下一句。\n随机模式：${keys.previousInOrder}/${keys.nextInOrder}=上/下一句；${keys.previous}/${keys.next}=上个随机句/随机下一句。`;
-      $("modeSelect").title = `顺序＝按句库顺序切换；\n随机＝从句库随机抽取。\n---------------------------
+      $("modeSelect").title = `顺序＝按句库顺序切换；\n随机＝从句库随机抽取；\n全文＝开始朗读后，从当前句连续朗读到全文结束。\n---------------------------
 ${orderNote}`;
       const previous = {
         ordered: "上一句",
@@ -2859,6 +2860,7 @@ ${orderNote}`;
       }
       if (!text) return;
       if (options.interrupt !== false) {
+        stopFullTextReading();
         window.speechSynthesis.cancel();
         stopSentenceAudio();
       }
@@ -2872,7 +2874,60 @@ ${orderNote}`;
     }
 
     function speakCurrentSentence() {
+      if ($("modeSelect").value === "fulltext") {
+        if (state.fullTextReading) stopFullTextReading();
+        else startFullTextReading();
+        return;
+      }
       speakSentence(currentReplayRate());
+    }
+
+    // 全文 mode: once reading starts, read from the current sentence to the last one in library order, moving the
+    // practice view along, then stop. Any other navigation, stop action, word replay, or library/mode change cancels it.
+    function setSpeakButtonReading(reading) {
+      const button = $("speakBtn");
+      button.textContent = reading ? "停止 ⏹" : "朗读 📢";
+      button.title = reading ? "停止全文朗读" : "朗读当前句；全文模式下从当前句连续朗读到结尾";
+    }
+
+    async function startFullTextReading() {
+      stopFullTextReading();
+      const run = { id: (state.fullTextRunId || 0) + 1 };
+      state.fullTextRunId = run.id;
+      state.fullTextReading = run;
+      setSpeakButtonReading(true);
+      const active = () => state.fullTextReading === run;
+      try {
+        while (active()) {
+          await speakSentenceAndWait(currentReplayRate());
+          if (!active() || state.index >= state.sentences.length - 1) break;
+          await waitMs(350);
+          if (!active()) break;
+          state.fullTextAdvancing = true;
+          try {
+            state.index += 1;
+            saveLastPosition();
+            resetCurrent(false);
+          } finally {
+            state.fullTextAdvancing = false;
+          }
+        }
+      } catch {
+        /* interrupted (for example by another TTS call): just stop */
+      } finally {
+        if (active()) {
+          state.fullTextReading = null;
+          setSpeakButtonReading(false);
+        }
+      }
+    }
+
+    function stopFullTextReading() {
+      if (!state.fullTextReading) return;
+      state.fullTextReading = null;
+      setSpeakButtonReading(false);
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      stopSentenceAudio();
     }
 
     function speakTextAndWait(text, options = {}) {
@@ -3211,6 +3266,7 @@ ${orderNote}`;
       if (!item) return;
       if (button.closest("#dictionaryLookupPopover")) {
         renderDictionaryLookupResult(item, word);
+        autoSpeakLookedUpWord(String(item.word || word));
         return;
       }
       if (button.closest("#userPhraseDetail")) {
@@ -3236,11 +3292,11 @@ ${orderNote}`;
       popover.innerHTML = `
         <div class="dictionary-lookup-header">
           <div class="dictionary-headword"><strong>${escapeHtml(word)}</strong>${result.phonetic ? `<button class="dictionary-phonetic" type="button" data-dictionary-pronounce="${escapeHtml(word)}" title="点击朗读" aria-label="朗读 ${escapeHtml(word)}">[${escapeHtml(result.phonetic)}]</button>` : ""}${dictionaryPronunciationButton(word)}</div>
-          <div class="dictionary-lookup-actions">${dictionaryFavoriteButton(word)}<button type="button" data-dictionary-close aria-label="关闭">×</button></div>
+          <div class="dictionary-lookup-actions">${dictionaryAutoSpeakToggle()}${dictionaryFavoriteButton(word)}<button type="button" data-dictionary-close aria-label="关闭">×</button></div>
         </div>
         ${pos ? `<div class="dictionary-pos">${escapeHtml(pos)}</div>` : ""}
         ${translations.length ? `<div class="dictionary-meanings">${translations.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
-        ${definitions.length ? `<div class="dictionary-definitions">${definitions.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
+        ${definitions.length ? `<div class="dictionary-definitions${definitions.length > 5 ? " is-collapsed" : ""}">${definitions.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}${definitions.length > 5 ? `<button type="button" class="dictionary-definitions-more" data-dictionary-more title="显示其余 ${definitions.length - 5} 条英文释义">展开全部（共 ${definitions.length} 条）</button>` : ""}</div>` : ""}
         ${!translations.length && !definitions.length ? `<div class="dictionary-lookup-empty">该词条暂无释义。</div>` : ""}
         ${collins || Number(result.oxford) > 0 || tags.length ? `<div class="dictionary-badges">
           ${collins ? `<span class="dictionary-collins" title="柯林斯 ${collins} 星">柯林斯 <span class="dictionary-collins-stars">${"★".repeat(collins)}</span></span>` : ""}
@@ -3260,8 +3316,11 @@ ${orderNote}`;
       return Number.isFinite(rank) && rank > 0 ? rank.toLocaleString() : "";
     }
 
-    function positionDictionaryLookup(anchor) {
+    // Normally the popover is exactly as tall as its content (no scrollbar). Only content taller than 640px (or than
+    // the viewport) is capped, and then it scrolls inside. Re-run after the content changes (e.g. 展开全部).
+    function positionDictionaryLookup(anchor = state.dictionaryLookupAnchor) {
       const popover = $("dictionaryLookupPopover");
+      state.dictionaryLookupAnchor = anchor;
       const margin = 8;
       const gap = 0;
       const preferredX = anchor?.clientX ?? anchor?.left ?? window.innerWidth / 2;
@@ -3273,7 +3332,7 @@ ${orderNote}`;
       const aboveSpace = avoidTop - gap - margin;
       popover.style.maxHeight = "none";
       const naturalHeight = popover.offsetHeight;
-      const viewportLimit = Math.max(0, window.innerHeight - margin * 2);
+      const viewportLimit = Math.max(0, Math.min(640, window.innerHeight - margin * 2));
       const popoverHeight = Math.min(naturalHeight, viewportLimit);
       popover.style.maxHeight = naturalHeight > viewportLimit ? `${viewportLimit}px` : "none";
       const useBelow = belowSpace >= popoverHeight || (aboveSpace < popoverHeight && belowSpace >= aboveSpace);
@@ -3588,6 +3647,26 @@ ${orderNote}`;
       return safeWord
         ? `<button class="dictionary-pronunciation-button" type="button" data-dictionary-pronounce="${safeWord}" title="朗读 ${safeWord}" aria-label="朗读 ${safeWord}">🔊</button>`
         : "";
+    }
+
+    // Word lookup popover: optional automatic pronunciation whenever a word is looked up (saved per browser).
+    const DICTIONARY_AUTO_SPEAK_KEY = "langLSRWDictionaryAutoSpeak";
+
+    function dictionaryAutoSpeakEnabled() {
+      try {
+        // On by default; only an explicit "0" (the learner unticked it) turns it off.
+        return localStorage.getItem(DICTIONARY_AUTO_SPEAK_KEY) !== "0";
+      } catch {
+        return true;
+      }
+    }
+
+    function dictionaryAutoSpeakToggle() {
+      return `<label class="dictionary-auto-speak" title="打开后，每次查询单词都自动朗读一遍"><input type="checkbox" data-dictionary-auto-speak ${dictionaryAutoSpeakEnabled() ? "checked" : ""}>自动发音</label>`;
+    }
+
+    function autoSpeakLookedUpWord(word) {
+      if (word && dictionaryAutoSpeakEnabled()) speakText(word, { rate: currentReplayRate() });
     }
 
     function pronounceDictionaryWord(button) {
@@ -4995,6 +5074,7 @@ ${orderNote}`;
           popover.innerHTML = `<div class="dictionary-lookup-header"><strong>${escapeHtml(word)}</strong><button type="button" data-dictionary-close aria-label="关闭">×</button></div><div class="dictionary-lookup-empty">本地词典中未找到该词。</div>`;
         } else {
           renderDictionaryLookupResult(result, word);
+          autoSpeakLookedUpWord(String(result.word || word));
         }
       } catch (error) {
         if (popover.dataset.word !== word) return;
@@ -6579,6 +6659,7 @@ ${orderNote}`;
     }
 
     function switchSpeakingSentence(nextIndex, shouldSpeak = false) {
+      stopFullTextReading();
       stopSpeakingPractice();
       stopSentenceAudio();
       state.index = (nextIndex + state.sentences.length) % state.sentences.length;
@@ -6600,6 +6681,7 @@ ${orderNote}`;
     }
 
     function resetCurrent(shouldSpeak = false) {
+      if (!state.fullTextAdvancing) stopFullTextReading();
       stopSentenceAudio();
       closeDictionaryLookup();
       state.translationEditing = false;
@@ -6705,6 +6787,7 @@ ${orderNote}`;
     }
 
     function stopSpeech() {
+      stopFullTextReading();
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
       stopSentenceAudio();
     }
@@ -7282,7 +7365,38 @@ ${orderNote}`;
         toggleDictionaryFavorite(favoriteButton);
         return;
       }
+      // 展开全部 keeps the popover at its current height and lets the extra definitions scroll inside it;
+      // 收起 folds them again and restores the natural height.
+      const moreButton = event.target.closest("[data-dictionary-more]");
+      if (moreButton) {
+        const popover = $("dictionaryLookupPopover");
+        const list = moreButton.closest(".dictionary-definitions");
+        if (!list) return;
+        const total = list.querySelectorAll(":scope > div").length;
+        if (list.classList.contains("is-collapsed")) {
+          popover.style.maxHeight = `${popover.offsetHeight}px`;
+          list.classList.remove("is-collapsed");
+          moreButton.textContent = "收起";
+          moreButton.title = "只显示前 5 条英文释义";
+        } else {
+          list.classList.add("is-collapsed");
+          moreButton.textContent = `展开全部（共 ${total} 条）`;
+          moreButton.title = `显示其余 ${total - 5} 条英文释义`;
+          popover.scrollTop = 0;
+          positionDictionaryLookup();
+        }
+        return;
+      }
       if (event.target.closest("[data-dictionary-close]")) closeDictionaryLookup();
+    });
+    $("dictionaryLookupPopover").addEventListener("change", (event) => {
+      if (!event.target.matches("[data-dictionary-auto-speak]")) return;
+      try {
+        localStorage.setItem(DICTIONARY_AUTO_SPEAK_KEY, event.target.checked ? "1" : "0");
+      } catch {
+        /* ignore storage errors */
+      }
+      if (event.target.checked) autoSpeakLookedUpWord($("dictionaryLookupPopover").dataset.word || "");
     });
     document.addEventListener("pointerdown", (event) => {
       if ($("dictionaryLookupPopover").hidden) return;
@@ -7302,7 +7416,10 @@ ${orderNote}`;
       saveSpeechSettings();
     });
 
-    $("modeSelect").addEventListener("change", updateSentenceNavigationTitles);
+    $("modeSelect").addEventListener("change", () => {
+      stopFullTextReading();
+      updateSentenceNavigationTitles();
+    });
     updateSentenceNavigationTitles();
     $("voiceSelect").addEventListener("change", saveSpeechSettings);
     $("autoSpeakToggle").addEventListener("change", saveSpeechSettings);
