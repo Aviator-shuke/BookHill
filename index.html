@@ -226,7 +226,7 @@
                 <span>自动朗读</span>
               </label>
               <button id="speakBtn" type="button">朗读 📢</button>
-              <select id="accentSelect" class="compact-select" aria-label="口音">
+              <select id="accentSelect" class="compact-select" aria-label="口音" title="朗读声音：英音 / 美音用合成声音；载入音频字幕时默认为原声，也可以切换到英音或美音">
                 <option value="en-GB">英音</option>
                 <option value="en-US">美音</option>
               </select>
@@ -389,9 +389,9 @@
             <h3>自定义句库</h3>
             <div id="sourceStatus" class="source-status">当前句库：默认示例</div>
           </div>
-          <label title="选择 .txt 或 .lrc 句库；同时选中音频（如 .m4a、.mp3）和对应的 .lrc 字幕时，每句播放原声片段">
-            导入 txt / lrc 句库，或音频 + lrc 字幕
-            <input id="fileInput" type="file" accept=".txt,.lrc,text/plain,audio/*,.m4a,.mp3,.wav,.ogg,.aac,.flac" multiple title="可一次选中音频和 .lrc 两个文件">
+          <label title="选择 .txt 或 .lrc 文件作为句库，只导入文字；音频 + 字幕请在“音频字幕”中导入">
+            导入 txt / lrc 句库
+            <input id="fileInput" type="file" accept=".txt,.lrc,text/plain" title="选择一个 .txt 或 .lrc 文件">
           </label>
           <label>
             粘贴句子（一行一句）
@@ -638,6 +638,6 @@
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
   <script src="src/dictionary/dictionary-service.js?v=20260926-10"></script>
-  <script src="src/app.js?v=20260927-155"></script>
+  <script src="src/app.js?v=20260927-157"></script>
 </body>
 </html>

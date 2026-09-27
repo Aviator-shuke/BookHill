@@ -1205,6 +1205,7 @@ const fallbackSentences = [
       const audio = new Audio(url);
       audio.preload = "auto";
       state.audioMaterial = { url, audio, name, playToken: 0, finishPlayback: null };
+      setOriginalVoiceOption(true);
     }
 
     function clearAudioMaterial() {
@@ -1214,11 +1215,49 @@ const fallbackSentences = [
       material.audio.removeAttribute("src");
       URL.revokeObjectURL(material.url);
       state.audioMaterial = null;
+      setOriginalVoiceOption(false);
+    }
+
+    // With an audio material loaded, the accent select gains 原声 and switches to it; 英音 / 美音 stay available and
+    // use TTS. 原声 is never saved as the accent setting: TTS-only uses (word replay, speech recognition, voices)
+    // keep reading the saved English accent through ttsAccent().
+    function setOriginalVoiceOption(available) {
+      const select = $("accentSelect");
+      let option = select.querySelector('option[value="original"]');
+      if (available) {
+        if (!option) {
+          option = document.createElement("option");
+          option.value = "original";
+          option.textContent = "原声";
+          select.prepend(option);
+        }
+        select.value = "original";
+      } else {
+        option?.remove();
+        select.value = state.speechSettings.accent || "en-GB";
+      }
+      updateVoiceSelectForAccent();
+    }
+
+    function usingOriginalVoice() {
+      return $("accentSelect").value === "original";
+    }
+
+    function ttsAccent() {
+      const value = $("accentSelect").value;
+      return value === "original" ? (state.speechSettings.accent || "en-GB") : value;
+    }
+
+    function updateVoiceSelectForAccent() {
+      const voiceSelect = $("voiceSelect");
+      const original = usingOriginalVoice();
+      voiceSelect.disabled = original;
+      voiceSelect.title = original ? "正在使用原声，不需要选择合成声音；切换到英音或美音后可选" : "选择朗读用的合成声音";
     }
 
     function currentSentenceAudioSegment() {
       const item = state.sentences[state.index];
-      if (!state.audioMaterial || !item || !Number.isFinite(item.start)) return null;
+      if (!state.audioMaterial || !usingOriginalVoice() || !item || !Number.isFinite(item.start)) return null;
       return { start: item.start, end: Number.isFinite(item.end) ? item.end : null };
     }
 
@@ -2159,8 +2198,8 @@ const fallbackSentences = [
 
     function saveSpeechSettings() {
       const settings = {
-        accent: $("accentSelect").value,
-        voiceURI: $("voiceSelect").value,
+        accent: ttsAccent(),
+        voiceURI: usingOriginalVoice() ? (state.speechSettings.voiceURI || "") : $("voiceSelect").value,
         autoSpeak: $("autoSpeakToggle").checked,
         speakWord: $("speakWordToggle").checked,
         showSource: $("showSourceToggle").checked,
@@ -2691,7 +2730,7 @@ const fallbackSentences = [
     function populateVoices() {
       if (!("speechSynthesis" in window)) return;
       state.voices = window.speechSynthesis.getVoices();
-      const accent = $("accentSelect").value;
+      const accent = ttsAccent();
       const matchingVoices = state.voices.filter((voice) => voice.lang && voice.lang.toLowerCase().startsWith(accent.toLowerCase()));
       const voices = matchingVoices.length ? matchingVoices : state.voices.filter((voice) => /^en-/i.test(voice.lang || ""));
       $("voiceSelect").innerHTML = '<option value="">自动选择</option>' + voices.map((voice) => (
@@ -2707,8 +2746,8 @@ const fallbackSentences = [
     }
 
     function chooseVoice() {
-      const voiceURI = $("voiceSelect").value;
-      const accent = $("accentSelect").value;
+      const voiceURI = usingOriginalVoice() ? "" : $("voiceSelect").value;
+      const accent = ttsAccent();
       if (voiceURI) return state.voices.find((voice) => voice.voiceURI === voiceURI) || null;
       return state.voices.find((voice) => voice.lang === accent)
         || state.voices.find((voice) => voice.lang && voice.lang.toLowerCase().startsWith(accent.toLowerCase()))
@@ -2727,7 +2766,7 @@ const fallbackSentences = [
         stopSentenceAudio();
       }
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = $("accentSelect").value;
+      utterance.lang = ttsAccent();
       utterance.rate = options.rate || 1;
       utterance.pitch = 1;
       const voice = chooseVoice();
@@ -2751,7 +2790,7 @@ const fallbackSentences = [
         }
         if (options.interrupt !== false) window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = $("accentSelect").value;
+        utterance.lang = ttsAccent();
         utterance.rate = options.rate || 1;
         utterance.pitch = 1;
         const voice = chooseVoice();
@@ -6009,7 +6048,7 @@ const fallbackSentences = [
       if (!Recognition) return false;
       const recognition = new Recognition();
       state.speaking.recognition = recognition;
-      recognition.lang = $("accentSelect").value || "en-GB";
+      recognition.lang = ttsAccent() || "en-GB";
       recognition.interimResults = true;
       recognition.continuous = false;
 
@@ -6566,7 +6605,8 @@ const fallbackSentences = [
     });
 
     $("fileInput").addEventListener("change", async (event) => {
-      await importSentenceFiles(event.target.files);
+      // 自定义句库 imports text only; audio + subtitle materials are imported in the 音频字幕 panel.
+      await importSentenceFile(event.target.files[0]);
       event.target.value = "";
     });
 
@@ -7043,8 +7083,14 @@ const fallbackSentences = [
     });
 
     $("accentSelect").addEventListener("change", () => {
+      stopSpeech();
+      if (usingOriginalVoice()) {
+        updateVoiceSelectForAccent();
+        return;
+      }
       state.speechSettings.voiceURI = "";
       populateVoices();
+      updateVoiceSelectForAccent();
       saveSpeechSettings();
     });
 
