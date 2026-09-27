@@ -3031,6 +3031,11 @@
       background: color-mix(in srgb, var(--surface) 54%, var(--panel));
     }
 
+    .user-words-controls label[hidden],
+    .word-review-launchers[hidden] {
+      display: none;
+    }
+
     .user-words-controls[hidden] {
       display: none;
     }
@@ -5059,6 +5064,12 @@
       background-position: 61px 0;
       background-repeat: no-repeat;
       background-size: 1px 100%;
+    }
+
+    /* Languages without 背单词 have no status slots, so no divider either. */
+    #dictionaryLibraryList.is-without-review-status .user-word-item,
+    #userPhrasesList.is-without-review-status .user-word-item {
+      background-image: none;
     }
 
     .word-review-status > span {

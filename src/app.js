@@ -174,14 +174,15 @@ const fallbackSentences = [
         shortLabel: "西",
         dictionaryId: "spanish-wiktionary",
         dictionaryName: "西语 Wiktionary",
-        collectionEnabled: false,
+        // Word and sentence favorites are stored per learning language; 背单词 is not connected for Spanish yet.
+        collectionEnabled: true,
         wordStudyEnabled: false,
         commonLibraryManifestUrl: "assets/libraries/common-spanish-134910/manifest.json",
         commonLibraryContent: "西语原句 + 英文翻译",
         // Accent regions for TTS voices and speech recognition; materials and records are not region-specific yet.
         accents: [["es-ES", "西班牙"], ["es-MX", "墨西哥"], ["es-US", "美国"], ["es-AR", "阿根廷"], ["es-CO", "哥伦比亚"], ["es-CL", "智利"]],
-        // Sentence favorites and AI grammar analysis are not language-scoped yet; keep them off for Spanish.
-        sentenceFavoritesEnabled: false,
+        sentenceFavoritesEnabled: true,
+        // AI grammar analysis is not language-scoped yet; keep it off for Spanish.
         grammarAnalysisEnabled: false
       }
     };
@@ -383,8 +384,14 @@ const fallbackSentences = [
       return `langLSRWLearnedCount:${state.currentUser || "guest"}`;
     }
 
+    // Per-learning-language data (last position, favorites, word reviews) keeps English on its original keys and
+    // appends the language id for any other language, so each language's records stay completely separate.
+    function learningLanguageStorageSuffix() {
+      return state.learningLanguageId && state.learningLanguageId !== "en" ? `:${state.learningLanguageId}` : "";
+    }
+
     function lastPositionStorageKey() {
-      const languageSuffix = state.learningLanguageId && state.learningLanguageId !== "en" ? `:${state.learningLanguageId}` : "";
+      const languageSuffix = learningLanguageStorageSuffix();
       if (state.cloudUser?.id) return `langLSRWLastPosition:cloud:${state.cloudUser.id}${languageSuffix}`;
       return `langLSRWLastPosition:${state.currentUser || "guest"}${languageSuffix}`;
     }
@@ -2594,7 +2601,7 @@ const fallbackSentences = [
         button.setAttribute("aria-pressed", String(active));
         button.title = active
           ? `当前学习语言：${language.label}`
-          : `切换到${language.label}${language.id === "es" ? "（查词先使用西语词典；收藏和背词稍后接入）" : ""}`;
+          : `切换到${language.label}${language.id === "es" ? "（使用西语词典；收藏单独保存；背单词稍后接入）" : ""}`;
       });
     }
 
@@ -2620,6 +2627,10 @@ const fallbackSentences = [
       }
       updateDictionaryStudyButton();
       applyLearningLanguageLibraryOptions();
+      if (!$("userPhrasesModal").hidden) {
+        state.userWordsPage = 1;
+        renderUserPhrases();
+      }
       renderAccentOptions();
       // Each learning language practises its own common library, resuming that language's last position.
       resetCommonLibraryState();
@@ -2631,6 +2642,23 @@ const fallbackSentences = [
     function applyLearningLanguageLibraryOptions() {
       const favoritesOption = $("currentLibrarySelect").querySelector('option[value="favorites"]');
       if (favoritesOption) favoritesOption.hidden = !currentLearningLanguage().sentenceFavoritesEnabled;
+      applyLearningLanguageFavoriteOptions();
+    }
+
+    // 收藏 page: word categories and BNC / 当代语料 / 柯林斯 sorts come from the English dictionary, and 背单词 is not
+    // connected for every language, so these controls follow the current learning language.
+    function applyLearningLanguageFavoriteOptions() {
+      const isEnglishDictionary = currentLearningLanguage().id === "en";
+      const categorySelect = $("userWordsCategorySelect");
+      categorySelect.closest("label").hidden = !isEnglishDictionary;
+      if (!isEnglishDictionary) categorySelect.value = "all";
+      const sortSelect = $("userWordsSortSelect");
+      sortSelect.querySelectorAll("option").forEach((option) => {
+        option.hidden = !isEnglishDictionary && ["bnc", "frq", "collins"].includes(option.value);
+      });
+      if (sortSelect.selectedOptions[0]?.hidden) sortSelect.value = "saved-desc";
+      $("userWordsControls").querySelector(".word-review-launchers").hidden = !dictionaryWordStudyEnabled();
+      $("userPhrasesList").classList.toggle("is-without-review-status", !dictionaryWordStudyEnabled());
     }
 
     async function removeDictionary(dictionaryId = "ecdict") {
@@ -3658,8 +3686,8 @@ ${orderNote}`;
     }
 
     function userWordsStorageKey() {
-      if (state.cloudUser?.id) return `langLSRWUserWords:cloud:${state.cloudUser.id}`;
-      return `langLSRWUserWords:${state.currentUser}`;
+      if (state.cloudUser?.id) return `langLSRWUserWords:cloud:${state.cloudUser.id}${learningLanguageStorageSuffix()}`;
+      return `langLSRWUserWords:${state.currentUser}${learningLanguageStorageSuffix()}`;
     }
 
     async function renderDictionaryLibrary() {
@@ -3687,7 +3715,7 @@ ${orderNote}`;
           : state.dictionaryLibraryType === "phrases" ? "短语"
             : state.dictionaryLibraryType === "special" ? "特殊词条" : "单词";
         $("dictionaryLibraryCountText").textContent = `0 / ${result.total.toLocaleString()} 个${typeLabel}`;
-        $("dictionaryLibrarySummary").textContent = `${language.dictionaryName} · 每页 ${result.pageSize} 词${isEnglishDictionary ? "" : " · 收藏和背词稍后接入"}`;
+        $("dictionaryLibrarySummary").textContent = `${language.dictionaryName} · 每页 ${result.pageSize} 词${isEnglishDictionary ? "" : " · 背单词稍后接入"}`;
         $("dictionaryPageInput").value = result.page;
         $("dictionaryPageInput").max = result.pageCount;
         $("dictionaryPageCount").textContent = `/ ${result.pageCount.toLocaleString()} 页`;
@@ -3697,6 +3725,7 @@ ${orderNote}`;
         $("dictionaryLastPageBtn").disabled = result.page >= result.pageCount;
         const reviewRecords = loadWordReviewRecords();
         const manualMastery = loadWordManualMastery();
+        list.classList.toggle("is-without-review-status", !dictionaryWordStudyEnabled());
         list.innerHTML = result.rows.length
           ? result.rows.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-dictionary-library-word="${escapeHtml(item.word)}" data-dictionary-library-index="${(result.page - 1) * result.pageSize + index + 1}">${dictionaryWordStudyEnabled() ? wordReviewStatusIconsHtml(item.word, reviewRecords, manualMastery) : ""}<span class="user-word-label">${escapeHtml(item.word)}</span>${isEnglishDictionary ? dictionaryCollinsRating(item) : ""}</div>`).join("")
           : '<div class="user-phrases-empty">当前分类没有单词。</div>';
@@ -4064,7 +4093,7 @@ ${orderNote}`;
         const rank = Number(value);
         return Number.isFinite(rank) && rank > 0 ? rank : Number.MAX_SAFE_INTEGER;
       };
-      const alphabetical = (left, right) => String(left.word).localeCompare(String(right.word), "en", { sensitivity: "base" });
+      const alphabetical = (left, right) => String(left.word).localeCompare(String(right.word), currentLearningLanguage().id, { sensitivity: "base" });
       return filtered.sort((left, right) => {
         if (sort === "alphabetical") return alphabetical(left, right);
         if (sort === "rating") return (Number(right.rating) || 1) - (Number(left.rating) || 1) || alphabetical(left, right);
@@ -4098,7 +4127,7 @@ ${orderNote}`;
       const reviewRecords = loadWordReviewRecords();
       const manualMastery = loadWordManualMastery();
       $("userPhrasesList").innerHTML = pageWords.length
-        ? pageWords.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-user-word="${escapeHtml(item.word)}" data-user-word-index="${start + index + 1}">${wordReviewStatusIconsHtml(item.word, reviewRecords, manualMastery)}<span class="user-word-label">${escapeHtml(item.word)}</span>${showCollinsRating ? dictionaryCollinsRating(item) : dictionaryFavoriteButton(item.word)}</div>`).join("")
+        ? pageWords.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-user-word="${escapeHtml(item.word)}" data-user-word-index="${start + index + 1}">${dictionaryWordStudyEnabled() ? wordReviewStatusIconsHtml(item.word, reviewRecords, manualMastery) : ""}<span class="user-word-label">${escapeHtml(item.word)}</span>${showCollinsRating ? dictionaryCollinsRating(item) : dictionaryFavoriteButton(item.word)}</div>`).join("")
         : `<div class="user-phrases-empty">${allWords.length ? "当前分类没有收藏单词。" : "还没有收藏单词。"}</div>`;
 
       const firstVisibleSentenceIndex = state.userSentencesPageRanges[state.userSentencesPage - 1]?.[0] ?? 0;
@@ -4164,12 +4193,12 @@ ${orderNote}`;
         ${bnc || frq ? `<div class="dictionary-frequency">${bnc ? `<span><b>BNC</b> 词频 #${bnc}</span>` : ""}${frq ? `<span><b>当代语料</b> 词频 #${frq}</span>` : ""}</div>` : ""}
         ${dictionaryExchangeHtml(exchanges)}
         ${item.sourceSentence ? `<div class="user-phrase-source"><div>${escapeHtml(item.sourceSentence)}</div>${item.sourceTranslation ? `<div>${escapeHtml(item.sourceTranslation)}</div>` : ""}</div>` : ""}
-        ${dictionaryWordMasteryHtml(item.word)}`;
+        ${dictionaryWordStudyEnabled() ? dictionaryWordMasteryHtml(item.word) : ""}`;
     }
 
     function userSentencesStorageKey() {
-      if (state.cloudUser?.id) return `langLSRWUserSentences:cloud:${state.cloudUser.id}`;
-      return `langLSRWUserSentences:${state.currentUser}`;
+      if (state.cloudUser?.id) return `langLSRWUserSentences:cloud:${state.cloudUser.id}${learningLanguageStorageSuffix()}`;
+      return `langLSRWUserSentences:${state.currentUser}${learningLanguageStorageSuffix()}`;
     }
 
     function loadUserSentences() {
@@ -4357,8 +4386,8 @@ ${orderNote}`;
     }
 
     function wordReviewsStorageKey() {
-      if (state.cloudUser?.id) return `langLSRWWordReviews:cloud:${state.cloudUser.id}`;
-      return `langLSRWWordReviews:${state.currentUser || "guest"}`;
+      if (state.cloudUser?.id) return `langLSRWWordReviews:cloud:${state.cloudUser.id}${learningLanguageStorageSuffix()}`;
+      return `langLSRWWordReviews:${state.currentUser || "guest"}${learningLanguageStorageSuffix()}`;
     }
 
     function loadWordReviewRecords() {
