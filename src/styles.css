@@ -4854,3 +4854,10 @@
       gap: 2px;
       min-width: 0;
     }
+
+    .free-translate-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }

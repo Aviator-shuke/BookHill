@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260927-171">
+  <link rel="stylesheet" href="src/styles.css?v=20260927-172">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -125,6 +125,11 @@
                 <button id="removeDictionaryBtn" type="button" disabled>删除本地词典</button>
               </div>
               <div id="dictionaryTestResult" class="small-note"></div>
+            </div>
+            <div class="settings-section">
+              <div class="settings-section-title">翻译缓存</div>
+              <button id="clearTranslationCacheBtn" type="button" title="清除浏览器里保存的免费翻译结果（按英文原句保存）；不影响学习记录、收藏，也不影响已经写进字幕文件的翻译">清除翻译缓存</button>
+              <div id="translationCacheStatus" class="small-note"></div>
             </div>
             <div class="settings-section">
               <div class="settings-section-title">句子成分颜色</div>
@@ -393,6 +398,10 @@
             <textarea id="sentenceInput" class="sentence-list" spellcheck="false"></textarea>
           </label>
           <button id="useTextBtn" type="button">使用粘贴内容</button>
+          <div class="free-translate-row">
+            <button type="button" data-free-translate title="用浏览器内置的本机翻译（免费、不需要 API Key）把当前句库中还没有翻译的句子译成中文；需要电脑版 Chrome 或 Edge 138 以上，结果保存在本机，下次导入同样的句子会自动带上">免费翻译当前句库</button>
+            <span class="small-note" data-free-translate-status></span>
+          </div>
         </section>
         <section id="audioLibraryPanel" class="library-settings-panel" hidden>
           <div>
@@ -400,6 +409,12 @@
             <div id="audioLibraryStatus" class="source-status">当前句库没有使用原声。</div>
           </div>
           <div id="audioLibraryList" class="audio-library-list"></div>
+          <div class="free-translate-row">
+            <button type="button" data-subtitle-translate title="选择任意带时间的 .lrc 字幕文件（不需要先载入），用浏览器内置的本机翻译（免费）把没有翻译的句子译成中文；翻译完成后点“写入原文件”，把中文写回这个文件，做成双语字幕。需要电脑版 Chrome 或 Edge 138 以上">翻译字幕</button>
+            <button type="button" class="primary" data-subtitle-write hidden title="把刚翻译好的中文写回所选的字幕文件；浏览器会询问是否允许保存到这个文件">写入原文件</button>
+            <button type="button" data-subtitle-save-as hidden title="把双语字幕保存为一个新文件（默认名为“原文件名_双语.lrc”），原字幕文件不改动">另存字幕文件</button>
+            <span class="small-note" data-free-translate-status></span>
+          </div>
           <label title="同时选中一个音频文件（如 .m4a、.mp3）和对应的 .lrc 字幕，每句播放原声片段">
             导入音频 + lrc 字幕
             <input id="audioLibraryFileInput" type="file" accept=".lrc,audio/*,.m4a,.mp3,.wav,.ogg,.aac,.flac" multiple title="按住 Ctrl 同时选中音频和 .lrc 两个文件">
@@ -623,6 +638,6 @@
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
   <script src="src/dictionary/dictionary-service.js?v=20260926-10"></script>
-  <script src="src/app.js?v=20260927-148"></script>
+  <script src="src/app.js?v=20260927-155"></script>
 </body>
 </html>

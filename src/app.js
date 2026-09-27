@@ -912,7 +912,8 @@ const fallbackSentences = [
       ];
       for (const pattern of patterns) {
         const match = line.match(pattern);
-        if (match && match[1].trim() && match[2].trim()) {
+        // The left side must be the English sentence: a Chinese line that merely contains a colon is not a pair.
+        if (match && match[1].trim() && match[2].trim() && !hasCjk(match[1])) {
           return { text: match[1].trim(), translation: match[2].trim() };
         }
       }
@@ -1300,6 +1301,7 @@ const fallbackSentences = [
         alert("字幕里没有识别到带时间的句子。请使用每行带 [分:秒] 时间标记的 .lrc 文件。");
         return false;
       }
+      fillTranslationsFromCache(sentences);
       state.sentences = sentences;
       state.index = 0;
       setCurrentLibrary("音频字幕", `${sentenceSourceLabel(subtitleName, sentences)}，原声：${audioName}`);
@@ -1373,6 +1375,334 @@ const fallbackSentences = [
       return imported;
     }
 
+    // ---- Free translation with the browser's built-in, on-device Translator API (desktop Chrome/Edge 138+).
+    // Only sentences without a translation in 自定义句库 / 音频字幕 are translated, on an explicit button press.
+    // Results are cached by English text in localStorage and reused on every later import, so each sentence is
+    // translated once per browser.
+    const TRANSLATION_CACHE_KEY = "langLSRWTranslationCache";
+    let freeTranslationRunning = false;
+
+    function loadTranslationCache() {
+      try {
+        const data = JSON.parse(localStorage.getItem(TRANSLATION_CACHE_KEY) || "{}");
+        return data && typeof data === "object" ? data : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveTranslationCache(cache) {
+      try {
+        localStorage.setItem(TRANSLATION_CACHE_KEY, JSON.stringify(cache));
+      } catch {
+        /* storage full: translations stay in the current session only */
+      }
+    }
+
+    function translationCacheKey(text) {
+      return String(text || "").trim().replace(/\s+/g, " ").toLowerCase();
+    }
+
+    function clearTranslationCache() {
+      const count = Object.keys(loadTranslationCache()).length;
+      if (!count) {
+        $("translationCacheStatus").textContent = "翻译缓存是空的。";
+        return;
+      }
+      if (!confirm(`清除本机保存的 ${count} 句翻译？
+不影响学习记录和收藏，也不影响已经写进字幕文件的翻译。已载入的句库仍显示原来的翻译，重新载入后生效。`)) return;
+      localStorage.removeItem(TRANSLATION_CACHE_KEY);
+      $("translationCacheStatus").textContent = `已清除 ${count} 句翻译缓存。`;
+    }
+
+    function fillTranslationsFromCache(sentences) {
+      const cache = loadTranslationCache();
+      sentences.forEach((item) => {
+        if (item && typeof item === "object" && !item.translation) {
+          const cached = cache[translationCacheKey(item.text)];
+          if (cached) item.translation = cached;
+        }
+      });
+    }
+
+    function setFreeTranslationStatus(text) {
+      document.querySelectorAll("[data-free-translate-status]").forEach((element) => { element.textContent = text; });
+    }
+
+    function updateSourceStatusTranslationCount() {
+      const translated = state.sentences.filter((item) => sentenceTranslation(item)).length;
+      const status = $("sourceStatus");
+      status.textContent = status.textContent.replace(/（(\d+)句，\d+句有翻译）/, `（$1句，${translated}句有翻译）`);
+    }
+
+    const FREE_TRANSLATOR_OPTIONS = { sourceLanguage: "en", targetLanguage: "zh" };
+
+    function pendingTranslationSentences() {
+      return state.sentences.filter((item) => item && typeof item === "object" && sentenceText(item) && !sentenceTranslation(item));
+    }
+
+    function setFreeTranslationBusy(busy) {
+      freeTranslationRunning = busy;
+      document.querySelectorAll("[data-free-translate], [data-subtitle-translate]").forEach((button) => { button.disabled = busy; });
+    }
+
+    // Download messages appear only when the model is not on this device yet (Chrome also reports progress for an
+    // already-downloaded model) and only while `canReport()` says the caller still wants status updates.
+    async function createFreeTranslator(canReport = () => true) {
+      const availability = await Translator.availability(FREE_TRANSLATOR_OPTIONS);
+      if (availability === "unavailable") throw new Error("浏览器不支持英语到中文的内置翻译。");
+      const downloading = availability !== "available";
+      if (downloading && canReport()) setFreeTranslationStatus("首次使用，正在下载翻译模型…");
+      return Translator.create({
+        ...FREE_TRANSLATOR_OPTIONS,
+        monitor(monitor) {
+          if (!downloading) return;
+          monitor.addEventListener("downloadprogress", (event) => {
+            if (canReport()) setFreeTranslationStatus(`正在下载翻译模型 ${Math.round((event.loaded || 0) * 100)}%…`);
+          });
+        }
+      });
+    }
+
+    async function translateSentencesForFree(pending, existingTranslator = null) {
+      const translator = existingTranslator || await createFreeTranslator();
+      const cache = loadTranslationCache();
+      try {
+        for (let index = 0; index < pending.length; index += 1) {
+          setFreeTranslationStatus(`正在翻译 ${index + 1} / ${pending.length}…`);
+          const item = pending[index];
+          const text = sentenceText(item);
+          const translation = String(await translator.translate(text) || "").trim();
+          if (!translation) continue;
+          item.translation = translation;
+          cache[translationCacheKey(text)] = translation;
+          if (index % 20 === 19) saveTranslationCache(cache);
+        }
+      } finally {
+        saveTranslationCache(cache);
+        translator.destroy?.();
+      }
+    }
+
+    async function translateCurrentLibraryForFree() {
+      if (freeTranslationRunning) return;
+      if (!["自定义句库", "音频字幕"].includes(state.currentLibraryLabel)) {
+        alert("只能翻译自定义句库或音频字幕中的句子。");
+        return;
+      }
+      if (!("Translator" in window)) {
+        alert("当前浏览器不支持内置翻译。请使用电脑版 Chrome 或 Edge（138 或更新版本）。");
+        return;
+      }
+      const pending = pendingTranslationSentences();
+      if (!pending.length) {
+        setFreeTranslationStatus("当前句库的句子都已有翻译。");
+        return;
+      }
+      setFreeTranslationBusy(true);
+      try {
+        await translateSentencesForFree(pending);
+        updateSourceStatusTranslationCount();
+        renderTarget();
+        setFreeTranslationStatus(`已翻译 ${pending.length} 句（浏览器内置翻译，结果已保存在本机）。`);
+      } catch (error) {
+        setFreeTranslationStatus(`翻译失败：${error.message || error}`);
+      } finally {
+        setFreeTranslationBusy(false);
+      }
+    }
+
+    // Inserts each sentence's translation into the original LRC text as a Chinese line with the same timestamp,
+    // right after the English line where the sentence starts. Merged sentences therefore get one translation line
+    // after their first fragment, which parseTimedLrc() attaches back to the whole sentence. Sentences that already
+    // have a Chinese line at their start time in the file are left alone.
+    function buildBilingualLrc(lrcText, sentences) {
+      const offsetMatch = lrcText.match(/^\s*\[offset:\s*([+-]?\d+)\s*\]/im);
+      const offset = offsetMatch ? Number(offsetMatch[1]) / 1000 : 0;
+      const lines = lrcText.split(/\r?\n/);
+      const lineTime = (stamp) => Math.max(0, parseLrcTime(stamp) - offset).toFixed(3);
+      const translatedTimes = new Set();
+      lines.forEach((line) => {
+        const content = cleanLrcLine(line);
+        const stamp = line.match(/\[(\d{1,3}:\d{2}(?:[.:]\d{1,3})?)\]/);
+        if (stamp && isTranslationOnlyLine(content)) translatedTimes.add(lineTime(stamp[1]));
+      });
+      const pendingByTime = new Map();
+      sentences.forEach((item) => {
+        const translation = sentenceTranslation(item);
+        if (!translation || !Number.isFinite(item?.start)) return;
+        const key = item.start.toFixed(3);
+        if (!translatedTimes.has(key) && !pendingByTime.has(key)) pendingByTime.set(key, translation);
+      });
+      const output = [];
+      let inserted = 0;
+      lines.forEach((line) => {
+        output.push(line);
+        const trimmed = line.trim();
+        if (!trimmed || /^\[(ti|ar|al|by|offset|length|re):/i.test(trimmed)) return;
+        const stamp = trimmed.match(/\[(\d{1,3}:\d{2}(?:[.:]\d{1,3})?)\]/);
+        const content = cleanLrcLine(trimmed);
+        if (!stamp || !content || isTranslationOnlyLine(content)) return;
+        const key = lineTime(stamp[1]);
+        const translation = pendingByTime.get(key);
+        if (!translation) return;
+        output.push(`[${stamp[1]}]${translation}`);
+        pendingByTime.delete(key);
+        inserted += 1;
+      });
+      return { text: output.join(lrcText.includes("\r\n") ? "\r\n" : "\n"), inserted };
+    }
+
+    function downloadTextFile(text, filename) {
+      const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    // 翻译字幕: pick any timed .lrc (it does not need to be loaded), translate its missing sentences for free, and
+    // write a bilingual version back to the same file. Browsers only allow writing to a file after a user gesture,
+    // and translation can take a while, so writing is a second click ("写入原文件") once the translation is ready.
+    // Browsers without the File System Access API get a same-named download instead.
+    let pendingSubtitleWrite = null;
+
+    function pickFileWithInput(accept) {
+      return new Promise((resolve) => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = accept;
+        input.addEventListener("change", () => resolve(input.files?.[0] || null), { once: true });
+        input.addEventListener("cancel", () => resolve(null), { once: true });
+        input.click();
+      });
+    }
+
+    function setSubtitleWriteButton(job) {
+      document.querySelectorAll("[data-subtitle-write]").forEach((button) => {
+        button.hidden = !job;
+        if (job) button.textContent = job.handle ? "写入原文件" : "下载双语字幕";
+      });
+      // Without the save dialog, 另存 would be the same download as the first button, so it is only offered with it.
+      document.querySelectorAll("[data-subtitle-save-as]").forEach((button) => {
+        button.hidden = !job || !("showSaveFilePicker" in window);
+      });
+    }
+
+    function bilingualSubtitleName(name) {
+      const base = String(name || "subtitles.lrc").replace(/\.lrc$/i, "");
+      return `${base}_双语.lrc`;
+    }
+
+    async function translateSubtitleFile() {
+      if (freeTranslationRunning) return;
+      pendingSubtitleWrite = null;
+      setSubtitleWriteButton(null);
+      // Start creating the translator inside the click: downloading the model on first use needs the user gesture.
+      // If the learner cancels, stop reporting its progress, clear the status, and release the translator.
+      let reporting = true;
+      const translatorPromise = "Translator" in window ? createFreeTranslator(() => reporting) : null;
+      translatorPromise?.catch(() => {});
+      const abandon = () => {
+        reporting = false;
+        translatorPromise?.then((translator) => translator.destroy?.()).catch(() => {});
+        setFreeTranslationStatus("");
+      };
+      let handle = null;
+      let file = null;
+      try {
+        if ("showOpenFilePicker" in window) {
+          [handle] = await window.showOpenFilePicker({ types: [{ description: "LRC 字幕", accept: { "text/plain": [".lrc"] } }] });
+          file = await handle.getFile();
+        } else {
+          file = await pickFileWithInput(".lrc");
+        }
+      } catch (error) {
+        abandon();
+        if (error?.name !== "AbortError") alert(`无法打开字幕文件：${error.message || error}`);
+        return;
+      }
+      if (!file) {
+        abandon();
+        return;
+      }
+      const original = await file.text();
+      const sentences = parseTimedLrc(original);
+      if (!sentences.length) {
+        abandon();
+        alert("字幕里没有识别到带时间的句子。请使用每行带 [分:秒] 时间标记的 .lrc 文件。");
+        return;
+      }
+      fillTranslationsFromCache(sentences);
+      const pending = sentences.filter((item) => !item.translation);
+      setFreeTranslationBusy(true);
+      try {
+        if (pending.length) {
+          if (!translatorPromise) throw new Error("当前浏览器不支持内置翻译。请使用电脑版 Chrome 或 Edge（138 或更新版本）。");
+          await translateSentencesForFree(pending, await translatorPromise);
+        } else {
+          translatorPromise?.then((translator) => translator.destroy?.()).catch(() => {});
+        }
+        const { text, inserted } = buildBilingualLrc(original, sentences);
+        if (!inserted) {
+          setFreeTranslationStatus(`${file.name} 已经是双语字幕，没有需要写入的翻译。`);
+          return;
+        }
+        pendingSubtitleWrite = { handle, name: file.name, text, inserted };
+        setSubtitleWriteButton(pendingSubtitleWrite);
+        setFreeTranslationStatus(`${file.name}：已翻译 ${inserted} 句，点“${handle ? "写入原文件" : "下载双语字幕"}”${"showSaveFilePicker" in window ? "或“另存字幕文件”" : ""}保存为双语字幕。`);
+      } catch (error) {
+        setFreeTranslationStatus(`翻译字幕失败：${error.message || error}`);
+      } finally {
+        setFreeTranslationBusy(false);
+      }
+    }
+
+    async function writePendingSubtitle() {
+      const job = pendingSubtitleWrite;
+      if (!job) return;
+      try {
+        if (job.handle) {
+          const permission = await job.handle.requestPermission({ mode: "readwrite" });
+          if (permission !== "granted") throw new Error("没有获得写入这个文件的权限。");
+          const writable = await job.handle.createWritable();
+          await writable.write(job.text);
+          await writable.close();
+          setFreeTranslationStatus(`已写入 ${job.inserted} 句翻译，${job.name} 已是双语字幕。`);
+        } else {
+          downloadTextFile(job.text, job.name);
+          setFreeTranslationStatus(`已下载双语字幕 ${job.name}，用它替换原文件即可。`);
+        }
+        pendingSubtitleWrite = null;
+        setSubtitleWriteButton(null);
+      } catch (error) {
+        setFreeTranslationStatus(`写入失败：${error.message || error}`);
+      }
+    }
+
+    // Saves the bilingual subtitle to a new file chosen in the save dialog, leaving the original subtitle unchanged.
+    async function savePendingSubtitleAs() {
+      const job = pendingSubtitleWrite;
+      if (!job || !("showSaveFilePicker" in window)) return;
+      try {
+        const target = await window.showSaveFilePicker({
+          suggestedName: bilingualSubtitleName(job.name),
+          types: [{ description: "LRC 字幕", accept: { "text/plain": [".lrc"] } }]
+        });
+        const writable = await target.createWritable();
+        await writable.write(job.text);
+        await writable.close();
+        setFreeTranslationStatus(`已另存双语字幕 ${target.name}（${job.inserted} 句翻译），原字幕 ${job.name} 未改动。`);
+        pendingSubtitleWrite = null;
+        setSubtitleWriteButton(null);
+      } catch (error) {
+        if (error?.name !== "AbortError") setFreeTranslationStatus(`另存失败：${error.message || error}`);
+      }
+    }
+
     async function importSentenceFile(file) {
       if (!file) return false;
       if (!/\.(txt|lrc)$/i.test(file.name) && !/^text\//i.test(file.type || "")) {
@@ -1385,6 +1715,7 @@ const fallbackSentences = [
         alert("没有识别到可练习的句子。");
         return false;
       }
+      fillTranslationsFromCache(sentences);
       state.sentences = sentences;
       state.index = 0;
       setCurrentLibrary("自定义句库", sentenceSourceLabel(file.name, sentences));
@@ -6242,6 +6573,7 @@ const fallbackSentences = [
     $("useTextBtn").addEventListener("click", () => {
       const sentences = parseSentences($("sentenceInput").value);
       if (!sentences.length) return;
+      fillTranslationsFromCache(sentences);
       state.sentences = sentences;
       state.index = 0;
       setCurrentLibrary("自定义句库", sentenceSourceLabel("粘贴内容", sentences));
@@ -6255,6 +6587,7 @@ const fallbackSentences = [
     $("installDictionaryBtn").addEventListener("click", installDictionary);
     $("testDictionaryBtn").addEventListener("click", testDictionary);
     $("removeDictionaryBtn").addEventListener("click", removeDictionary);
+    $("clearTranslationCacheBtn").addEventListener("click", clearTranslationCache);
     $("openLibraryBtn").addEventListener("click", openLibraryModal);
     $("openDictionaryLibraryBtn").addEventListener("click", openDictionaryLibrary);
     $("userPhrasesBtn").addEventListener("click", openUserPhrases);
@@ -6465,6 +6798,18 @@ const fallbackSentences = [
     $("commonLibraryTabBtn").addEventListener("click", () => setLibraryView("common"));
     $("librarySettingsTabBtn").addEventListener("click", () => setLibraryView("settings"));
     $("audioLibraryTabBtn").addEventListener("click", () => setLibraryView("audio"));
+    document.querySelectorAll("[data-free-translate]").forEach((button) => {
+      button.addEventListener("click", translateCurrentLibraryForFree);
+    });
+    document.querySelectorAll("[data-subtitle-translate]").forEach((button) => {
+      button.addEventListener("click", translateSubtitleFile);
+    });
+    document.querySelectorAll("[data-subtitle-write]").forEach((button) => {
+      button.addEventListener("click", writePendingSubtitle);
+    });
+    document.querySelectorAll("[data-subtitle-save-as]").forEach((button) => {
+      button.addEventListener("click", savePendingSubtitleAs);
+    });
     $("audioLibraryList").addEventListener("click", (event) => {
       const button = event.target.closest("[data-audio-library]");
       if (button) loadAudioLibraryMaterial(button.dataset.audioLibrary);
