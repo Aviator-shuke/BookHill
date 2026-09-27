@@ -176,6 +176,18 @@
 
     .dictionary-lookup-popover[hidden] { display: none; }
 
+    /* English reference lookup opened from a Spanish entry's English text: above the word popover, no mastery cards. */
+    .english-lookup-popover {
+      z-index: 111;
+      min-width: min(320px, calc(100vw - 16px));
+    }
+
+    .english-lookup-label {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
     /* Lines wrap inside the popover's 800px maximum instead of stretching it to the longest definition. */
     .dictionary-lookup-popover .dictionary-meanings > div,
     .dictionary-lookup-popover .dictionary-definitions > div {
