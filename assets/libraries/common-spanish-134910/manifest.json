@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "common-spanish-134910",
+  "name": "常用西语句库",
+  "type": "common",
+  "version": "1.0.0",
+  "language": "es",
+  "locale": "es-ES",
+  "translationLanguage": "en",
+  "format": "tsv",
+  "file": "sentences.tsv",
+  "count": 134910,
+  "columns": ["id", "text", "translation"],
+  "source": "Tatoeba (tatoeba.org) via manythings.org/anki spa-eng, deduplicated by Spanish text",
+  "license": "CC BY 2.0 FR"
+}

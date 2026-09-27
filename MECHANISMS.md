@@ -16,14 +16,16 @@ langLSRW has two independent identity modes:
 
 ## Learning Language Entry
 
-The header places a compact `英 / 西` learning-language control between the brand and the `听 / 说 / 读 / 写` navigation. It selects the language being learned, not the Chinese interface language.
+The header places a compact `英 / 西` learning-language control between the brand and the `听 / 说 / 读 / 写` navigation. It selects the language being learned, not the Chinese interface language. The choice is stored in `langLSRWLearningLanguage`, and each language is described by an entry in `LEARNING_LANGUAGES` in `src/app.js`.
 
-- English is the only active runtime language. Its button is selected and does not change the current page or data.
-- The Spanish button is a planning-state entry. Selecting it shows that Spanish support is still being prepared and leaves English active.
-- The placeholder does not persist a language choice or change materials, storage keys, TTS, speech recognition, translation, dictionary, word review, grammar analysis, or synchronization behavior.
-- Do not turn the placeholder into a partial switch by routing Spanish content through English implementations. Functional switching begins only after the language registry, capability adapters, and language-scoped data identities in `MULTILINGUAL_ARCHITECTURE.md` are in place.
+- Dictionary: English uses ECDICT, Spanish uses the Spanish Wiktionary package (right-click lookup and the `词库` browser).
+- Common sentence library: `commonLibraryManifestUrl` per language — `common-english-30150` (English sentence + Chinese translation) and `common-spanish-134910` (Spanish sentence + English translation, from Tatoeba via manythings.org `spa-eng`, CC BY 2.0 FR; see its `LICENSE.md`). Switching language stops speech, resets `state.library`, and runs `tryLoadDefaultLibrary()` for the new language. Library loading is tracked per language so a switch during a load still loads the new library.
+- Last position: `langLSRWLastPosition:*` gains a `:<language>` suffix for non-English languages, so each language resumes its own library and sentence; English keeps the original key.
+- Accents and voices: the accent select is rebuilt from the language's `accents` (`英音 / 美音`, or `西语` = `es-ES`) and keeps `原声` while audio material is loaded. `ttsAccent()` falls back to the language default; TTS voices, speech recognition, and voice fallbacks use that locale. The saved English accent/voice (`accent`, `voiceURI`) are never overwritten by Spanish choices, which use `accent_es` / `voiceURI_es`.
+- Features not yet language-scoped are switched off for Spanish through `sentenceFavoritesEnabled` and `grammarAnalysisEnabled`: no sentence favorite stars, the `用户收藏` library option is hidden, and `Ai语法分析` is disabled with an explanatory tooltip. Word favorites and word study were already off (`collectionEnabled`, `wordStudyEnabled`).
+- Dictation tokenization, grading, and translation caches are still English-oriented (word matching uses ASCII letters, so accented Spanish words are split); the accent-strictness decision for dictation is pending.
 
-Relevant implementation: `.language-nav` in `index.html` and its click handler in `src/app.js`.
+Relevant implementation: `.language-nav` in `index.html`; `setLearningLanguage()`, `renderAccentOptions()`, `applyLearningLanguageLibraryOptions()`, and `loadCommonLibrary()` in `src/app.js`.
 
 ## Local Persistence
 

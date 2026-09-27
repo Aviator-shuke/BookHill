@@ -161,7 +161,12 @@ const fallbackSentences = [
         dictionaryId: "ecdict",
         dictionaryName: "ECDICT",
         collectionEnabled: true,
-        wordStudyEnabled: true
+        wordStudyEnabled: true,
+        commonLibraryManifestUrl: "assets/libraries/common-english-30150/manifest.json",
+        commonLibraryContent: "英文原句 + 中文翻译",
+        accents: [["en-GB", "英音"], ["en-US", "美音"]],
+        sentenceFavoritesEnabled: true,
+        grammarAnalysisEnabled: true
       },
       es: {
         id: "es",
@@ -170,7 +175,13 @@ const fallbackSentences = [
         dictionaryId: "spanish-wiktionary",
         dictionaryName: "西语 Wiktionary",
         collectionEnabled: false,
-        wordStudyEnabled: false
+        wordStudyEnabled: false,
+        commonLibraryManifestUrl: "assets/libraries/common-spanish-134910/manifest.json",
+        commonLibraryContent: "西语原句 + 英文翻译",
+        accents: [["es-ES", "西语"]],
+        // Sentence favorites and AI grammar analysis are not language-scoped yet; keep them off for Spanish.
+        sentenceFavoritesEnabled: false,
+        grammarAnalysisEnabled: false
       }
     };
 
@@ -372,8 +383,9 @@ const fallbackSentences = [
     }
 
     function lastPositionStorageKey() {
-      if (state.cloudUser?.id) return `langLSRWLastPosition:cloud:${state.cloudUser.id}`;
-      return `langLSRWLastPosition:${state.currentUser || "guest"}`;
+      const languageSuffix = state.learningLanguageId && state.learningLanguageId !== "en" ? `:${state.learningLanguageId}` : "";
+      if (state.cloudUser?.id) return `langLSRWLastPosition:cloud:${state.cloudUser.id}${languageSuffix}`;
+      return `langLSRWLastPosition:${state.currentUser || "guest"}${languageSuffix}`;
     }
 
     function saveLastPosition() {
@@ -1015,7 +1027,19 @@ const fallbackSentences = [
       });
     }
 
-    const commonLibraryManifestUrl = "assets/libraries/common-english-30150/manifest.json";
+    function commonLibraryManifestUrl() {
+      return currentLearningLanguage().commonLibraryManifestUrl;
+    }
+
+    function resetCommonLibraryState() {
+      state.library.manifest = null;
+      state.library.items = [];
+      state.library.filteredItems = [];
+      state.library.query = "";
+      state.library.page = 0;
+      $("librarySearchInput").value = "";
+      $("useLibraryBtn").disabled = true;
+    }
 
     function closeLibraryModal() {
       $("libraryModal").hidden = true;
@@ -1114,24 +1138,28 @@ const fallbackSentences = [
     }
 
     async function loadCommonLibrary() {
-      if (state.library.items.length || state.library.loading) return;
+      // Loading is tracked per learning language, so switching language during a load still loads the new library.
+      if (state.library.items.length || (state.library.loading && state.library.loadingLanguage === state.learningLanguageId)) return;
       state.library.loading = true;
+      state.library.loadingLanguage = state.learningLanguageId;
       $("libraryStatus").textContent = "正在加载常用句库...";
-      $("librarySentenceList").innerHTML = '<div class="empty">正在读取 30,150 条双语句子...</div>';
+      $("librarySentenceList").innerHTML = '<div class="empty">正在读取常用句库...</div>';
+      const languageId = state.learningLanguageId;
       try {
-        const result = await window.langLSRWLibrary.load(commonLibraryManifestUrl);
+        const result = await window.langLSRWLibrary.load(commonLibraryManifestUrl());
+        if (state.learningLanguageId !== languageId) return;
         state.library.manifest = result.manifest;
         state.library.items = result.items;
         state.library.filteredItems = result.items;
         $("libraryName").textContent = result.manifest.name;
-        $("libraryMeta").textContent = `${result.items.length.toLocaleString()} 条 · 英文原句 + 中文翻译 · v${result.manifest.version}`;
+        $("libraryMeta").textContent = `${result.items.length.toLocaleString()} 条 · ${currentLearningLanguage().commonLibraryContent} · v${result.manifest.version}`;
         $("useLibraryBtn").disabled = false;
         renderLibraryPage();
       } catch (error) {
         $("libraryStatus").textContent = `加载失败：${error.message || error}`;
         $("librarySentenceList").innerHTML = '<div class="empty">请确认通过本地服务器打开网页，且句库文件完整。</div>';
       } finally {
-        state.library.loading = false;
+        if (state.library.loadingLanguage === languageId) state.library.loading = false;
       }
     }
 
@@ -1300,7 +1328,7 @@ const fallbackSentences = [
         select.value = "original";
       } else {
         option?.remove();
-        select.value = state.speechSettings.accent || "en-GB";
+        select.value = defaultAccentForLanguage();
       }
       updateVoiceSelectForAccent();
     }
@@ -1309,9 +1337,32 @@ const fallbackSentences = [
       return $("accentSelect").value === "original";
     }
 
+    function defaultAccentForLanguage() {
+      const language = currentLearningLanguage();
+      const saved = language.id === "en" ? state.speechSettings.accent : state.speechSettings[`accent_${language.id}`];
+      return language.accents.some(([value]) => value === saved) ? saved : language.accents[0][0];
+    }
+
     function ttsAccent() {
       const value = $("accentSelect").value;
-      return value === "original" ? (state.speechSettings.accent || "en-GB") : value;
+      return value === "original" || !value ? defaultAccentForLanguage() : value;
+    }
+
+    function voiceSettingKey() {
+      return state.learningLanguageId && state.learningLanguageId !== "en" ? `voiceURI_${state.learningLanguageId}` : "voiceURI";
+    }
+
+    // The accent select lists the current learning language's accents (英音 / 美音 for English, 西语 for Spanish),
+    // keeping the 原声 option while an audio material is loaded.
+    function renderAccentOptions() {
+      const select = $("accentSelect");
+      const original = select.querySelector('option[value="original"]');
+      const wasOriginal = select.value === "original";
+      select.innerHTML = currentLearningLanguage().accents.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+      if (original) select.prepend(original);
+      select.value = wasOriginal && original ? "original" : defaultAccentForLanguage();
+      populateVoices();
+      updateVoiceSelectForAccent();
     }
 
     function updateVoiceSelectForAccent() {
@@ -1866,7 +1917,7 @@ const fallbackSentences = [
 
     async function tryLoadDefaultLibrary() {
       const lastPosition = loadLastPosition();
-      if (lastPosition && lastPosition.libraryLabel === "用户收藏") {
+      if (lastPosition && lastPosition.libraryLabel === "用户收藏" && currentLearningLanguage().sentenceFavoritesEnabled) {
         const favorites = loadUserSentences();
         if (favorites.length) {
           state.sentences = normalizeSentenceList(favorites.map((item) => ({
@@ -2214,7 +2265,7 @@ const fallbackSentences = [
     }
 
     async function analyzeCurrentGrammar({ force = false } = {}) {
-      if (state.grammarLoading) return;
+      if (state.grammarLoading || !currentLearningLanguage().grammarAnalysisEnabled) return;
       const sentence = currentSentence();
       if (!sentence) return;
       const cachedGrammar = currentGrammar();
@@ -2323,9 +2374,13 @@ const fallbackSentences = [
     }
 
     function saveSpeechSettings() {
+      const languageId = state.learningLanguageId || "en";
+      const voiceKey = voiceSettingKey();
       const settings = {
-        accent: ttsAccent(),
-        voiceURI: usingOriginalVoice() ? (state.speechSettings.voiceURI || "") : $("voiceSelect").value,
+        ...state.speechSettings,
+        accent: languageId === "en" && !usingOriginalVoice() ? ttsAccent() : (state.speechSettings.accent || "en-GB"),
+        ...(languageId === "en" || usingOriginalVoice() ? {} : { [`accent_${languageId}`]: ttsAccent() }),
+        [voiceKey]: usingOriginalVoice() ? (state.speechSettings[voiceKey] || "") : $("voiceSelect").value,
         autoSpeak: $("autoSpeakToggle").checked,
         displayMode: sourceDisplayMode(),
         speakWord: $("speakWordToggle").checked,
@@ -2545,6 +2600,7 @@ const fallbackSentences = [
       if (state.learningLanguageId === language.id) {
         renderLearningLanguageTabs();
         window.langLSRWDictionary?.setActiveDictionary(language.dictionaryId);
+        applyLearningLanguageLibraryOptions();
         return;
       }
       stopSpeech();
@@ -2560,6 +2616,18 @@ const fallbackSentences = [
         renderDictionaryLibrary();
       }
       updateDictionaryStudyButton();
+      applyLearningLanguageLibraryOptions();
+      renderAccentOptions();
+      // Each learning language practises its own common library, resuming that language's last position.
+      resetCommonLibraryState();
+      tryLoadDefaultLibrary().then(() => {
+        if (!$("libraryModal").hidden) loadCommonLibrary();
+      });
+    }
+
+    function applyLearningLanguageLibraryOptions() {
+      const favoritesOption = $("currentLibrarySelect").querySelector('option[value="favorites"]');
+      if (favoritesOption) favoritesOption.hidden = !currentLearningLanguage().sentenceFavoritesEnabled;
     }
 
     async function removeDictionary(dictionaryId = "ecdict") {
@@ -2992,7 +3060,7 @@ ${orderNote}`;
     }
 
     function loadSpeechSettings() {
-      $("accentSelect").value = state.speechSettings.accent || "en-GB";
+      renderAccentOptions();
       $("autoSpeakToggle").checked = state.speechSettings.autoSpeak !== false;
       // Older settings stored a longText checkbox; it maps to 长文显示.
       const displayMode = state.speechSettings.displayMode || (state.speechSettings.longText === true ? "long" : "single");
@@ -3007,12 +3075,14 @@ ${orderNote}`;
       state.voices = window.speechSynthesis.getVoices();
       const accent = ttsAccent();
       const matchingVoices = state.voices.filter((voice) => voice.lang && voice.lang.toLowerCase().startsWith(accent.toLowerCase()));
-      const voices = matchingVoices.length ? matchingVoices : state.voices.filter((voice) => /^en-/i.test(voice.lang || ""));
+      const languagePrefix = `${state.learningLanguageId || "en"}-`;
+      const voices = matchingVoices.length ? matchingVoices : state.voices.filter((voice) => String(voice.lang || "").toLowerCase().startsWith(languagePrefix));
       $("voiceSelect").innerHTML = '<option value="">自动选择</option>' + voices.map((voice) => (
         `<option value="${escapeHtml(voice.voiceURI)}">${escapeHtml(voice.name)} (${escapeHtml(voice.lang)})</option>`
       )).join("");
-      if (state.speechSettings.voiceURI && voices.some((voice) => voice.voiceURI === state.speechSettings.voiceURI)) {
-        $("voiceSelect").value = state.speechSettings.voiceURI;
+      const savedVoice = state.speechSettings[voiceSettingKey()];
+      if (savedVoice && voices.some((voice) => voice.voiceURI === savedVoice)) {
+        $("voiceSelect").value = savedVoice;
       }
     }
 
@@ -3026,7 +3096,7 @@ ${orderNote}`;
       if (voiceURI) return state.voices.find((voice) => voice.voiceURI === voiceURI) || null;
       return state.voices.find((voice) => voice.lang === accent)
         || state.voices.find((voice) => voice.lang && voice.lang.toLowerCase().startsWith(accent.toLowerCase()))
-        || state.voices.find((voice) => /^en-/i.test(voice.lang || ""))
+        || state.voices.find((voice) => String(voice.lang || "").toLowerCase().startsWith(`${state.learningLanguageId || "en"}-`))
         || null;
     }
 
@@ -4162,6 +4232,7 @@ ${orderNote}`;
     }
 
     function sentenceFavoriteButton(sentence, animateSaved = false) {
+      if (!currentLearningLanguage().sentenceFavoritesEnabled) return "";
       const key = sentenceFavoriteKey(sentence);
       if (!key) return "";
       const savedItem = loadUserSentences().find((item) => sentenceFavoriteKey(item.sentence) === key);
@@ -6670,9 +6741,13 @@ ${orderNote}`;
       const translation = currentTranslation();
       const hasGrammarCache = Boolean(currentGrammar());
       $("analyzeGrammarBtn").classList.toggle("has-cache", hasGrammarCache);
-      $("analyzeGrammarBtn").title = hasGrammarCache
-        ? "当前句已有缓存：左键查看，右键更多选项"
-        : "左键分析当前句，右键更多选项";
+      const grammarAvailable = currentLearningLanguage().grammarAnalysisEnabled;
+      if (!state.grammarLoading) $("analyzeGrammarBtn").disabled = !grammarAvailable;
+      $("analyzeGrammarBtn").title = !grammarAvailable
+        ? `${currentLearningLanguage().label}的 Ai 语法分析稍后接入`
+        : hasGrammarCache
+          ? "当前句已有缓存：左键查看，右键更多选项"
+          : "左键分析当前句，右键更多选项";
       const showTranslation = $("showTranslationToggle").checked;
       const translationText = translation ? escapeHtml(translation) : "暂无翻译";
       const translationHtml = state.translationEditing
@@ -7679,7 +7754,7 @@ ${orderNote}`;
         updateVoiceSelectForAccent();
         return;
       }
-      state.speechSettings.voiceURI = "";
+      state.speechSettings[voiceSettingKey()] = "";
       populateVoices();
       updateVoiceSelectForAccent();
       saveSpeechSettings();

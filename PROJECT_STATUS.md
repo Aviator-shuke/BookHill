@@ -1,6 +1,6 @@
 # langLSRW Project Status
 
-Last updated: 2026-09-27
+Last updated: 2026-09-28
 
 Detailed behavior, storage, synchronization, and build rules are maintained in [`MECHANISMS.md`](MECHANISMS.md). The accepted multi-language adapter direction, including future German and French packages, is documented in [`MULTILINGUAL_ARCHITECTURE.md`](MULTILINGUAL_ARCHITECTURE.md). Spanish is the first planned additional language; its specific rollout and linguistic risks are documented in [`SPANISH.md`](SPANISH.md). These plans are not implemented yet.
 
@@ -16,6 +16,7 @@ Local testing remains the default development workflow. Run `tools/start-langlsr
 
 - Four-part navigation: `听说 -> 读 -> 写`; reading and writing currently remain placeholders.
 - A compact `英 / 西` learning-language control sits left of the `听说读写` navigation. The selected learning language is stored locally. English remains the complete runtime language; selecting `西` switches the active local dictionary to `spanish-wiktionary` for lookup and the dictionary browser, while still leaving built-in materials, listening/speaking behavior, collection, word review, grammar analysis, backup, and cloud sync on the existing English-oriented paths.
+- Selecting `西` switches practice to the built-in `常用西语句库` (`assets/libraries/common-spanish-134910/`, 134,910 Tatoeba sentences via manythings.org `spa-eng`, Spanish + English translation, CC BY 2.0 FR) and resumes a separate Spanish last position. TTS uses `es-ES` (`西语` in the accent select, plus `原声` for audio material), with Spanish accent/voice choices saved separately from English. Sentence favorites, the `用户收藏` library option, and AI grammar analysis are off for Spanish until they are language-scoped; Spanish dictation tokenization and grading remain English-oriented (accented words are split) pending the accent-strictness decision.
 - The Spanish default locale direction is fixed to Spain Spanish `es-ES` for the current stage. Browser TTS on the owner's Edge installation exposes multiple Spanish voices, including `es-ES`; no `es-MX`, `es-US`, or broader regional selector is planned for the first Spanish pass.
 - Browser-dependent Spanish capabilities are explicitly scoped. Owner-side Edge has verified `speechSynthesis` Spanish voices, including `es-ES`. Spanish sentence-library Chinese translations are planned as browser `Translator API` machine translations from Spanish directly to Chinese (`es -> zh`); if that language pair is unavailable, the tooling must report an error instead of translating from the existing English column.
 - Local users, browser storage, user switching, JSON import/export, and settings reset.
@@ -227,6 +228,10 @@ Verified on 2026-09-27:
 - `node --check src/app.js` passes.
 - The multi-package dictionary foundation and enabled Spanish language entry pass `node --check` for `src/app.js`, `src/dictionary/dictionary-service.js`, and `src/dictionary/dictionary-worker.js`. `npm run build` succeeds and copies both runtime dictionary packages into `dist/`, producing 28 runtime files (about 148.14 MiB). Dictionary Worker operations are serialized to avoid OPFS `createSyncAccessHandle` conflicts when Settings checks multiple packages. In-browser Spanish lookup and dictionary-browser verification remains to be exercised.
 
+Verified on 2026-09-28:
+
+- The Spanish common library package (`assets/libraries/common-spanish-134910/`) was parsed in Node with the site's `src/library.js` loader: 134,910 rows, matching the manifest count. Language switching, per-language last position, `es-ES` accents/voices, and the Spanish feature switches pass `node --check`; in-browser behavior awaits the owner's check.
+
 ## Next Priorities
 
 1. Continue local daily-use testing and fix listening, speaking, and grammar-analysis defects.
@@ -238,3 +243,4 @@ Verified on 2026-09-27:
 7. Before formal release, implement the cloud-first account data model: authoritative cloud records, complete synchronization coverage, offline caching and queued writes, conflict handling, migrations, recovery, and visible sync state. Preserve local-only users as a separate offline mode.
 8. Add a backend proxy, authentication, quotas, and cloud storage controls before broader public use.
 9. Introduce the generic language registry and adapter boundaries described in `MULTILINGUAL_ARCHITECTURE.md`, register existing English behavior without changing it, and then add Spanish as the first new language package. Validate extensibility with a minimal German or French package before building all Spanish-specific advanced capabilities.
+10. Spanish next steps: decide dictation accent strictness, then make word tokenization, lookup, and grading Unicode-aware (accented words are currently split); language-scope sentence favorites, translation and grammar caches; add the machine-translated Chinese column when `sentences.zh.tsv` is complete.
