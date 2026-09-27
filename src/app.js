@@ -252,11 +252,12 @@ const fallbackSentences = [
       counterMeasureCtx.font = getComputedStyle(counterIndexInput).font;
       const text = counterIndexInput.value || "0";
       const width = counterMeasureCtx.measureText(text).width;
-      counterIndexInput.style.width = `${Math.ceil(width) + 2}px`;
+      counterIndexInput.style.width = `${Math.max(18, Math.ceil(width) + 11)}px`;
     }
 
     function updateCounter() {
       counterTotalEl.textContent = `/ ${state.sentences.length}`;
+      counterIndexInput.max = String(Math.max(1, state.sentences.length));
       if (document.activeElement !== counterIndexInput) {
         counterIndexInput.value = state.index + 1;
         fitCounterIndexInputWidth();
@@ -271,9 +272,23 @@ const fallbackSentences = [
       }
       const clamped = Math.max(1, Math.min(entered, state.sentences.length));
       counterIndexInput.value = clamped;
+      fitCounterIndexInputWidth();
       if (clamped - 1 === state.index) return;
       state.index = clamped - 1;
       resetCurrent(true);
+    }
+
+    function adjustCounterIndex(step) {
+      const current = Number.parseInt(counterIndexInput.value, 10) || state.index + 1;
+      const next = Math.max(1, Math.min(current + step, state.sentences.length || 1));
+      counterIndexInput.value = String(next);
+      fitCounterIndexInputWidth();
+      jumpToEnteredCounterIndex();
+    }
+
+    function placeCounterCaretAtEnd() {
+      const end = counterIndexInput.value.length;
+      counterIndexInput.setSelectionRange(end, end);
     }
     const errorsEl = $("errors");
     const historyEl = $("history");
@@ -1204,7 +1219,7 @@ const fallbackSentences = [
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       audio.preload = "auto";
-      state.audioMaterial = { url, audio, name, playToken: 0, finishPlayback: null };
+      state.audioMaterial = { url, audio, name, playToken: 0, finishPlayback: null, audioContext: null, gainNode: null };
       setOriginalVoiceOption(true);
     }
 
@@ -1212,6 +1227,7 @@ const fallbackSentences = [
       const material = state.audioMaterial;
       if (!material) return;
       stopSentenceAudio();
+      material.audioContext?.close().catch(() => {});
       material.audio.removeAttribute("src");
       URL.revokeObjectURL(material.url);
       state.audioMaterial = null;
@@ -1266,7 +1282,27 @@ const fallbackSentences = [
       if (!material) return;
       material.playToken += 1;
       material.audio.pause();
+      if (material.audioContext && material.gainNode) {
+        const now = material.audioContext.currentTime;
+        material.gainNode.gain.cancelScheduledValues(now);
+        material.gainNode.gain.setValueAtTime(0, now);
+      }
       material.finishPlayback?.();
+    }
+
+    function ensureSentenceAudioGain(material) {
+      if (material.audioContext && material.gainNode) return material.audioContext;
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return null;
+      const context = new AudioContextClass();
+      const source = context.createMediaElementSource(material.audio);
+      const gain = context.createGain();
+      source.connect(gain);
+      gain.connect(context.destination);
+      gain.gain.value = 1;
+      material.audioContext = context;
+      material.gainNode = gain;
+      return context;
     }
 
     function playSentenceAudioAndWait(rate = 1) {
@@ -1277,6 +1313,7 @@ const fallbackSentences = [
       const material = state.audioMaterial;
       const audio = material.audio;
       const token = material.playToken;
+      const audioContext = ensureSentenceAudioGain(material);
       return new Promise((resolve, reject) => {
         let timer = 0;
         let finished = false;
@@ -1294,8 +1331,21 @@ const fallbackSentences = [
         audio.addEventListener("ended", onEnded);
         audio.playbackRate = rate;
         audio.currentTime = segment.start;
-        audio.play().then(() => {
+        const beginPlayback = async () => {
+          if (audioContext?.state === "suspended") await audioContext.resume();
           if (finished || material.playToken !== token) return;
+          if (audioContext?.state === "running" && material.gainNode) {
+            const now = audioContext.currentTime;
+            material.gainNode.gain.cancelScheduledValues(now);
+            material.gainNode.gain.setValueAtTime(1, now);
+          }
+          await audio.play();
+          if (finished || material.playToken !== token) return;
+          if (segment.end !== null && audioContext?.state === "running" && material.gainNode) {
+            const now = audioContext.currentTime;
+            const audibleSeconds = Math.max(0, (segment.end - audio.currentTime) / audio.playbackRate);
+            material.gainNode.gain.setValueAtTime(0, now + audibleSeconds);
+          }
           timer = setInterval(() => {
             if (material.playToken !== token) {
               finish();
@@ -1304,7 +1354,8 @@ const fallbackSentences = [
               finish();
             }
           }, 20);
-        }).catch((error) => finish(new Error(`原声播放失败：${error.message || error}`)));
+        };
+        beginPlayback().catch((error) => finish(new Error(`原声播放失败：${error.message || error}`)));
       });
     }
 
@@ -2599,6 +2650,7 @@ const fallbackSentences = [
     function handleGlobalShortcut(event) {
       if (event.isComposing) return;
       if (event.target && event.target.closest && event.target.closest("[data-shortcut]")) return;
+      if (document.activeElement === counterIndexInput || event.target === counterIndexInput) return;
       if (event.key === "Escape" && !$("dictionaryLookupPopover").hidden) {
         event.preventDefault();
         closeDictionaryLookup();
@@ -2696,6 +2748,7 @@ const fallbackSentences = [
     function handleGlobalShortcutKeyup(event) {
       if (event.isComposing) return;
       if (event.target && event.target.closest && event.target.closest("[data-shortcut]")) return;
+      if (document.activeElement === counterIndexInput || event.target === counterIndexInput) return;
       if (isTopMenuOpen()) {
         if (state.speaking.holdActive) scheduleStopSpeakingPractice();
         clearPeekedWord();
@@ -6403,7 +6456,8 @@ const fallbackSentences = [
     }
 
     function renderLearnedCount() {
-      $("learnedCount").textContent = `已学习：${state.learnedCount}`;
+      const learnedCount = $("learnedCount");
+      if (learnedCount) learnedCount.textContent = `已学习：${state.learnedCount}`;
     }
 
     function switchSpeakingSentence(nextIndex, shouldSpeak = false) {
@@ -6891,6 +6945,17 @@ const fallbackSentences = [
       }
     });
     counterIndexInput.addEventListener("change", jumpToEnteredCounterIndex);
+    counterIndexInput.addEventListener("pointerdown", (event) => {
+      if (event.detail > 1) return;
+      event.preventDefault();
+      counterIndexInput.focus();
+      placeCounterCaretAtEnd();
+    });
+    counterIndexInput.addEventListener("focus", placeCounterCaretAtEnd);
+    counterIndexInput.addEventListener("dblclick", (event) => {
+      event.preventDefault();
+      counterIndexInput.select();
+    });
     counterIndexInput.addEventListener("input", () => {
       const digitsOnly = counterIndexInput.value.replace(/\D+/g, "");
       if (digitsOnly !== counterIndexInput.value) counterIndexInput.value = digitsOnly;
@@ -6902,6 +6967,8 @@ const fallbackSentences = [
       jumpToEnteredCounterIndex();
       counterIndexInput.select();
     });
+    $("increaseSentenceIndexBtn").addEventListener("click", () => adjustCounterIndex(1));
+    $("decreaseSentenceIndexBtn").addEventListener("click", () => adjustCounterIndex(-1));
     $("analyzeGrammarBtn").addEventListener("click", () => analyzeCurrentGrammar());
     $("analyzeGrammarBtn").addEventListener("contextmenu", openGrammarContextMenu);
     $("traditionalGrammarMenuBtn").addEventListener("click", closeGrammarContextMenu);

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260927-172">
+  <link rel="stylesheet" href="src/styles.css?v=20260927-177">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -243,13 +243,18 @@
               </div>
               <button id="analyzeGrammarBtn" type="button">Ai语法分析</button>
               <div class="sentence-tool-end">
-                <div id="learnedCount" class="learned-count">已学习：0</div>
-                <div id="counter" class="counter">
-                  <input id="counterIndexInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="跳转到第几句">
+                <div id="counter" class="counter" aria-label="句子序号">
+                  <div class="sentence-index-control">
+                    <input id="counterIndexInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="跳转到第几句" title="输入句子序号，按 Enter 跳转">
+                    <span class="sentence-index-stepper">
+                      <button id="increaseSentenceIndexBtn" type="button" title="下一句序号" aria-label="下一句序号">▲</button>
+                      <button id="decreaseSentenceIndexBtn" type="button" title="上一句序号" aria-label="上一句序号">▼</button>
+                    </span>
+                  </div>
                   <span id="counterTotal">/ 0</span>
                 </div>
                 <details class="help-popover">
-                  <summary>?</summary>
+                  <summary title="查看听说练习快捷键">?</summary>
                   <div class="help-content">
                     Enter 完成并进入下一句<br>
                     Ctrl + Backspace 重写<br>
@@ -638,6 +643,6 @@
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
   <script src="src/dictionary/dictionary-service.js?v=20260926-10"></script>
-  <script src="src/app.js?v=20260927-157"></script>
+  <script src="src/app.js?v=20260927-172"></script>
 </body>
 </html>

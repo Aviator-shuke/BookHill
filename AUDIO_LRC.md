@@ -111,6 +111,44 @@ TTS 读音标准但生硬，缺少真实语速、连读、弱读和语调。导�
 
 没有标点、下一行又大写开头的字幕不会合并，仍按一行一句处理。
 
+### 第 4 步：稳定地播放和停止片段
+
+前三步只负责算出当前句的 `{ start, end }`，第 4 步负责让浏览器实际播放这个区间。两者必须分开理解：
+
+- **字幕切分层**决定“内容边界”：从 `start` 开始，到 `end` 结束。当前仍保留下一行前 `0.3 秒`的提前量，不会为了修复播放器计时误差而继续缩短所有句子。
+- **播放执行层**决定“浏览器什么时候真正停止出声”：如果只依靠 JavaScript 定时轮询，停止时刻会受到主线程调度影响。同一句可能在不同页面加载中多播或少播一小段，但在同一次加载中又表现一致。
+
+当前播放流程如下：
+
+1. `playSentenceAudioAndWait(rate)` 取得当前句的 `start`、`end`，停止上一次片段，并递增 `playToken`，使旧播放任务失效。
+2. 复用同一个 `HTMLAudioElement`，设置 `playbackRate` 和 `currentTime = start`，然后正常调用 `play()`。当前实现**不等待 `seeked` 再播放**，避免改变普通句已经稳定的起播行为。
+3. 音频第一次使用时，`ensureSentenceAudioGain()` 把这个媒体元素接入一个复用的 `AudioContext` 和 `GainNode`。它不重新解码或复制整段音频，只在最终输出前控制音量。
+4. `play()`真正开始后，读取当时的 `audio.currentTime`，按下面的公式换算还应出声多久：
+
+   ```
+   剩余媒体时长 = max(0, end - audio.currentTime)
+   剩余实际时长 = 剩余媒体时长 / playbackRate
+   静音时刻 = AudioContext.currentTime + 剩余实际时长
+   ```
+
+5. `GainNode.gain`用音频渲染时钟在这个时刻变为 `0`。音频渲染时钟不依赖页面主线程的轮询相位，因此同一个`end`应落在稳定的可听位置。
+6. 原有的 `20ms`轮询仍保留，但只在检测到 `audio.currentTime >= end`后暂停媒体元素并结束 Promise；此时 GainNode 已经静音，所以轮询早晚不再决定用户听到多少。
+
+停止与释放规则：
+
+- 切换句子、手动停止、开始 TTS 或停止`原声对比`都会调用 `stopSentenceAudio()`：先暂停媒体元素，再立即把 GainNode 设为静音，最后结束待处理的播放 Promise。
+- 每次播放都保存自己的 `playToken`。旧播放的异步回调发现 token 已变化时只结束自己，不能继续控制新片段。
+- 下一次播放开始前会取消旧的音量计划并恢复音量为 `1`，所以前一句的静音计划不会影响后一句。
+- 切换句库或清除原声材料时，`clearAudioMaterial()`会停止播放、关闭 `AudioContext`、释放对象 URL。
+- 浏览器没有 Web Audio API 时，仍使用原来的 `20ms`轮询作为兼容回退；这时停止精度仍受浏览器调度影响。
+
+这套机制只解决“相同字幕边界的实际停止位置不稳定”，不修正字幕本身：
+
+- 如果每次都稳定地少一个尾音，先检查`end`是否过早、字幕是否不准或第 2 步的最长时长是否过短。
+- 如果每次都稳定地多出下一句开头，先检查下一行时间是否偏晚，必要时修改 LRC 时间，而不是继续增大全局 `0.3 秒`提前量。
+- 如果刷新后才随机多一点或少一点，而字幕数据未变，才属于播放执行层的计时问题。
+- 如果句尾后又重新出现当前句前面的词，这不是普通的边界偏差，应检查是否发生了第二次播放调用；不能通过提前截短句尾解决。
+
 ## 5. 免费翻译
 
 字幕没有中文时，可以用浏览器内置的本机翻译免费补上：
@@ -184,8 +222,10 @@ TTS 读音标准但生硬，缺少真实语速、连读、弱读和语调。导�
 | 提示“没有识别到带时间的句子” | 字幕没有 `[分:秒]` 时间标记，或格式不同。可把字幕开头几行发出来检查 |
 | 提示“原声播放失败” | 浏览器不支持该音频编码，可转换为 `.m4a` 或 `.mp3` |
 | 刷新后又变回 TTS | 音频不保存，需要重新导入 |
-| 句尾多出下一句开头的几个音 | 字幕时间比语音晚得多，0.3 秒的提前量不够；可反馈调大 `TIMED_SEGMENT_END_MARGIN_SECONDS` |
+| 句尾多出下一句开头的几个音 | 下一行字幕时间偏晚；优先校准对应 LRC 时间，避免增大全局提前量后截掉其他句子的尾音 |
 | 句子开头或结尾被截 | 字幕时间不准，用 `[offset:]` 校正或修改对应行的时间；语速很慢时也可能是第 4 节的时长上限，可反馈调整 |
+| 同一句刷新后有时多一点、有时少一点 | 字幕边界不变，但浏览器停止时刻不稳定；当前用 Web Audio 音频时钟定点静音，20ms 轮询只负责随后暂停 |
+| 句尾后又出现当前句前面的词 | 发生了第二次播放或旧任务重新启动，不是下一句串音；检查触发路径和 `playToken`，不要通过缩短字幕边界处理 |
 
 ## 9. 可能的后续改进
 
@@ -207,10 +247,11 @@ TTS 读音标准但生硬，缺少真实语速、连读、弱读和语调。导�
 | `capTimedSegments(items)` | 第 2 步：每行最长 2.5 秒 + 0.6 秒/词（`TIMED_SEGMENT_BASE_SECONDS`、`TIMED_SEGMENT_SECONDS_PER_WORD`） |
 | `mergeTimedFragments(items)` | 第 3 步：把半句合并成完整句子（最多 `TIMED_MERGE_MAX_LINES` = 4 行） |
 | `parseLrcTime(stamp)` | 把 `mm:ss.xx` 转成秒 |
-| `setAudioMaterial(blob, name)` / `clearAudioMaterial()` | 创建 / 释放内存中的音频（`state.audioMaterial`） |
+| `setAudioMaterial(blob, name)` / `clearAudioMaterial()` | 创建 / 释放内存中的音频；清除时关闭音频上下文并释放对象 URL |
 | `currentSentenceAudioSegment()` | 当前句的原声片段；没有原声时返回空 |
-| `playSentenceAudioAndWait(rate)` | 播放当前句片段，到结束时间自动暂停 |
-| `stopSentenceAudio()` | 停止正在播放的片段 |
+| `ensureSentenceAudioGain(material)` | 为当前媒体元素创建并复用 `AudioContext + GainNode`，用于按音频时钟稳定静音 |
+| `playSentenceAudioAndWait(rate)` | 播放当前句片段；按剩余媒体时长和倍速安排 GainNode 静音，轮询随后暂停元素 |
+| `stopSentenceAudio()` | 暂停片段、立即静音并通过 `playToken`使旧任务失效 |
 | `speakSentence(rate)` / `speakSentenceAndWait(rate)` | 有原声片段时播放原声，否则用 TTS |
 | `translateCurrentLibraryForFree()` | 用浏览器内置 Translator API 翻译当前句库中没有翻译的句子 |
 | `translateSubtitleFile()` / `writePendingSubtitle()` / `savePendingSubtitleAs()` | 翻译字幕：选择任意 `.lrc` 并翻译；第二次点击写回原文件（不支持时下载同名文件），或另存为新文件 |
