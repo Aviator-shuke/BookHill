@@ -129,7 +129,7 @@ src/
   id: "es",
   label: "西班牙语",
   defaultLocale: "es-ES",
-  locales: ["es-ES", "es-MX"],
+  locales: ["es-ES"],
   translationTarget: "zh-CN",
   capabilities: {
     dictionary: false,
@@ -257,7 +257,7 @@ languageId + locale（仅在语义相关时）+ normalized content
 - 重音符号、`ñ`、倒问号和倒感叹号
 - 大量动词人称、时态和语气变化
 - 主语省略和附着代词
-- `es-ES` 与拉美地区差异
+- 当前默认只启用 `es-ES`；拉美地区差异后续再扩展
 
 ### 德语
 
@@ -276,6 +276,15 @@ languageId + locale（仅在语义相关时）+ normalized content
 - `fr-FR`、`fr-CA` 等地区差异
 
 这些差异说明多语言支持不能只是更换 TTS locale。
+
+Spanish browser capability boundary:
+
+- Current owner testing confirms Edge exposes `es-ES` speech synthesis voices,
+  so the first Spanish TTS target is fixed to Spain Spanish `es-ES`.
+- Spanish sentence-library Chinese translations are generated from Spanish
+  source text through browser `Translator API` `es -> zh`. If that pair is not
+  available, the translation tool reports an error; it must not silently use the
+  English translation column as a fallback.
 
 ## 8. 实施顺序
 
@@ -328,7 +337,6 @@ languageId + locale（仅在语义相关时）+ normalized content
 
 尚待决定：
 
-1. 西班牙语默认 locale。
-2. 西班牙语第一阶段是否接受词典、背单词和语法分析暂不可用。
-3. 各语言听写的严格/宽松判分设置如何呈现。
-4. 德语和法语中哪一种作为第二个最小验证语言包。
+1. 西班牙语第一阶段是否接受背单词和语法分析暂不可用。
+2. 各语言听写的严格/宽松判分设置如何呈现。
+3. 德语和法语中哪一种作为第二个最小验证语言包。

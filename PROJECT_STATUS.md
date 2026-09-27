@@ -16,6 +16,8 @@ Local testing remains the default development workflow. Run `tools/start-langlsr
 
 - Four-part navigation: `听说 -> 读 -> 写`; reading and writing currently remain placeholders.
 - A compact `英 / 西` learning-language control sits left of the `听说读写` navigation. The selected learning language is stored locally. English remains the complete runtime language; selecting `西` switches the active local dictionary to `spanish-wiktionary` for lookup and the dictionary browser, while still leaving built-in materials, listening/speaking behavior, collection, word review, grammar analysis, backup, and cloud sync on the existing English-oriented paths.
+- The Spanish default locale direction is fixed to Spain Spanish `es-ES` for the current stage. Browser TTS on the owner's Edge installation exposes multiple Spanish voices, including `es-ES`; no `es-MX`, `es-US`, or broader regional selector is planned for the first Spanish pass.
+- Browser-dependent Spanish capabilities are explicitly scoped. Owner-side Edge has verified `speechSynthesis` Spanish voices, including `es-ES`. Spanish sentence-library Chinese translations are planned as browser `Translator API` machine translations from Spanish directly to Chinese (`es -> zh`); if that language pair is unavailable, the tooling must report an error instead of translating from the existing English column.
 - Local users, browser storage, user switching, JSON import/export, and settings reset.
 - Four themes, cycled in this order: eye-care (default), light, gray, black.
 - Separate English-content and Chinese UI/translation font settings.
