@@ -2898,18 +2898,14 @@ ${orderNote}`;
       setSpeakButtonReading(true);
       const active = () => state.fullTextReading === run;
       try {
-        while (active()) {
-          await speakSentenceAndWait(currentReplayRate());
-          if (!active() || state.index >= state.sentences.length - 1) break;
-          await waitMs(350);
-          if (!active()) break;
-          state.fullTextAdvancing = true;
-          try {
-            state.index += 1;
-            saveLastPosition();
-            resetCurrent(false);
-          } finally {
-            state.fullTextAdvancing = false;
+        if (state.audioMaterial && usingOriginalVoice() && Number.isFinite(state.sentences[state.index]?.start)) {
+          await playFullTextAudio(active);
+        } else {
+          // TTS: the next sentence starts as soon as the previous one ends.
+          while (active()) {
+            await speakSentenceAndWait(currentReplayRate());
+            if (!active() || state.index >= state.sentences.length - 1) break;
+            advanceFullTextSentence();
           }
         }
       } catch {
@@ -2920,6 +2916,69 @@ ${orderNote}`;
           setSpeakButtonReading(false);
         }
       }
+    }
+
+    function advanceFullTextSentence() {
+      state.fullTextAdvancing = true;
+      try {
+        state.index += 1;
+        saveLastPosition();
+        resetCurrent(false);
+      } finally {
+        state.fullTextAdvancing = false;
+      }
+    }
+
+    // Original audio in 全文: one continuous playback from the current sentence's start to the last sentence's end,
+    // exactly as recorded (no per-sentence seeking, cutting, or pauses). The practice view follows the audio clock:
+    // whenever playback reaches the next sentence's start time, that sentence becomes current.
+    async function playFullTextAudio(isActive) {
+      const material = state.audioMaterial;
+      const startItem = state.sentences[state.index];
+      if (!material || !Number.isFinite(startItem?.start)) return;
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      stopSentenceAudio();
+      const token = material.playToken;
+      const audio = material.audio;
+      const audioContext = ensureSentenceAudioGain(material);
+      audio.playbackRate = currentReplayRate();
+      audio.currentTime = startItem.start;
+      if (audioContext?.state === "suspended") await audioContext.resume();
+      if (!isActive() || material.playToken !== token) return;
+      if (audioContext && material.gainNode) {
+        const now = audioContext.currentTime;
+        material.gainNode.gain.cancelScheduledValues(now);
+        material.gainNode.gain.setValueAtTime(1, now);
+      }
+      await audio.play();
+      await new Promise((resolve) => {
+        let timer = 0;
+        const finish = () => {
+          clearInterval(timer);
+          audio.removeEventListener("ended", finish);
+          if (material.finishPlayback === finish) material.finishPlayback = null;
+          resolve();
+        };
+        material.finishPlayback = finish;
+        audio.addEventListener("ended", finish);
+        timer = setInterval(() => {
+          if (!isActive() || material.playToken !== token) {
+            finish();
+            return;
+          }
+          const time = audio.currentTime;
+          while (state.index < state.sentences.length - 1) {
+            const next = state.sentences[state.index + 1];
+            if (!Number.isFinite(next?.start) || time < next.start) break;
+            advanceFullTextSentence();
+          }
+          const last = state.sentences[state.sentences.length - 1];
+          if (state.index === state.sentences.length - 1 && Number.isFinite(last?.end) && time >= last.end) {
+            audio.pause();
+            finish();
+          }
+        }, 50);
+      });
     }
 
     function stopFullTextReading() {
@@ -6681,8 +6740,10 @@ ${orderNote}`;
     }
 
     function resetCurrent(shouldSpeak = false) {
-      if (!state.fullTextAdvancing) stopFullTextReading();
-      stopSentenceAudio();
+      if (!state.fullTextAdvancing) {
+        stopFullTextReading();
+        stopSentenceAudio();
+      }
       closeDictionaryLookup();
       state.translationEditing = false;
       state.translationDraft = "";
