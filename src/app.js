@@ -2397,7 +2397,8 @@ const fallbackSentences = [
       ));
     }
 
-    function wordMasteryState(record) {
+    function wordMasteryState(record, manual = false) {
+      if (manual) return { key: "mastered", label: "手动掌握🟢" };
       // Same precedence as the list status icons: a due record shows 已到期 even if it was mastered.
       if (wordReviewRecordStarted(record) && Number(record.due) <= Date.now()) return { key: "due", label: "已到期" };
       if (wordReviewMastered(record)) return { key: "mastered", label: "已掌握" };
@@ -2440,11 +2441,13 @@ const fallbackSentences = [
 
     function dictionaryWordMasteryHtml(word) {
       const records = loadWordReviewRecords();
+      const marks = loadWordManualMastery()[dictionaryFavoriteKey(word)] || {};
       const wordRecord = records[dictionaryFavoriteKey(word)] || {};
       const modes = WORD_REVIEW_MODES.map((mode) => ({
         label: mode.label,
-        state: wordMasteryState(wordRecord[mode.id]),
-        record: wordRecord[mode.id] || null
+        state: wordMasteryState(wordRecord[mode.id], Boolean(marks[mode.id])),
+        // Manually mastered modes hide the underlying schedule; every field shows "—".
+        record: marks[mode.id] ? null : wordRecord[mode.id] || null
       }));
       return `<div class="dictionary-mastery"><div class="dictionary-section-label">当前单词掌握程度</div><div class="dictionary-mastery-items">${modes.map((mode) => `<div class="dictionary-mastery-item is-${mode.state.key}"><div class="dictionary-mastery-head"><b>${mode.label}</b><span>${mode.state.label}</span></div><div class="dictionary-mastery-meta"><span>复习间隔：${wordReviewIntervalLabel(mode.record)}</span><span>下次复习：${wordReviewDueLabel(mode.record)}</span><span>间隔系数：${wordReviewRecordStarted(mode.record) ? (Number(mode.record.ease) || 2.5).toFixed(2) : "—"}</span><span>连续答对：${wordReviewRecordStarted(mode.record) ? `${Number(mode.record.reps) || 0} 次` : "—"}</span></div></div>`).join("")}</div></div>`;
     }
@@ -2565,8 +2568,9 @@ const fallbackSentences = [
         $("dictionaryNextPageBtn").disabled = result.page >= result.pageCount;
         $("dictionaryLastPageBtn").disabled = result.page >= result.pageCount;
         const reviewRecords = loadWordReviewRecords();
+        const manualMastery = loadWordManualMastery();
         list.innerHTML = result.rows.length
-          ? result.rows.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-dictionary-library-word="${escapeHtml(item.word)}" data-dictionary-library-index="${(result.page - 1) * result.pageSize + index + 1}">${wordReviewStatusIconsHtml(item.word, reviewRecords)}<span class="user-word-label">${escapeHtml(item.word)}</span>${dictionaryCollinsRating(item)}</div>`).join("")
+          ? result.rows.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-dictionary-library-word="${escapeHtml(item.word)}" data-dictionary-library-index="${(result.page - 1) * result.pageSize + index + 1}">${wordReviewStatusIconsHtml(item.word, reviewRecords, manualMastery)}<span class="user-word-label">${escapeHtml(item.word)}</span>${dictionaryCollinsRating(item)}</div>`).join("")
           : '<div class="user-phrases-empty">当前分类没有单词。</div>';
         list.querySelectorAll("[data-dictionary-library-word]").forEach((button) => {
           button.addEventListener("mouseenter", () => activateDictionaryLibraryWord(button, result.total, typeLabel));
@@ -2711,8 +2715,9 @@ const fallbackSentences = [
 
     function wordListReviewModeCount(words, mode) {
       const records = loadWordReviewRecords();
+      const marks = loadWordManualMastery();
       const keys = new Set(words.map((item) => dictionaryFavoriteKey(item.word)));
-      return [...keys].filter((key) => wordReviewMastered(records[key]?.[mode])).length;
+      return [...keys].filter((key) => wordModeMastered(key, mode, records, marks)).length;
     }
 
     async function loadDictionaryStudyWords(category, sort) {
@@ -2941,8 +2946,9 @@ const fallbackSentences = [
       $("userWordsLastPageBtn").disabled = state.userWordsPage >= pageCount;
       updateFavoriteReviewLaunchers();
       const reviewRecords = loadWordReviewRecords();
+      const manualMastery = loadWordManualMastery();
       $("userPhrasesList").innerHTML = pageWords.length
-        ? pageWords.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-user-word="${escapeHtml(item.word)}" data-user-word-index="${start + index + 1}">${wordReviewStatusIconsHtml(item.word, reviewRecords)}<span class="user-word-label">${escapeHtml(item.word)}</span>${showCollinsRating ? dictionaryCollinsRating(item) : dictionaryFavoriteButton(item.word)}</div>`).join("")
+        ? pageWords.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-user-word="${escapeHtml(item.word)}" data-user-word-index="${start + index + 1}">${wordReviewStatusIconsHtml(item.word, reviewRecords, manualMastery)}<span class="user-word-label">${escapeHtml(item.word)}</span>${showCollinsRating ? dictionaryCollinsRating(item) : dictionaryFavoriteButton(item.word)}</div>`).join("")
         : `<div class="user-phrases-empty">${allWords.length ? "当前分类没有收藏单词。" : "还没有收藏单词。"}</div>`;
 
       const firstVisibleSentenceIndex = state.userSentencesPageRanges[state.userSentencesPage - 1]?.[0] ?? 0;
@@ -3214,6 +3220,60 @@ const fallbackSentences = [
       localStorage.setItem(wordReviewsStorageKey(), JSON.stringify({ version: 1, words: records }));
     }
 
+    // Manual mastery is a separate per-mode mark ({ word: { recognize: isoTime, ... } }). It never touches the
+    // spaced-repetition record: marked modes count as mastered, show 🟢, and are left out of normal rounds.
+    const migratedManualMasteryKeys = new Set();
+
+    function wordManualMasteryStorageKey() {
+      return wordReviewsStorageKey().replace("langLSRWWordReviews", "langLSRWWordManualMastery");
+    }
+
+    function loadWordManualMastery() {
+      migrateLegacyManualMastery();
+      try {
+        const data = JSON.parse(localStorage.getItem(wordManualMasteryStorageKey()) || "{}");
+        return data?.words && typeof data.words === "object" ? data.words : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveWordManualMastery(marks) {
+      localStorage.setItem(wordManualMasteryStorageKey(), JSON.stringify({ version: 1, words: marks }));
+    }
+
+    // One earlier build wrote manual mastery into the review record itself; restore those records and keep the mark.
+    function migrateLegacyManualMastery() {
+      const storageKey = wordReviewsStorageKey();
+      if (migratedManualMasteryKeys.has(storageKey)) return;
+      migratedManualMasteryKeys.add(storageKey);
+      const records = loadWordReviewRecords();
+      let marks = null;
+      Object.entries(records).forEach(([key, wordRecord]) => {
+        Object.entries(wordRecord || {}).forEach(([mode, record]) => {
+          if (!record?.manual) return;
+          if (!marks) {
+            try {
+              marks = JSON.parse(localStorage.getItem(wordManualMasteryStorageKey()) || "{}").words || {};
+            } catch {
+              marks = {};
+            }
+          }
+          marks[key] = { ...(marks[key] || {}), [mode]: record.lastReviewedAt || new Date().toISOString() };
+          if (record.manualPrevious) wordRecord[mode] = record.manualPrevious;
+          else delete wordRecord[mode];
+        });
+        if (!Object.keys(wordRecord || {}).length) delete records[key];
+      });
+      if (!marks) return;
+      saveWordReviewRecords(records);
+      saveWordManualMastery(marks);
+    }
+
+    function wordModeMastered(key, mode, records, marks) {
+      return Boolean(marks?.[key]?.[mode]) || wordReviewMastered(records?.[key]?.[mode]);
+    }
+
     function wordReviewModeLabel(mode) {
       return WORD_REVIEW_MODES.find((item) => item.id === mode)?.label || "";
     }
@@ -3226,29 +3286,78 @@ const fallbackSentences = [
       const category = $("userWordsCategorySelect").value;
       const words = loadUserWords().filter((item) => userWordMatchesCategory(item, category));
       const records = loadWordReviewRecords();
+      const marks = loadWordManualMastery();
       document.querySelectorAll("[data-favorite-review-mode]").forEach((button) => {
         const mode = button.dataset.favoriteReviewMode;
-        const count = words.filter((item) => wordReviewEligible(item, mode) && wordReviewMastered(records[dictionaryFavoriteKey(item.word)]?.[mode])).length;
+        const count = words.filter((item) => wordReviewEligible(item, mode) && wordModeMastered(dictionaryFavoriteKey(item.word), mode, records, marks)).length;
         button.textContent = `${wordReviewModeLabel(mode)} (${count})`;
       });
     }
 
     // Three fixed-width slots (识义 / 听写 / 默写) left of each list word: 🕗 due, 📕 learning, ✅ mastered, blank untouched.
-    function wordReviewStatusIconsHtml(word, records = loadWordReviewRecords()) {
+    function wordReviewStatusIconsHtml(word, records = loadWordReviewRecords(), marks = loadWordManualMastery()) {
       const now = Date.now();
       const modeRecords = records[dictionaryFavoriteKey(word)] || {};
-      return `<span class="word-review-status" aria-hidden="true">${WORD_REVIEW_MODES.map(({ id }) => {
+      const modeMarks = marks[dictionaryFavoriteKey(word)] || {};
+      return `<span class="word-review-status" role="button" data-word-status="${escapeHtml(word)}" title="点击可把识义、听写、默写标记为手动掌握🟢（例如很熟的词），或取消标记">${WORD_REVIEW_MODES.map(({ id }) => {
         const record = modeRecords[id];
-        const icon = !record ? "" : Number(record.due) <= now ? "🕗" : wordReviewMastered(record) ? "✅" : "📕";
+        const icon = modeMarks[id] ? "🟢" : !record ? "" : Number(record.due) <= now ? "🕗" : wordReviewMastered(record) ? "✅" : "📕";
         return `<span>${icon}</span>`;
       }).join("")}</span>`;
     }
 
+    function setWordManualMastery(word, modes, mastered) {
+      const marks = loadWordManualMastery();
+      const key = dictionaryFavoriteKey(word);
+      const wordMarks = { ...(marks[key] || {}) };
+      const now = new Date().toISOString();
+      modes.forEach((mode) => {
+        if (mastered) wordMarks[mode] = wordMarks[mode] || now;
+        else delete wordMarks[mode];
+      });
+      if (Object.keys(wordMarks).length) marks[key] = wordMarks;
+      else delete marks[key];
+      saveWordManualMastery(marks);
+      refreshWordReviewStatusIcons();
+      updateFavoriteReviewLaunchers();
+      updateDictionaryStudyButton();
+      ["dictionaryLibraryDetail", "userPhraseDetail"].forEach((id) => {
+        const detail = $(id);
+        const mastery = detail?.querySelector(".dictionary-mastery");
+        const headword = detail?.querySelector(".dictionary-headword strong")?.textContent;
+        if (mastery && headword && dictionaryFavoriteKey(headword) === key) mastery.outerHTML = dictionaryWordMasteryHtml(word);
+      });
+    }
+
+    function openWordStatusMenu(event, word) {
+      event.preventDefault();
+      event.stopPropagation();
+      const marks = loadWordManualMastery()[dictionaryFavoriteKey(word)] || {};
+      const items = WORD_REVIEW_MODES.map(({ id, label }) => marks[id]
+        ? `<button type="button" role="menuitem" data-word-status-action="undo" data-mode="${id}" title="取消手动掌握，恢复显示原来的学习状态，并重新参加${label}练习">${label}：取消手动掌握</button>`
+        : `<button type="button" role="menuitem" data-word-status-action="master" data-mode="${id}" title="把${label}标记为手动掌握🟢：统计为已掌握，不再出现在${label}练习中；原来的学习记录保留">${label}：标记为手动掌握🟢</button>`);
+      const allMarked = WORD_REVIEW_MODES.every(({ id }) => marks[id]);
+      const menu = $("wordStatusMenu");
+      menu.dataset.word = word;
+      menu.innerHTML = `${items.join("")}<div class="grammar-context-separator"></div>${allMarked
+        ? '<button type="button" role="menuitem" data-word-status-action="undo-all" title="识义、听写、默写全部取消手动掌握">三项全部取消手动掌握</button>'
+        : '<button type="button" role="menuitem" data-word-status-action="master-all" title="识义、听写、默写全部标记为手动掌握">三项全部标记为手动掌握🟢</button>'}`;
+      menu.hidden = false;
+      const rect = menu.getBoundingClientRect();
+      menu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - rect.width - 8))}px`;
+      menu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - rect.height - 8))}px`;
+    }
+
+    function closeWordStatusMenu() {
+      $("wordStatusMenu").hidden = true;
+    }
+
     function refreshWordReviewStatusIcons() {
       const records = loadWordReviewRecords();
+      const marks = loadWordManualMastery();
       document.querySelectorAll("#dictionaryLibraryList [data-dictionary-library-word], #userPhrasesList [data-user-word]").forEach((row) => {
         const status = row.querySelector(".word-review-status");
-        if (status) status.outerHTML = wordReviewStatusIconsHtml(row.dataset.dictionaryLibraryWord || row.dataset.userWord, records);
+        if (status) status.outerHTML = wordReviewStatusIconsHtml(row.dataset.dictionaryLibraryWord || row.dataset.userWord, records, marks);
       });
     }
 
@@ -3278,9 +3387,11 @@ const fallbackSentences = [
 
     function buildWordReviewQueue(mode, review = state.wordReview) {
       const now = Date.now();
-      const words = review?.source === "wordList"
+      const marks = loadWordManualMastery();
+      const words = (review?.source === "wordList"
         ? wordReviewSourceItems(review)
-        : filteredAndSortedUserWords(loadUserWords()).filter((item) => wordReviewEligible(item, mode));
+        : filteredAndSortedUserWords(loadUserWords()).filter((item) => wordReviewEligible(item, mode)))
+        .filter((item) => !marks[dictionaryFavoriteKey(item.word)]?.[mode]);
       const dueReviewed = words
         .filter((item) => wordReviewRecord(item, mode, review) && Number(wordReviewRecord(item, mode, review).due) <= now)
         .sort((a, b) => Number(wordReviewRecord(a, mode, review).due) - Number(wordReviewRecord(b, mode, review).due));
@@ -3383,6 +3494,14 @@ const fallbackSentences = [
         if (!Object.keys(records[key]).length) delete records[key];
       });
       saveWordReviewRecords(records);
+      const marks = loadWordManualMastery();
+      items.forEach((item) => {
+        const key = dictionaryFavoriteKey(item.word);
+        if (!marks[key]) return;
+        delete marks[key][mode];
+        if (!Object.keys(marks[key]).length) delete marks[key];
+      });
+      saveWordManualMastery(marks);
       updateFavoriteReviewLaunchers();
       updateDictionaryStudyButton();
       refreshWordReviewStatusIcons();
@@ -3467,14 +3586,17 @@ const fallbackSentences = [
         }
       }
       const records = loadWordReviewRecords();
+      const marks = loadWordManualMastery();
       const now = Date.now();
       const stats = { fresh: 0, learning: 0, mastered: 0, due: 0 };
       words.forEach((item) => {
-        const record = records[dictionaryFavoriteKey(item.word)]?.[mode];
-        if (!record) stats.fresh += 1;
+        const key = dictionaryFavoriteKey(item.word);
+        const record = records[key]?.[mode];
+        if (marks[key]?.[mode]) stats.mastered += 1;
+        else if (!record) stats.fresh += 1;
         else if (wordReviewMastered(record)) stats.mastered += 1;
         else stats.learning += 1;
-        if (record && Number(record.due) <= now) stats.due += 1;
+        if (record && !marks[key]?.[mode] && Number(record.due) <= now) stats.due += 1;
       });
       return stats;
     }
@@ -3521,6 +3643,7 @@ const fallbackSentences = [
           <section><div class="dictionary-section-label">5. 掌握</div><ul>
             <li>同时满足以下两条才算已掌握：复习间隔天数 ≥ ${WORD_REVIEW_MASTERY_INTERVAL_DAYS}；连续答对 ≥ ${WORD_REVIEW_MASTERY_REPS} 次。答错一次会立即取消掌握。</li>
             <li>按钮“${label}”上的数字就是当前范围内已掌握的词数。</li>
+            <li>很熟的词可以点列表里的状态图标，标记为<b>手动掌握🟢</b>：算作已掌握，不再出现在${label}练习中；随时可以取消。</li>
           </ul></section>
           <section><div class="dictionary-section-label">6. 其他</div><ul>
             <li>识义、听写、默写的记录相互独立，互不影响。</li>
@@ -5953,6 +6076,24 @@ const fallbackSentences = [
       const button = event.target.closest("[data-dictionary-favorite]");
       if (button) toggleDictionaryFavorite(button);
     });
+    ["dictionaryLibraryList", "userPhrasesList"].forEach((id) => {
+      $(id).addEventListener("click", (event) => {
+        const status = event.target.closest("[data-word-status]");
+        if (status) openWordStatusMenu(event, status.dataset.wordStatus);
+      }, true);
+    });
+    $("wordStatusMenu").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-word-status-action]");
+      if (!button || button.disabled) return;
+      const word = $("wordStatusMenu").dataset.word;
+      const action = button.dataset.wordStatusAction;
+      closeWordStatusMenu();
+      if (action === "master-all" || action === "undo-all") setWordManualMastery(word, WORD_REVIEW_MODES.map((mode) => mode.id), action === "master-all");
+      else setWordManualMastery(word, [button.dataset.mode], action === "master");
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if (!$("wordStatusMenu").contains(event.target) && !event.target.closest("[data-word-status]")) closeWordStatusMenu();
+    });
     $("userPhrasesList").addEventListener("click", (event) => {
       const button = event.target.closest("[data-dictionary-favorite]");
       if (!button) return;
@@ -6435,6 +6576,7 @@ const fallbackSentences = [
         handleUserWordsKeys(event);
       }
       if (event.key === "Escape") {
+        closeWordStatusMenu();
         closeWordReviewLauncherMenu();
         closeLibraryModal();
         closeAiTextModal();
@@ -6448,6 +6590,8 @@ const fallbackSentences = [
     window.addEventListener("resize", syncTypingShellHeight);
     window.addEventListener("scroll", closeGrammarContextMenu, true);
     window.addEventListener("scroll", closeWordReviewLauncherMenu, true);
+    window.addEventListener("scroll", closeWordStatusMenu, true);
+    window.addEventListener("resize", closeWordStatusMenu);
     document.addEventListener("pointerover", handleControlTooltipOver);
     document.addEventListener("pointermove", (event) => {
       if (controlTooltipTarget && $("controlTooltip").hidden) controlTooltipPoint = { x: event.clientX, y: event.clientY };

@@ -4802,6 +4802,13 @@
       gap: 1px;
       margin-right: 2px;
       padding-right: 6px;
+      align-self: stretch;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .word-review-status:hover {
+      background: color-mix(in srgb, var(--accent) 16%, transparent);
     }
 
     /* Continuous divider after the status slots: drawn on each row across its full border-box height,
