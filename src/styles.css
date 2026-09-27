@@ -251,6 +251,15 @@
       line-height: 1;
     }
 
+    .dictionary-disabled-note {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
     .dictionary-star-icon {
       display: block;
       width: 16px;

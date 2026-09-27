@@ -149,12 +149,13 @@ Relevant implementation: `userSentencesStorageKey()`, `loadUserSentences()`, `se
 Runtime dictionaries are distributed as generated compressed SQLite packages.
 The Settings panel manages them by dictionary ID:
 
-- `ecdict`: English ECDICT, currently the active package for right-click lookup,
-  `词库`, collection details, and word review.
+- `ecdict`: English ECDICT, used when the current learning language is English
+  and still used by existing collection details and word review.
 - `spanish-wiktionary`: Spanish Wiktionary / Kaikki, installable and
-  test-queryable as a separate local package, but not yet wired into the
-  learning-language switch, right-click lookup, collection isolation, or word
-  review.
+  test-queryable as a separate local package. When the current learning
+  language is Spanish, right-click lookup and `词库` browsing use this package;
+  collection stars, mastery cards, and word review stay disabled until those
+  records are language-isolated.
 
 Each package has its own manifest and OPFS SQLite filename. The shared Worker
 opens the requested package by ID, validates schema and dictionary identity on
@@ -171,7 +172,7 @@ The word-lookup popover header shows a `自动发音` checkbox before the favori
 - The database is read-only and can be removed or replaced independently of user data.
 - `DictionaryService` is the stable package-aware interface so a future server/MySQL adapter can replace the local adapter without rewriting the UI.
 - Exact ECDICT lookup normally returns ECDICT's `exchange` field unchanged. If a single-`l` American `-ling`, `-led`, or `-ler` entry has an empty field, the Worker checks the corresponding double-`l` spelling and copies only an explicit `0:` lemma from that record. No fallback is applied unless both the alternate entry and its lemma exist. This ECDICT-specific fallback is not applied to `spanish-wiktionary`.
-- The `词库` view requests only one 100-entry page at a time from the active ECDICT package. ECDICT has no dedicated entry-type column, so classification is mutually exclusive and text-based: a leading `-` means suffix; otherwise a first character outside `A-Z`/`a-z` means special; remaining entries with an internal ASCII space are phrases; and the rest are words. This means multiword proper names beginning with a letter appear under phrases, while entries such as `'hood`, `.45-caliber`, and `'s Gravenhage` appear under special. Type/category filtering, total counting, sorting, limits, and offsets run inside SQLite; the browser never loads all entries into the DOM or application memory.
+- The `词库` view requests only one 100-entry page at a time from the active dictionary package. In English mode, ECDICT category and sort controls are available. In Spanish mode, category/sort and word-review launchers are disabled and the browser lists the Spanish package alphabetically. Entry-type classification is mutually exclusive and text-based: a leading `-` means suffix; otherwise a first character outside `A-Z`/`a-z` means special; remaining entries with an internal ASCII space are phrases; and the rest are words. Type/category filtering, total counting, sorting, limits, and offsets run inside SQLite; the browser never loads all entries into the DOM or application memory.
 - While the dictionary view is open, Up/Down selects words within the current page and Left/Right changes pages. These shortcuts are suspended while an input, select, or textarea has focus.
 - The dictionary dialog is user-resizable. A `ResizeObserver` derives page size from the list's available height and the fixed 26-pixel row height, then re-queries SQLite while preserving the previous first-visible global position. The list itself has no vertical scrollbar.
 - `词库` and `收藏` share the same browsing controls and interaction pattern, including the count/search row, adaptive pagination, resize/reset behavior, and arrow-key navigation. Changes to these common interactions should be applied to both views unless their data source requires an explicit difference. Dictionary search is debounced and executed inside SQLite; collection search runs against the already-local saved array.
