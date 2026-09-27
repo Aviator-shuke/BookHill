@@ -17,6 +17,8 @@ const fallbackSentences = [
       toggleTranslation: "2",
       nextSentence: "Right",
       previousSentence: "Left",
+      nextSentenceInOrder: "Down",
+      previousSentenceInOrder: "Up",
       speakCurrentWord: "Alt+`",
       peekCurrentWord: "Alt+1",
       lookupCurrentWord: "Alt+D",
@@ -102,8 +104,10 @@ const fallbackSentences = [
       { id: "speakSentence", label: "朗读当前句" },
       { id: "toggleSource", label: "显示/隐藏原文" },
       { id: "toggleTranslation", label: "显示/隐藏翻译" },
-      { id: "nextSentence", label: "下一句" },
-      { id: "previousSentence", label: "上一句" },
+      { id: "nextSentence", label: "下一句（随机模式下为随机下一句）" },
+      { id: "previousSentence", label: "上一句（随机模式下为退回上一个随机句）" },
+      { id: "nextSentenceInOrder", label: "按顺序下一句（任何模式）" },
+      { id: "previousSentenceInOrder", label: "按顺序上一句（任何模式）" },
       { id: "speakCurrentWord", label: "朗读当前词" },
       { id: "peekCurrentWord", label: "按住显示当前词" },
       { id: "lookupCurrentWord", label: "查询当前词" },
@@ -291,7 +295,6 @@ const fallbackSentences = [
       counterIndexInput.setSelectionRange(end, end);
     }
     const errorsEl = $("errors");
-    const historyEl = $("history");
 
     function syncCurrentLibrarySelect(label) {
       const select = $("currentLibrarySelect");
@@ -895,7 +898,6 @@ const fallbackSentences = [
       resetSettingsToDefault();
       $("userBadge").textContent = "未登录";
       renderCloudAuthState();
-      renderHistory();
       closeTopMenus();
       showLogin();
     }
@@ -2255,6 +2257,7 @@ const fallbackSentences = [
         accent: ttsAccent(),
         voiceURI: usingOriginalVoice() ? (state.speechSettings.voiceURI || "") : $("voiceSelect").value,
         autoSpeak: $("autoSpeakToggle").checked,
+        displayMode: sourceDisplayMode(),
         speakWord: $("speakWordToggle").checked,
         showSource: $("showSourceToggle").checked,
         showTranslation: $("showTranslationToggle").checked
@@ -2575,7 +2578,40 @@ const fallbackSentences = [
       return parts.join("+");
     }
 
+    function shortcutDisplayName(shortcut) {
+      const arrows = { Left: "←", Right: "→", Up: "↑", Down: "↓" };
+      return String(shortcut || "").split("+").map((part) => arrows[part] || part).join("+") || "未设置";
+    }
+
+    // Hover explanations for the practice-order select and the ◀ / ▶ buttons; they follow the current mode and the
+    // learner's configured shortcut keys.
+    function updateSentenceNavigationTitles() {
+      const mode = $("modeSelect").value;
+      const keys = {
+        previous: shortcutDisplayName(state.shortcuts.previousSentence),
+        next: shortcutDisplayName(state.shortcuts.nextSentence),
+        previousInOrder: shortcutDisplayName(state.shortcuts.previousSentenceInOrder),
+        nextInOrder: shortcutDisplayName(state.shortcuts.nextSentenceInOrder)
+      };
+      const orderNote = `顺序模式：${keys.previousInOrder}/${keys.nextInOrder}=上/下一句；${keys.previous}/${keys.next}=上/下一句。\n随机模式：${keys.previousInOrder}/${keys.nextInOrder}=上/下一句；${keys.previous}/${keys.next}=上个随机句/随机下一句。`;
+      $("modeSelect").title = `顺序＝按句库顺序切换；\n随机＝从句库随机抽取。\n---------------------------
+${orderNote}`;
+      const previous = {
+        ordered: "上一句",
+        random: `顺序模式：${keys.previous}=上一句。随机模式：${keys.previous}=上个随机句 (最多10句)。`,
+        mistakes: "上一个错句"
+      }[mode] || "上一句";
+      const next = {
+        ordered: "下一句",
+        random: `顺序模式：${keys.next}=下一句。随机模式：${keys.next}=下一个随机句。`,
+        mistakes: "下一个错句"
+      }[mode] || "下一句";
+      $("previousUnifiedBtn").title = `${keys.previous} 键：\n${previous}`;
+      $("nextUnifiedBtn").title = `${keys.next} 键：\n${next}`;
+    }
+
     function renderShortcutSettings() {
+      updateSentenceNavigationTitles();
       const keyboardRows = shortcutActions.map((action) => `
         <label class="shortcut-row">
           <span>${escapeHtml(action.label)}</span>
@@ -2597,6 +2633,8 @@ const fallbackSentences = [
         toggleTranslation: toggleTranslationVisibility,
         nextSentence: goNextSentence,
         previousSentence: goPreviousSentence,
+        nextSentenceInOrder: () => goSentenceInOrder(1),
+        previousSentenceInOrder: () => goSentenceInOrder(-1),
         resetSentence: () => resetCurrent(false),
         speakSentence: speakCurrentSentence,
         stopSpeech,
@@ -2778,6 +2816,9 @@ const fallbackSentences = [
     function loadSpeechSettings() {
       $("accentSelect").value = state.speechSettings.accent || "en-GB";
       $("autoSpeakToggle").checked = state.speechSettings.autoSpeak !== false;
+      // Older settings stored a longText checkbox; it maps to 长文显示.
+      const displayMode = state.speechSettings.displayMode || (state.speechSettings.longText === true ? "long" : "single");
+      $("displayModeSelect").value = ["single", "long", "focus"].includes(displayMode) ? displayMode : "single";
       $("speakWordToggle").checked = state.speechSettings.speakWord !== false;
       $("showSourceToggle").checked = state.speechSettings.showSource !== false;
       $("showTranslationToggle").checked = state.speechSettings.showTranslation !== false;
@@ -2994,14 +3035,15 @@ const fallbackSentences = [
     }
 
     function getActiveTargetWordEl() {
-      const words = [...targetEl.querySelectorAll(".target-word")];
+      const root = targetEl.querySelector(".long-text-item.is-current") || targetEl;
+      const words = [...root.querySelectorAll(".target-word")];
       if (!words.length) return null;
 
       if (targetEl.classList.contains("hidden-source")) {
-        return targetEl.querySelector(".covered-word") || words[words.length - 1];
+        return root.querySelector(".covered-word") || words[words.length - 1];
       }
 
-      return targetEl.querySelector(".wrong, .pending") || words[words.length - 1];
+      return root.querySelector(".wrong, .pending") || words[words.length - 1];
     }
 
     function peekCurrentWord() {
@@ -3814,13 +3856,16 @@ const fallbackSentences = [
       const saved = existingIndex < 0 || level !== existingRating;
       if (existingIndex < 0) {
         const current = normalizeSentenceItem(state.sentences[state.index]);
-        const isCurrent = sentenceFavoriteKey(current.text) === key;
+        const source = sentenceFavoriteKey(current.text) === key
+          ? current
+          : normalizeSentenceItem(state.sentences.find((item) => sentenceFavoriteKey(sentenceText(item)) === key));
+        const fromLibrary = sentenceFavoriteKey(source.text) === key;
         sentences.unshift({
           sentence,
-          translation: isCurrent ? current.translation : "",
-          sourceId: isCurrent ? current.id : "",
-          libraryId: isCurrent ? current.libraryId : "",
-          libraryLabel: isCurrent ? String(state.currentLibraryLabel || "") : "",
+          translation: fromLibrary ? source.translation : "",
+          sourceId: fromLibrary ? source.id : "",
+          libraryId: fromLibrary ? source.libraryId : "",
+          libraryLabel: fromLibrary ? String(state.currentLibraryLabel || "") : "",
           rating: level,
           savedAt: new Date().toISOString()
         });
@@ -6336,13 +6381,10 @@ const fallbackSentences = [
           }
           return `<span class="target-word covered-word" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
         }).join("");
-        targetEl.innerHTML = `<span class="target-english"><span class="target-english-text">${html || "&nbsp;"}</span>${sentenceFavoriteButton(target)}</span>${translationHtml}${grammarHtml}`;
-        updateCounter();
-        syncTypingShellHeight();
+        placeTargetContent(`<span class="target-english"><span class="target-english-text">${html || "&nbsp;"}</span>${sentenceFavoriteButton(target)}</span>${translationHtml}${grammarHtml}`, true);
         return;
       }
 
-      targetEl.className = "target";
       const alignment = alignInputWords(input, target);
       const correctTargetWords = new Set(
         alignment.pairs
@@ -6366,15 +6408,103 @@ const fallbackSentences = [
         return `<span class="target-word ${className}" data-word="${escapeHtml(piece.text)}" data-word-index="${currentWordIndex}">${escapeHtml(piece.text)}</span>`;
       }).join("");
 
-      targetEl.innerHTML = `<span class="target-english"><span class="target-english-text">${html || "&nbsp;"}</span>${sentenceFavoriteButton(target)}</span>${translationHtml}${grammarHtml}`;
+      placeTargetContent(`<span class="target-english"><span class="target-english-text">${html || "&nbsp;"}</span>${sentenceFavoriteButton(target)}</span>${translationHtml}${grammarHtml}`, false);
+    }
+
+    // The current sentence keeps its full dictation view (word states, covered words, favorite, translation editor,
+    // grammar) in both layouts; 长文显示 only adds plain neighbouring sentences around it.
+    // 单句显示 (single) / 长文显示 (long) / 长文聚焦 (focus: current sentence always centred, others dimmed).
+    function sourceDisplayMode() {
+      const value = $("displayModeSelect").value;
+      return ["long", "focus"].includes(value) ? value : "single";
+    }
+
+    function isLongTextDisplay() {
+      return sourceDisplayMode() !== "single";
+    }
+
+    function placeTargetContent(currentHtml, hiddenSource) {
+      // The long-text views use a smaller source font; the dictation input follows it so typed text still wraps like the source.
+      $("typingShell").classList.toggle("is-long-text", isLongTextDisplay());
+      if (isLongTextDisplay()) {
+        renderLongTextTarget(currentHtml, hiddenSource);
+      } else {
+        targetEl.className = hiddenSource ? "target hidden-source" : "target";
+        targetEl.innerHTML = currentHtml;
+      }
       updateCounter();
       syncTypingShellHeight();
     }
 
+    const LONG_TEXT_CONTEXT_SIZE = 15;
+
+    function longTextEnglishHtml(text) {
+      return getTargetWordPieces(text).map((piece) => (
+        piece.type === "text"
+          ? escapeHtml(piece.text)
+          : `<span class="target-word" data-word="${escapeHtml(piece.text)}">${escapeHtml(piece.text)}</span>`
+      )).join("");
+    }
+
+    // Both long-text modes show a window of sentences around the current one and keep the current sentence centred;
+    // 长文聚焦 additionally fades the other sentences.
+    function renderLongTextTarget(currentHtml, hiddenSource) {
+      const total = state.sentences.length;
+      const half = Math.floor(LONG_TEXT_CONTEXT_SIZE / 2);
+      const lastStart = Math.max(0, total - LONG_TEXT_CONTEXT_SIZE);
+      const focus = sourceDisplayMode() === "focus";
+      const start = Math.max(0, Math.min(state.index - half, lastStart));
+      const end = Math.min(total, start + LONG_TEXT_CONTEXT_SIZE);
+      const wasLongText = targetEl.classList.contains("long-text-target");
+      const previousScroll = targetEl.scrollTop;
+      const showSource = $("showSourceToggle").checked;
+      const showTranslation = $("showTranslationToggle").checked;
+      const rows = [];
+      for (let index = start; index < end; index += 1) {
+        if (index === state.index) {
+          rows.push(`<div class="long-text-item is-current" data-long-text-index="${index}">${currentHtml}</div>`);
+          continue;
+        }
+        const item = normalizeSentenceItem(state.sentences[index]);
+        rows.push(`<div class="long-text-item" data-long-text-index="${index}" title="点击切换到这一句">
+          <span class="target-english"><span class="target-english-text${showSource ? "" : " long-text-hidden-note"}">${showSource ? longTextEnglishHtml(item.text) : "原文已隐藏"}</span>${sentenceFavoriteButton(item.text)}</span>
+          <div class="translation-prompt ${showTranslation ? "" : "is-hidden"}"><span aria-hidden="${showTranslation ? "false" : "true"}">${escapeHtml(item.translation || "暂无翻译")}</span><button class="translation-edit-button long-text-edit-spacer" type="button" tabindex="-1" aria-hidden="true">编辑</button></div>
+        </div>`);
+      }
+      targetEl.className = `target long-text-target${focus ? " is-focus" : ""}${hiddenSource ? " hidden-source" : ""}`;
+      targetEl.style.scrollBehavior = "auto";
+      targetEl.innerHTML = rows.join("");
+      if (wasLongText) targetEl.scrollTop = previousScroll;
+      requestAnimationFrame(() => {
+        const current = targetEl.querySelector(".long-text-item.is-current");
+        if (!current) return;
+        // Measured from the rendered boxes: .target is not positioned, so offsetTop would be relative to an outer element.
+        const top = current.getBoundingClientRect().top - targetEl.getBoundingClientRect().top;
+        targetEl.scrollTop += top - (targetEl.clientHeight - current.offsetHeight) / 2;
+      });
+    }
+
+    // The dictation box mirrors a source row: typed text on the left, and on the right #typingSide, a placeholder
+    // column matching the source's favorite-star column (reserved for future input controls). Its width is measured
+    // rather than fixed because the source sits in a differently padded box (and a scrollbar in 长文显示), so the
+    // typed text gets exactly the source text's width and wraps at the same word. The box starts as one line and
+    // grows only when the typed text wraps onto another line.
+    function alignTypingWidthWithSource() {
+      const text = targetEl.querySelector(".long-text-item.is-current .target-english-text") || targetEl.querySelector(".target-english-text");
+      const shellWidth = $("typingShell").getBoundingClientRect().width;
+      const horizontalPadding = 20;
+      const sideWidth = text && shellWidth
+        ? Math.max(0, shellWidth - horizontalPadding - text.getBoundingClientRect().width)
+        : 0;
+      $("typingSide").style.width = `${sideWidth}px`;
+      typingBox.style.overflow = "hidden";
+    }
+
     function syncTypingShellHeight() {
-      const source = targetEl.querySelector(".target-english");
-      if (!source) return;
-      const height = `${Math.max(source.offsetHeight, 42)}px`;
+      alignTypingWidthWithSource();
+      typingBox.style.minHeight = "0px";
+      typingBox.style.height = "0px";
+      const height = `${Math.max(typingBox.scrollHeight, 42)}px`;
       $("typingShell").style.minHeight = height;
       $("typingShell").style.height = height;
       typingBox.style.minHeight = height;
@@ -6435,25 +6565,10 @@ const fallbackSentences = [
       renderErrors(metrics);
     }
 
-    function renderHistory() {
-      if (!state.history.length) {
-        historyEl.innerHTML = '<div class="empty">完成一句后会出现在这里。</div>';
-        return;
-      }
-
-      historyEl.innerHTML = state.history.slice(0, 8).map((item) => `
-        <div class="history-item">
-          <strong>${escapeHtml(item.sentence)}</strong>
-          <span>${item.accuracy}% · 流畅 ${item.fluency} · 错 ${item.errorCount} · ${item.wpm} WPM</span>
-        </div>
-      `).join("");
-    }
-
     function render() {
       renderTarget();
       renderTypedPreview();
       renderErrors();
-      renderHistory();
       renderLearnedCount();
       renderSpeakingPage();
     }
@@ -6579,6 +6694,16 @@ const fallbackSentences = [
       resetCurrent(true);
     }
 
+    // Up / Down keys: the neighbouring sentence in library order, whatever the practice mode, so random practice can
+    // still step through the text around the current sentence. Moving forward counts as learned, like goNextSentence.
+    function goSentenceInOrder(direction) {
+      const total = state.sentences.length;
+      if (!total) return;
+      if (direction > 0) incrementLearnedCount();
+      state.index = (state.index + direction + total) % total;
+      resetCurrent(true);
+    }
+
     function stopSpeech() {
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
       stopSentenceAudio();
@@ -6643,6 +6768,7 @@ const fallbackSentences = [
       }
     });
 
+    typingBox.addEventListener("input", syncTypingShellHeight);
     typingBox.addEventListener("input", (event) => {
       if (!state.startedAt) state.startedAt = performance.now();
       const inputType = event.inputType || "";
@@ -7081,6 +7207,18 @@ const fallbackSentences = [
         return;
       }
 
+      // Long-text views: clicking another sentence makes it the current one (not when text is being selected).
+      const longTextRow = event.target.closest(".long-text-item:not(.is-current)");
+      if (longTextRow) {
+        if (String(window.getSelection?.() || "").trim()) return;
+        const index = Number(longTextRow.dataset.longTextIndex);
+        if (Number.isInteger(index) && index >= 0 && index < state.sentences.length && index !== state.index) {
+          state.index = index;
+          resetCurrent(true);
+        }
+        return;
+      }
+
       const levelButton = event.target.closest("[data-grammar-level]");
       if (levelButton) {
         setGrammarExpansion(levelButton.dataset.grammarLevel);
@@ -7164,8 +7302,14 @@ const fallbackSentences = [
       saveSpeechSettings();
     });
 
+    $("modeSelect").addEventListener("change", updateSentenceNavigationTitles);
+    updateSentenceNavigationTitles();
     $("voiceSelect").addEventListener("change", saveSpeechSettings);
     $("autoSpeakToggle").addEventListener("change", saveSpeechSettings);
+    $("displayModeSelect").addEventListener("change", () => {
+      saveSpeechSettings();
+      renderTarget();
+    });
     $("speakWordToggle").addEventListener("change", saveSpeechSettings);
     $("showSourceToggle").addEventListener("change", () => {
       saveSpeechSettings();

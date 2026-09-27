@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260927-177">
+  <link rel="stylesheet" href="src/styles.css?v=20260927-195">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -213,6 +213,11 @@
               </select>
               <button id="previousUnifiedBtn" class="sentence-nav-button" type="button" aria-label="上一句">◀</button>
               <button id="nextUnifiedBtn" class="sentence-nav-button" type="button" aria-label="下一句">▶</button>
+              <select id="displayModeSelect" class="compact-select" aria-label="原文显示方式" title="单句显示：只显示当前句；&#10;长文显示：显示当前句前后多句，当前句始终居中；&#10;长文聚焦：同长文显示，其他句子变淡">
+                <option value="single">单句显示</option>
+                <option value="long">长文显示</option>
+                <option value="focus">长文聚焦</option>
+              </select>
               <label class="check-row">
                 <input id="showSourceToggle" type="checkbox" checked>
                 <span>显示原文</span>
@@ -271,8 +276,11 @@
           <div class="page">
             <div class="writing-area">
               <div id="typingShell" class="typing-shell">
-                <div id="typedPreview" class="typed-preview" aria-live="polite"></div>
-                <textarea id="typingBox" rows="1" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="在这里默写英文句子..."></textarea>
+                <div class="typing-main">
+                  <div id="typedPreview" class="typed-preview" aria-live="polite"></div>
+                  <textarea id="typingBox" rows="1" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="在这里默写英文句子..."></textarea>
+                </div>
+                <div id="typingSide" class="typing-side" aria-hidden="true"></div>
               </div>
               <div class="inline-metrics">
                 <label class="check-row metric-toggle">
@@ -285,12 +293,6 @@
                 <div class="mini-metric"><strong id="pauseCount">0</strong><span>停顿</span></div>
                 <div class="mini-metric"><strong id="fluencyText">100</strong><span>流畅</span></div>
                 <div class="mini-metric"><strong id="errorCount">0</strong><span>错误</span></div>
-              </div>
-              <div class="practice-summary">
-                <section class="compact-box">
-                  <h2>最近记录</h2>
-                  <div id="history" class="history"></div>
-                </section>
               </div>
             </div>
           </div>
@@ -643,6 +645,6 @@
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
   <script src="src/dictionary/dictionary-service.js?v=20260926-10"></script>
-  <script src="src/app.js?v=20260927-173"></script>
+  <script src="src/app.js?v=20260927-189"></script>
 </body>
 </html>

@@ -1490,6 +1490,12 @@
       margin-right: 6px;
     }
 
+    .sentence-tools #displayModeSelect {
+      min-width: 72px;
+      width: 72px;
+      margin-right: 4px;
+    }
+
     .sentence-tools #modeSelect {
       min-width: 48px;
       width: 48px;
@@ -1884,6 +1890,61 @@
       line-height: 1.3;
     }
 
+    .long-text-target {
+      display: block;
+      height: clamp(280px, 42vh, 460px);
+      overflow: auto;
+      border: 1px solid rgba(156, 163, 175, 0.35);
+      border-radius: 9px;
+      background: #fbfdff;
+      padding: 4px 10px;
+      scroll-behavior: smooth;
+    }
+
+    .long-text-item {
+      padding: 8px 4px 9px;
+      border-bottom: 1px solid rgba(156, 163, 175, 0.24);
+    }
+
+    .long-text-item:last-child {
+      border-bottom: 0;
+    }
+
+    .long-text-item.is-current {
+      margin: 0 -4px;
+      padding-right: 8px;
+      padding-left: 8px;
+      background: color-mix(in srgb, var(--accent) 9%, transparent);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+
+    .long-text-english {
+      color: var(--ink);
+      font-family: var(--font-english-content), "Microsoft YaHei", serif;
+      font-size: 20px;
+      line-height: 1.35;
+    }
+
+    .long-text-translation {
+      margin-top: 3px;
+      color: var(--muted);
+      font-family: var(--font-translation), "Microsoft YaHei", sans-serif;
+      font-size: 15px;
+      line-height: 1.4;
+    }
+
+    .long-text-english.is-hidden,
+    .long-text-translation.is-hidden {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    body[data-theme="gray"] .long-text-target,
+    body[data-theme="black"] .long-text-target,
+    body[data-theme="eye"] .long-text-target {
+      background: var(--panel);
+    }
+
     .target .done {
       color: var(--good);
     }
@@ -2109,10 +2170,21 @@
 
     .typing-shell {
       position: relative;
+      display: flex;
       min-height: 112px;
       border-radius: 10px;
       background: #ffffff;
       box-shadow: inset 0 0 0 1px #dbe3ef;
+    }
+
+    .typing-main {
+      position: relative;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .typing-side {
+      flex: 0 0 auto;
     }
 
     .typing-shell:focus-within {
@@ -2211,11 +2283,6 @@
     .panel {
       display: grid;
       gap: 8px;
-    }
-
-    .practice-summary {
-      display: grid;
-      gap: 6px;
     }
 
     .compact-box {
@@ -3125,6 +3192,13 @@
     .sentence-rating {
       flex: 0 0 auto;
       align-self: center;
+    }
+
+    /* In the practice source, the stars line up with the first line of the sentence instead of the middle of a
+       wrapped sentence: centred within that first line box (1lh = the sentence's line height, stars are 24px). */
+    .target-english > .sentence-rating {
+      align-self: flex-start;
+      margin-top: max(0px, calc((1lh - 24px) / 2));
     }
 
     .user-sentence-item .sentence-rating {
@@ -4784,7 +4858,9 @@
     .control-tooltip {
       position: fixed;
       z-index: 1000;
-      max-width: min(320px, calc(100vw - 16px));
+      /* As wide as its longest line: text breaks only at the explicit line breaks, unless the viewport is narrower. */
+      width: max-content;
+      max-width: calc(100vw - 16px);
       padding: 4px 8px;
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 4px;
@@ -4912,4 +4988,104 @@
       align-items: center;
       flex-wrap: wrap;
       gap: 8px;
+    }
+
+    /* 长文显示: the current sentence reads like its neighbours, English with the translation right below it,
+       without the boxed source / translation cards used by the single-sentence view. */
+    .long-text-target .long-text-item .target-english,
+    .long-text-target .long-text-item .translation-prompt {
+      min-height: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      padding: 0;
+      box-shadow: none;
+    }
+
+    .long-text-target .long-text-item .translation-prompt {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .long-text-target .long-text-item .translation-prompt > span {
+      min-height: 0;
+    }
+
+    /* Same line boxes as the other rows, so selecting a sentence does not change its row height: the English line
+       uses the neighbours' 1.35 line height, and the translation edit button (28px min-height elsewhere) is shrunk
+       to the 21px translation line instead of making the row taller and the text sit higher in it. */
+    .long-text-target .long-text-item .target-english {
+      line-height: 1.35;
+    }
+
+    .long-text-target .long-text-item .translation-prompt {
+      align-items: center;
+    }
+
+    .long-text-target .long-text-item .translation-edit-button {
+      min-height: 0;
+      height: 18px;
+      padding: 0 8px;
+      line-height: 16px;
+    }
+
+    .long-text-target .long-text-edit-spacer {
+      visibility: hidden;
+    }
+
+    .long-text-target .long-text-hidden-note {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* The translation (and its hidden-translation mask) ends where the English text ends, at the left edge of the
+       favorite-star column: 5 stars x 15px + the 12px gap before them. The edit button moves into that column. */
+    .target .translation-prompt:not(.translation-editor) {
+      padding-right: calc(10px + 75px + 12px);
+    }
+
+    .target .translation-prompt:not(.translation-editor) > .translation-edit-button {
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+    }
+
+    .long-text-target .long-text-item .translation-prompt:not(.translation-editor) {
+      padding-right: calc(75px + 12px);
+    }
+
+    .long-text-target .long-text-item .translation-prompt:not(.translation-editor) > .translation-edit-button {
+      right: 0;
+    }
+
+    /* 长文显示 fonts: English 18px, translation 13px (19.5px line; the 18px edit button fits inside it). The dictation input
+       switches to the same 18px so typed text keeps wrapping at the same word as the source. */
+    .long-text-target .long-text-item .target-english {
+      font-size: 18px;
+    }
+
+    .typing-shell.is-long-text #typingBox,
+    .typing-shell.is-long-text .typed-preview,
+    .typing-shell.is-long-text .typed-preview:empty::before {
+      font-size: 18px;
+    }
+
+    /* 长文聚焦: the current sentence stays centred; the neighbouring sentences fade and blur back, and come back
+       into view while hovered so the context can still be read. */
+    .long-text-target.is-focus .long-text-item:not(.is-current) {
+      opacity: 0.3;
+      filter: blur(0.5px);
+      transition: opacity 150ms ease, filter 150ms ease;
+    }
+
+    .long-text-target.is-focus .long-text-item:not(.is-current):hover {
+      opacity: 0.75;
+      filter: none;
+    }
+
+    .long-text-target .long-text-item:not(.is-current) {
+      cursor: pointer;
     }
