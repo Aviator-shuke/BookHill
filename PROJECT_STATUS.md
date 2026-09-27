@@ -1,6 +1,6 @@
 # langLSRW Project Status
 
-Last updated: 2026-09-26
+Last updated: 2026-09-27
 
 Detailed behavior, storage, synchronization, and build rules are maintained in [`MECHANISMS.md`](MECHANISMS.md).
 
@@ -69,6 +69,7 @@ Local testing remains the default development workflow. Run `tools/start-langlsr
 ### Listening and dictation
 
 - Import `.txt` and `.lrc`, paste sentence lists, or use the built-in common sentence library.
+- Import an audio file (for example `.m4a` / `.mp3`) together with its timed `.lrc` subtitles: every subtitle line becomes a sentence that plays its own segment of the original recording for listening, replay (with speed control), the speaking model shortcut, and `原声对比`; single-word replay still uses TTS. See `AUDIO_LRC.md` for usage, subtitle format, and limits.
 - English source above Chinese translation, with independent source and translation visibility.
 - Ordered, random, and mistake practice modes, with random practice as the default.
 - Source-file import and pasted sentence input are grouped under Library > Custom Library; current-sentence translations are edited directly in the practice translation area, and AI provider settings are grouped under the global Settings menu.
@@ -157,6 +158,7 @@ The HTML, CSS, bundled material, generated prompt, and launcher are separated. M
 - Supabase provisioning, Google OAuth provider configuration, `supabase/schema.sql`, production redirect URLs, and Vercel public environment variables are configured. Any additional deployment domain must also be added to Supabase Auth redirect URLs before Google login can return to it.
 - `dist/` is generated output and is ignored by Git. Vercel provides `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` together during production builds; neither the Google OAuth client secret nor any Supabase secret/service-role key belongs in frontend or Vercel public build configuration.
 - Clearing browser site data removes the installed local dictionary. It can be reinstalled without affecting the source package.
+- Imported audio for audio + LRC materials is held only in memory; after a page reload both files must be imported again. Sentence boundaries come only from subtitle timing: lines are capped at 2.5 s + 0.6 s per word and split sentences are merged by punctuation and case heuristics, so irregular subtitles may still merge imperfectly.
 - Word-list learning progress (`langLSRWWordReviews:*`) and manual-mastery marks (`langLSRWWordManualMastery:*`) are currently local-only and are not included in export/import backup or Supabase synchronization yet.
 
 ## Verification
@@ -201,6 +203,12 @@ Verified on 2026-09-26:
 - The word-list entry's repeated 200-row scans were replaced by one dedicated SQLite Worker query. The complete 中考 deck still opened correctly, and reopening the same category/sort from the session cache reached its first card in about 0.29 seconds in the local browser.
 - The three independent word-review interfaces were exercised in-browser from the complete Oxford 3000 deck: each entry opened its own `识义`, `听写`, or `默写` dialog with no mode tabs and only its matching clear-memory action. The 收藏 view displayed the same three compact entries, and its independent 识义 empty state was verified without changing review data.
 - The compact launcher row and empty-progress state were verified in-browser: both an empty 收藏 and an unstarted Oxford 3000 deck render `背单词：识义(0) 听写(0) 默写(0)`. The 识义 entry opens the correctly renamed independent dialog. Mastery counting is based on the persisted 21-day / 3-success / latest-`good` predicate rather than the round queue.
+
+Verified on 2026-09-27:
+
+- Timed LRC parsing (`parseTimedLrc` with `capTimedSegments` and `mergeTimedFragments`) was run in Node against the owner's `BBC记录片_第1期_月球之谜.lrc`: 39 subtitle lines became 28 sentences, the 12-second music gap after `falling in love all over again.` was trimmed to about 3 seconds past the capped end, and the last sentence now stops about 12 seconds after its start instead of playing to the end of the audio.
+- The owner's first in-browser import showed the `原声：` status but still played TTS; the cause (`normalizeSentenceItem()` dropping `start`/`end` during grammar-cache normalization) was fixed. In-browser playback after the fix is awaiting the owner's confirmation.
+- `node --check src/app.js` passes.
 
 ## Next Priorities
 

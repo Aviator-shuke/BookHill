@@ -47,7 +47,7 @@
   <section id="dropOverlay" class="drop-overlay" aria-hidden="true">
     <div class="drop-card">
       <strong>松开导入句库</strong>
-      <span>支持 .txt 和 .lrc 文件</span>
+      <span>支持 .txt、.lrc，或同时拖入音频 + .lrc 字幕</span>
     </div>
   </section>
 
@@ -382,9 +382,9 @@
             <h3>自定义句库</h3>
             <div id="sourceStatus" class="source-status">当前句库：默认示例</div>
           </div>
-          <label>
-            导入 txt / lrc 句库
-            <input id="fileInput" type="file" accept=".txt,.lrc,text/plain">
+          <label title="选择 .txt 或 .lrc 句库；同时选中音频（如 .m4a、.mp3）和对应的 .lrc 字幕时，每句播放原声片段">
+            导入 txt / lrc 句库，或音频 + lrc 字幕
+            <input id="fileInput" type="file" accept=".txt,.lrc,text/plain,audio/*,.m4a,.mp3,.wav,.ogg,.aac,.flac" multiple title="可一次选中音频和 .lrc 两个文件">
           </label>
           <label>
             粘贴句子（一行一句）
@@ -610,6 +610,6 @@
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
   <script src="src/dictionary/dictionary-service.js?v=20260926-10"></script>
-  <script src="src/app.js?v=20260927-140"></script>
+  <script src="src/app.js?v=20260927-144"></script>
 </body>
 </html>

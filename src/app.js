@@ -299,6 +299,7 @@ const fallbackSentences = [
     }
 
     function setCurrentLibrary(label, statusText = "") {
+      clearAudioMaterial();
       state.currentLibraryLabel = label || "自定义句库";
       syncCurrentLibrarySelect(state.currentLibraryLabel);
       if (statusText) $("sourceStatus").textContent = statusText;
@@ -596,7 +597,9 @@ const fallbackSentences = [
           text: String(item.text || item.sentence || item.english || "").trim(),
           translation: String(item.translation || item.zh || item.cn || "").trim(),
           grammar: String(item.grammar || item.grammarAnalysis || "").trim(),
-          grammarRaw: String(item.grammarRaw || item.aiGrammarResponse || item.grammar || item.grammarAnalysis || "").trim()
+          grammarRaw: String(item.grammarRaw || item.aiGrammarResponse || item.grammar || item.grammarAnalysis || "").trim(),
+          // Audio + LRC materials: keep the sentence's segment in the original recording through every normalization.
+          ...(Number.isFinite(item.start) ? { start: item.start, end: Number.isFinite(item.end) ? item.end : null } : {})
         };
       }
       return { id: "", libraryId: "", text: String(item || "").trim(), translation: "", grammar: "", grammarRaw: "" };
@@ -1091,6 +1094,206 @@ const fallbackSentences = [
       closeLibraryModal();
       setActivePage("listenPage");
       resetCurrent(true);
+    }
+
+    // ---- Original-audio materials: an audio file plus a timed .lrc. Each sentence keeps its [start, end) seconds
+    // and plays that segment of the audio instead of TTS. The audio stays in memory only (re-import after reload).
+    const AUDIO_FILE_PATTERN = /\.(m4a|mp3|wav|ogg|oga|aac|flac|webm|opus)$/i;
+
+    function parseLrcTime(stamp) {
+      const match = String(stamp).match(/^(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?$/);
+      if (!match) return NaN;
+      const fraction = match[3] ? Number(`0.${match[3].padEnd(3, "0")}`) : 0;
+      return Number(match[1]) * 60 + Number(match[2]) + fraction;
+    }
+
+    function isTranslationOnlyLine(content) {
+      return Boolean(content) && hasCjk(content) && !splitInlineTranslation(content);
+    }
+
+    function parseTimedLrc(text) {
+      const offsetMatch = text.match(/^\s*\[offset:\s*([+-]?\d+)\s*\]/im);
+      const offset = offsetMatch ? Number(offsetMatch[1]) / 1000 : 0;
+      const entries = [];
+      text.split(/\r?\n/).forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed || /^\[(ti|ar|al|by|offset|length|re):/i.test(trimmed)) return;
+        const stamps = [...trimmed.matchAll(/\[(\d{1,3}:\d{2}(?:[.:]\d{1,3})?)\]/g)]
+          .map((match) => parseLrcTime(match[1]))
+          .filter(Number.isFinite);
+        const content = cleanLrcLine(trimmed);
+        stamps.forEach((time) => entries.push({ time: Math.max(0, time - offset), content }));
+      });
+      entries.sort((a, b) => a.time - b.time);
+      const items = [];
+      entries.forEach((entry, index) => {
+        if (!entry.content) return;
+        if (isTranslationOnlyLine(entry.content)) {
+          const previous = items[items.length - 1];
+          if (previous && !previous.translation) previous.translation = entry.content;
+          return;
+        }
+        const pair = splitInlineTranslation(entry.content);
+        // A sentence ends where the next English line (or an empty timing line) starts; translation lines do not cut it.
+        const next = entries.slice(index + 1).find((candidate) => candidate.time > entry.time && !isTranslationOnlyLine(candidate.content));
+        items.push({
+          text: pair ? pair.text : entry.content,
+          translation: pair ? pair.translation : "",
+          start: entry.time,
+          end: next ? next.time : null
+        });
+      });
+      // Cap each subtitle line first, so a merged sentence ends where its last line's speech is expected to end.
+      return mergeTimedFragments(capTimedSegments(items));
+    }
+
+    // Subtitles often split one sentence over several lines. A line that has no sentence-ending punctuation is joined
+    // with the next when it ends with , ; : or a dash, or the next line starts in lower case (at most 4 lines).
+    const TIMED_MERGE_MAX_LINES = 4;
+
+    function mergeTimedFragments(items) {
+      const merged = [];
+      let group = [];
+      const flush = () => {
+        if (!group.length) return;
+        const first = group[0];
+        const last = group[group.length - 1];
+        merged.push({
+          text: group.map((item) => item.text).join(" ").replace(/\s+/g, " ").trim(),
+          translation: group.map((item) => item.translation).filter(Boolean).join(""),
+          start: first.start,
+          end: last.end
+        });
+        group = [];
+      };
+      items.forEach((item, index) => {
+        group.push(item);
+        const next = items[index + 1];
+        const endsSentence = /[.?!…]["'”’)\]]*$/.test(item.text);
+        const continues = /[,;:\-–—]$/.test(item.text) || /^[a-z]/.test(next?.text || "");
+        if (!next || endsSentence || !continues || group.length >= TIMED_MERGE_MAX_LINES) flush();
+      });
+      return merged;
+    }
+
+    // A segment ends at the next line's start, but long music or silence (and the last line, which has no next line)
+    // would otherwise be played too. Cap each segment at 2.5 s + 0.6 s per word, well above normal speaking speed.
+    const TIMED_SEGMENT_BASE_SECONDS = 2.5;
+    const TIMED_SEGMENT_SECONDS_PER_WORD = 0.6;
+
+    function capTimedSegments(items) {
+      return items.map((item) => {
+        const words = item.text.split(/\s+/).filter(Boolean).length;
+        const limit = item.start + TIMED_SEGMENT_BASE_SECONDS + TIMED_SEGMENT_SECONDS_PER_WORD * words;
+        return { ...item, end: item.end === null ? limit : Math.min(item.end, limit) };
+      });
+    }
+
+    function setAudioMaterial(file) {
+      clearAudioMaterial();
+      const url = URL.createObjectURL(file);
+      const audio = new Audio(url);
+      audio.preload = "auto";
+      state.audioMaterial = { url, audio, name: file.name, playToken: 0, finishPlayback: null };
+    }
+
+    function clearAudioMaterial() {
+      const material = state.audioMaterial;
+      if (!material) return;
+      stopSentenceAudio();
+      material.audio.removeAttribute("src");
+      URL.revokeObjectURL(material.url);
+      state.audioMaterial = null;
+    }
+
+    function currentSentenceAudioSegment() {
+      const item = state.sentences[state.index];
+      if (!state.audioMaterial || !item || !Number.isFinite(item.start)) return null;
+      return { start: item.start, end: Number.isFinite(item.end) ? item.end : null };
+    }
+
+    function stopSentenceAudio() {
+      const material = state.audioMaterial;
+      if (!material) return;
+      material.playToken += 1;
+      material.audio.pause();
+      material.finishPlayback?.();
+    }
+
+    function playSentenceAudioAndWait(rate = 1) {
+      const segment = currentSentenceAudioSegment();
+      if (!segment) return Promise.resolve();
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      stopSentenceAudio();
+      const material = state.audioMaterial;
+      const audio = material.audio;
+      const token = material.playToken;
+      return new Promise((resolve, reject) => {
+        let timer = 0;
+        let finished = false;
+        const finish = (error) => {
+          if (finished) return;
+          finished = true;
+          clearInterval(timer);
+          audio.removeEventListener("ended", onEnded);
+          if (material.finishPlayback === finish) material.finishPlayback = null;
+          if (error) reject(error);
+          else resolve();
+        };
+        const onEnded = () => finish();
+        material.finishPlayback = finish;
+        audio.addEventListener("ended", onEnded);
+        audio.playbackRate = rate;
+        audio.currentTime = segment.start;
+        audio.play().then(() => {
+          if (finished || material.playToken !== token) return;
+          timer = setInterval(() => {
+            if (material.playToken !== token) {
+              finish();
+            } else if (segment.end !== null && audio.currentTime >= segment.end) {
+              audio.pause();
+              finish();
+            }
+          }, 20);
+        }).catch((error) => finish(new Error(`原声播放失败：${error.message || error}`)));
+      });
+    }
+
+    function speakSentence(rate = currentReplayRate()) {
+      if (currentSentenceAudioSegment()) {
+        playSentenceAudioAndWait(rate).catch((error) => alert(error.message || error));
+        return;
+      }
+      speakText(getSpeechText(), { rate });
+    }
+
+    function speakSentenceAndWait(rate = currentReplayRate()) {
+      if (currentSentenceAudioSegment()) return playSentenceAudioAndWait(rate);
+      return speakTextAndWait(currentSentence(), { rate });
+    }
+
+    async function importSentenceFiles(fileList) {
+      const files = Array.from(fileList || []).filter(Boolean);
+      if (!files.length) return false;
+      const textFile = files.find((file) => /\.(txt|lrc)$/i.test(file.name) || /^text\//i.test(file.type || ""));
+      const audioFile = files.find((file) => /^audio\//i.test(file.type || "") || AUDIO_FILE_PATTERN.test(file.name));
+      if (!textFile) {
+        alert(audioFile ? "请同时选择音频文件和对应的 .lrc 字幕文件。" : "请导入 .txt 或 .lrc 文件，或同时选择音频和 .lrc 字幕。");
+        return false;
+      }
+      if (!audioFile) return importSentenceFile(textFile);
+      const sentences = parseTimedLrc(await textFile.text());
+      if (!sentences.length) {
+        alert("字幕里没有识别到带时间的句子。请使用每行带 [分:秒] 时间标记的 .lrc 文件。");
+        return false;
+      }
+      state.sentences = sentences;
+      state.index = 0;
+      setCurrentLibrary("自定义句库", `${sentenceSourceLabel(textFile.name, sentences)}，原声：${audioFile.name}`);
+      setAudioMaterial(audioFile);
+      resetCurrent(true);
+      closeTopMenus();
+      return true;
     }
 
     async function importSentenceFile(file) {
@@ -1911,7 +2114,7 @@ const fallbackSentences = [
           incrementLearnedCount();
           switchSpeakingSentence(pickSentenceIndex(1));
         },
-        speakModel: () => speakText(currentSentence()),
+        speakModel: () => speakSentence(1),
         togglePractice: () => {
           if (state.speaking.isRecognizing || state.speaking.isRecording) {
             stopSpeakingPractice();
@@ -2111,7 +2314,10 @@ const fallbackSentences = [
         return;
       }
       if (!text) return;
-      if (options.interrupt !== false) window.speechSynthesis.cancel();
+      if (options.interrupt !== false) {
+        window.speechSynthesis.cancel();
+        stopSentenceAudio();
+      }
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = $("accentSelect").value;
       utterance.rate = options.rate || 1;
@@ -2122,7 +2328,7 @@ const fallbackSentences = [
     }
 
     function speakCurrentSentence() {
-      speakText(getSpeechText(), { rate: currentReplayRate() });
+      speakSentence(currentReplayRate());
     }
 
     function speakTextAndWait(text, options = {}) {
@@ -2194,6 +2400,7 @@ const fallbackSentences = [
       state.speaking.loopCompareRunId += 1;
       state.speaking.cancelLoopCompareAudio?.();
       window.speechSynthesis.cancel();
+      stopSentenceAudio();
       $("speakingAudio").pause();
       setLoopCompareButtonState();
     }
@@ -2214,7 +2421,7 @@ const fallbackSentences = [
       const isCurrentRun = () => state.speaking.loopCompareActive && state.speaking.loopCompareRunId === runId;
       try {
         while (isCurrentRun()) {
-          await speakTextAndWait(currentSentence(), { rate: currentReplayRate() });
+          await speakSentenceAndWait(currentReplayRate());
           if (!isCurrentRun()) break;
           await waitMs(300);
           if (!isCurrentRun()) break;
@@ -2250,17 +2457,17 @@ const fallbackSentences = [
 
     function replaySlower() {
       setReplayRate(currentReplayRate() - 0.1);
-      speakText(getSpeechText(), { rate: currentReplayRate() });
+      speakSentence(currentReplayRate());
     }
 
     function replayNormalSpeed() {
       setReplayRate(1);
-      speakText(getSpeechText(), { rate: currentReplayRate() });
+      speakSentence(currentReplayRate());
     }
 
     function replayCurrentSpeed() {
       updateSpeechRateIndicator();
-      speakText(getSpeechText(), { rate: currentReplayRate() });
+      speakSentence(currentReplayRate());
     }
 
     function autoSpeakCurrentSentence() {
@@ -5754,6 +5961,7 @@ const fallbackSentences = [
 
     function switchSpeakingSentence(nextIndex, shouldSpeak = false) {
       stopSpeakingPractice();
+      stopSentenceAudio();
       state.index = (nextIndex + state.sentences.length) % state.sentences.length;
       state.translationEditing = false;
       state.translationDraft = "";
@@ -5773,6 +5981,7 @@ const fallbackSentences = [
     }
 
     function resetCurrent(shouldSpeak = false) {
+      stopSentenceAudio();
       closeDictionaryLookup();
       state.translationEditing = false;
       state.translationDraft = "";
@@ -5868,6 +6077,7 @@ const fallbackSentences = [
 
     function stopSpeech() {
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      stopSentenceAudio();
     }
 
     function closeTopMenus(exceptMenu = null) {
@@ -5948,8 +6158,7 @@ const fallbackSentences = [
     });
 
     $("fileInput").addEventListener("change", async (event) => {
-      const [file] = event.target.files;
-      await importSentenceFile(file);
+      await importSentenceFiles(event.target.files);
       event.target.value = "";
     });
 
@@ -6630,8 +6839,7 @@ const fallbackSentences = [
       event.preventDefault();
       dragDepth = 0;
       $("dropOverlay").classList.remove("active");
-      const [file] = event.dataTransfer ? Array.from(event.dataTransfer.files) : [];
-      await importSentenceFile(file);
+      await importSentenceFiles(event.dataTransfer ? event.dataTransfer.files : []);
     });
 
     window.addEventListener("keydown", handleGlobalShortcut, { capture: true });
