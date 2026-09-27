@@ -10,6 +10,7 @@ let sqlite3;
 let pool;
 let database;
 let currentDictionary;
+let operationQueue = Promise.resolve();
 
 function reply(id, result, error) {
   self.postMessage({ id, result, error: error ? String(error.message || error) : undefined });
@@ -262,9 +263,15 @@ const handlers = { status, install, remove, query, queryMany, match, count, list
 self.addEventListener("message", async (event) => {
   const { id, method, payload } = event.data || {};
   if (!id || !handlers[method]) return;
-  try {
-    reply(id, await handlers[method](payload));
-  } catch (error) {
-    reply(id, undefined, error);
-  }
+  operationQueue = operationQueue
+    .then(async () => {
+      try {
+        reply(id, await handlers[method](payload));
+      } catch (error) {
+        reply(id, undefined, error);
+      }
+    })
+    .catch((error) => {
+      reply(id, undefined, error);
+    });
 });

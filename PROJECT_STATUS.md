@@ -223,7 +223,7 @@ Verified on 2026-09-27:
 - The lookup popover's `自动发音` alignment was measured in the in-app browser with a stubbed dictionary result: checkbox, label text ink, and star ink share one vertical centre within 0.5px; the owner then fine-tuned the text offset by eye. `全文` reading, the popover size limits, and the collapse button pass `node --check` and await the owner's in-browser check.
 - Grammar-analysis pinning (placeholder stays on the analysed sentence, the result is saved to it, `全文` stops and the view returns to it) and the 🌈 analysis toggle pass `node --check`; a live AI request and the in-browser look await the owner's check.
 - `node --check src/app.js` passes.
-- The multi-package dictionary foundation passes `node --check` for `src/app.js`, `src/dictionary/dictionary-service.js`, and `src/dictionary/dictionary-worker.js`. `npm run build` succeeds and copies both runtime dictionary packages into `dist/`, producing 28 runtime files (about 148.14 MiB). In-browser installation and test-query verification of `spanish-wiktionary` remains to be exercised.
+- The multi-package dictionary foundation passes `node --check` for `src/app.js`, `src/dictionary/dictionary-service.js`, and `src/dictionary/dictionary-worker.js`. `npm run build` succeeds and copies both runtime dictionary packages into `dist/`, producing 28 runtime files (about 148.14 MiB). Dictionary Worker operations are serialized to avoid OPFS `createSyncAccessHandle` conflicts when Settings checks multiple packages. In-browser installation and test-query verification of `spanish-wiktionary` remains to be exercised.
 
 ## Next Priorities
 

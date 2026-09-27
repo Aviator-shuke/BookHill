@@ -158,7 +158,10 @@ The Settings panel manages them by dictionary ID:
 
 Each package has its own manifest and OPFS SQLite filename. The shared Worker
 opens the requested package by ID, validates schema and dictionary identity on
-install, and keeps the database read-only after installation.
+install, and keeps the database read-only after installation. Worker requests
+are serialized because OPFS synchronous access handles cannot be opened in
+parallel for the same SQLite file; status checks, installs, removes, and
+queries therefore run one at a time inside the dictionary Worker.
 
 The word-lookup popover header shows a `自动发音` checkbox before the favorite stars; the header actions are centre-aligned, and the label text is nudged 1.5px up with the checkbox moved back down 1.5px so their optical centres match the stars. It is on by default; unticking stores `"0"` in `localStorage` key `langLSRWDictionaryAutoSpeak`; when on, `autoSpeakLookedUpWord()` reads the word with TTS after each lookup (right-click or shortcut) and after switching to an inflected form inside the popover, and turning it on reads the word currently shown. Favorite changes do not trigger it. The popover's minimum width is three 145px mastery cards plus gaps, padding, and border (471px, capped by the viewport), so 识义 / 听写 / 默写 always fit in one row; the cards' own sizing rules are unchanged. Its maximum is 800px wide and 640px tall (both capped by the viewport): meaning and definition lines wrap instead of stretching it, only the first five English definitions are shown until `展开全部（共 n 条）` is clicked, and any remaining overflow scrolls inside the popover. `positionDictionaryLookup()` applies that 640px cap (it sets the inline `max-height` from the measured content, so without the cap a long popover had no scrollbar) and reuses the last anchor stored in `state.dictionaryLookupAnchor`. `展开全部` keeps the popover at its current height and lets the extra definitions scroll inside it; the same button then reads `收起`, which folds them again and re-runs positioning to restore the natural height. In the popover the three mastery cards keep a fixed 145px width (`repeat(3, 145px)`) instead of stretching with it.
 

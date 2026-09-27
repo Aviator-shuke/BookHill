@@ -22,7 +22,7 @@
     constructor(options = {}) {
       this.packages = options.packages || DICTIONARY_PACKAGES;
       this.activeDictionaryId = options.activeDictionaryId || "ecdict";
-      this.workerUrl = options.workerUrl || "src/dictionary/dictionary-worker.js?v=20260927-1";
+      this.workerUrl = options.workerUrl || "src/dictionary/dictionary-worker.js?v=20260927-2";
       this.worker = null;
       this.sequence = 0;
       this.pending = new Map();
