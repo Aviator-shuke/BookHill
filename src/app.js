@@ -1162,6 +1162,7 @@ const fallbackSentences = [
           text: pair ? pair.text : entry.content,
           translation: pair ? pair.translation : "",
           start: entry.time,
+          boundaryEnd: next ? next.time : null,
           // Stop a little before the next line: subtitle stamps often lag the speech, so the next sentence's
           // first sounds would otherwise leak into this one.
           end: next ? Math.max(entry.time + 0.5, next.time - TIMED_SEGMENT_END_MARGIN_SECONDS) : null
@@ -1186,7 +1187,9 @@ const fallbackSentences = [
           text: group.map((item) => item.text).join(" ").replace(/\s+/g, " ").trim(),
           translation: group.map((item) => item.translation).filter(Boolean).join(""),
           start: first.start,
-          end: last.end
+          // A continuation line often starts before the previous fragment has fully ended. Once those fragments
+          // become one sentence, use the final fragment's real next-line boundary so its last words are not cut.
+          end: group.length > 1 && Number.isFinite(last.boundaryEnd) ? last.boundaryEnd : last.end
         });
         group = [];
       };
