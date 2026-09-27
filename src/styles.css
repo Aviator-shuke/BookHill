@@ -617,6 +617,22 @@
       color: #15803d;
     }
 
+    .dictionary-mastery-item.is-new {
+      border-color: color-mix(in srgb, #6b7280 45%, transparent);
+    }
+
+    .dictionary-mastery-item.is-new .dictionary-mastery-head span {
+      color: #6b7280;
+    }
+
+    .dictionary-mastery-item.is-due {
+      border-color: color-mix(in srgb, #2563eb 58%, transparent);
+    }
+
+    .dictionary-mastery-item.is-due .dictionary-mastery-head span {
+      color: #1d4ed8;
+    }
+
     .app {
       width: min(1240px, calc(100vw - 24px));
       margin: 0 auto;
@@ -4777,4 +4793,31 @@
     .word-review-help-title span {
       color: var(--muted);
       font-size: 13px;
+    }
+
+    .word-review-status {
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 1px;
+      margin-right: 2px;
+      padding-right: 6px;
+    }
+
+    /* Continuous divider after the status slots: drawn on each row across its full border-box height,
+       at row padding 8px + three 15px slots + two 1px gaps + 6px padding = 61px. */
+    #dictionaryLibraryList .user-word-item,
+    #userPhrasesList .user-word-item {
+      background-image: linear-gradient(color-mix(in srgb, var(--ink) 22%, transparent), color-mix(in srgb, var(--ink) 22%, transparent));
+      background-origin: border-box;
+      background-position: 61px 0;
+      background-repeat: no-repeat;
+      background-size: 1px 100%;
+    }
+
+    .word-review-status > span {
+      width: 15px;
+      font-size: 11px;
+      line-height: 1;
+      text-align: center;
     }

@@ -2398,13 +2398,15 @@ const fallbackSentences = [
     }
 
     function wordMasteryState(record) {
+      // Same precedence as the list status icons: a due record shows 已到期 even if it was mastered.
+      if (wordReviewRecordStarted(record) && Number(record.due) <= Date.now()) return { key: "due", label: "已到期" };
       if (wordReviewMastered(record)) return { key: "mastered", label: "已掌握" };
       if (wordReviewRecordStarted(record)) return { key: "learning", label: "学习中" };
       return { key: "new", label: "未学习" };
     }
 
     function wordReviewIntervalLabel(record) {
-      if (!wordReviewRecordStarted(record)) return "尚未安排";
+      if (!wordReviewRecordStarted(record)) return "—";
       const interval = Number(record?.interval);
       if (interval > 0) return `${Number.isInteger(interval) ? interval : interval.toFixed(1)} 天`;
       const reviewedAt = Date.parse(record?.lastReviewedAt);
@@ -2413,12 +2415,12 @@ const fallbackSentences = [
         const minutes = Math.max(1, Math.round((due - reviewedAt) / 60000));
         return minutes < 60 ? `${minutes} 分钟` : `${(minutes / 60).toFixed(1)} 小时`;
       }
-      return "尚未安排";
+      return "—";
     }
 
     function wordReviewDueLabel(record) {
       const due = Number(record?.due);
-      if (!wordReviewRecordStarted(record) || !Number.isFinite(due) || due <= 0) return "尚未安排";
+      if (!wordReviewRecordStarted(record) || !Number.isFinite(due) || due <= 0) return "—";
       const now = new Date();
       const target = new Date(due);
       if (due <= now.getTime()) return "现在（已到期）";
@@ -2444,7 +2446,7 @@ const fallbackSentences = [
         state: wordMasteryState(wordRecord[mode.id]),
         record: wordRecord[mode.id] || null
       }));
-      return `<div class="dictionary-mastery"><div class="dictionary-section-label">当前单词掌握程度</div><div class="dictionary-mastery-items">${modes.map((mode) => `<div class="dictionary-mastery-item is-${mode.state.key}"><div class="dictionary-mastery-head"><b>${mode.label}</b><span>${mode.state.label}</span></div><div class="dictionary-mastery-meta"><span>复习间隔：${wordReviewIntervalLabel(mode.record)}</span><span>下次复习：${wordReviewDueLabel(mode.record)}</span></div></div>`).join("")}</div></div>`;
+      return `<div class="dictionary-mastery"><div class="dictionary-section-label">当前单词掌握程度</div><div class="dictionary-mastery-items">${modes.map((mode) => `<div class="dictionary-mastery-item is-${mode.state.key}"><div class="dictionary-mastery-head"><b>${mode.label}</b><span>${mode.state.label}</span></div><div class="dictionary-mastery-meta"><span>复习间隔：${wordReviewIntervalLabel(mode.record)}</span><span>下次复习：${wordReviewDueLabel(mode.record)}</span><span>间隔系数：${wordReviewRecordStarted(mode.record) ? (Number(mode.record.ease) || 2.5).toFixed(2) : "—"}</span><span>连续答对：${wordReviewRecordStarted(mode.record) ? `${Number(mode.record.reps) || 0} 次` : "—"}</span></div></div>`).join("")}</div></div>`;
     }
 
     async function openDictionaryFormDetail(button) {
@@ -2562,8 +2564,9 @@ const fallbackSentences = [
         $("dictionaryPrevPageBtn").disabled = result.page <= 1;
         $("dictionaryNextPageBtn").disabled = result.page >= result.pageCount;
         $("dictionaryLastPageBtn").disabled = result.page >= result.pageCount;
+        const reviewRecords = loadWordReviewRecords();
         list.innerHTML = result.rows.length
-          ? result.rows.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-dictionary-library-word="${escapeHtml(item.word)}" data-dictionary-library-index="${(result.page - 1) * result.pageSize + index + 1}"><span class="user-word-label">${escapeHtml(item.word)}</span>${dictionaryCollinsRating(item)}</div>`).join("")
+          ? result.rows.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-dictionary-library-word="${escapeHtml(item.word)}" data-dictionary-library-index="${(result.page - 1) * result.pageSize + index + 1}">${wordReviewStatusIconsHtml(item.word, reviewRecords)}<span class="user-word-label">${escapeHtml(item.word)}</span>${dictionaryCollinsRating(item)}</div>`).join("")
           : '<div class="user-phrases-empty">当前分类没有单词。</div>';
         list.querySelectorAll("[data-dictionary-library-word]").forEach((button) => {
           button.addEventListener("mouseenter", () => activateDictionaryLibraryWord(button, result.total, typeLabel));
@@ -2937,8 +2940,9 @@ const fallbackSentences = [
       $("userWordsNextPageBtn").disabled = state.userWordsPage >= pageCount;
       $("userWordsLastPageBtn").disabled = state.userWordsPage >= pageCount;
       updateFavoriteReviewLaunchers();
+      const reviewRecords = loadWordReviewRecords();
       $("userPhrasesList").innerHTML = pageWords.length
-        ? pageWords.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-user-word="${escapeHtml(item.word)}" data-user-word-index="${start + index + 1}"><span class="user-word-label">${escapeHtml(item.word)}</span>${showCollinsRating ? dictionaryCollinsRating(item) : dictionaryFavoriteButton(item.word)}</div>`).join("")
+        ? pageWords.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-user-word="${escapeHtml(item.word)}" data-user-word-index="${start + index + 1}">${wordReviewStatusIconsHtml(item.word, reviewRecords)}<span class="user-word-label">${escapeHtml(item.word)}</span>${showCollinsRating ? dictionaryCollinsRating(item) : dictionaryFavoriteButton(item.word)}</div>`).join("")
         : `<div class="user-phrases-empty">${allWords.length ? "当前分类没有收藏单词。" : "还没有收藏单词。"}</div>`;
 
       const firstVisibleSentenceIndex = state.userSentencesPageRanges[state.userSentencesPage - 1]?.[0] ?? 0;
@@ -3229,6 +3233,25 @@ const fallbackSentences = [
       });
     }
 
+    // Three fixed-width slots (识义 / 听写 / 默写) left of each list word: 🕗 due, 📕 learning, ✅ mastered, blank untouched.
+    function wordReviewStatusIconsHtml(word, records = loadWordReviewRecords()) {
+      const now = Date.now();
+      const modeRecords = records[dictionaryFavoriteKey(word)] || {};
+      return `<span class="word-review-status" aria-hidden="true">${WORD_REVIEW_MODES.map(({ id }) => {
+        const record = modeRecords[id];
+        const icon = !record ? "" : Number(record.due) <= now ? "🕗" : wordReviewMastered(record) ? "✅" : "📕";
+        return `<span>${icon}</span>`;
+      }).join("")}</span>`;
+    }
+
+    function refreshWordReviewStatusIcons() {
+      const records = loadWordReviewRecords();
+      document.querySelectorAll("#dictionaryLibraryList [data-dictionary-library-word], #userPhrasesList [data-user-word]").forEach((row) => {
+        const status = row.querySelector(".word-review-status");
+        if (status) status.outerHTML = wordReviewStatusIconsHtml(row.dataset.dictionaryLibraryWord || row.dataset.userWord, records);
+      });
+    }
+
     function wordReviewMastered(record) {
       return Number(record?.interval) >= WORD_REVIEW_MASTERY_INTERVAL_DAYS
         && Number(record?.reps) >= WORD_REVIEW_MASTERY_REPS
@@ -3362,6 +3385,7 @@ const fallbackSentences = [
       saveWordReviewRecords(records);
       updateFavoriteReviewLaunchers();
       updateDictionaryStudyButton();
+      refreshWordReviewStatusIcons();
     }
 
     function openWordReviewLauncherMenu(event, mode, source) {
@@ -3460,7 +3484,7 @@ const fallbackSentences = [
       const scope = source === "favorites"
         ? `收藏中 ${wordReviewModeMinStars(mode)} 星及以上的单词，按收藏页当前分类（${escapeHtml($("userWordsCategorySelect").selectedOptions[0]?.textContent || "全部")}）统计。`
         : `词表【${escapeHtml($("dictionaryCategorySelect").selectedOptions[0]?.textContent || "当前分类")}】中的全部单词。`;
-      const statItems = [["未学习", "fresh", ""], ["学习中", "learning", " is-learning"], ["已掌握", "mastered", " is-mastered"], ["现在到期", "due", " is-learning"]];
+      const statItems = [["未学习", "fresh", " is-new"], ["学习中📕", "learning", " is-learning"], ["已掌握✅", "mastered", " is-mastered"], ["已到期🕗", "due", " is-due"]];
       const statsHtml = stats
         ? `<div class="dictionary-mastery-items">${statItems.map(([name, key, cls]) => `<div class="dictionary-mastery-item${cls}"><div class="dictionary-mastery-head"><b>${name}</b><span>${stats[key].toLocaleString()}</span></div></div>`).join("")}</div>`
         : '<div class="small-note">正在统计…（词库请先选一个词表）</div>';
@@ -3885,6 +3909,7 @@ const fallbackSentences = [
       state.wordReview = null;
       updateDictionaryStudyButton();
       if (!$("userPhrasesModal").hidden) renderUserPhrases();
+      refreshWordReviewStatusIcons();
     }
 
     function gradeWordReview(grade) {
