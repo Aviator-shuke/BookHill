@@ -207,6 +207,8 @@ locale = 已保存口音或 en-GB
 
 ECDICT 是英语词典，不能用于西班牙语。西语第一版词典原料采用 Kaikki Spanish Wiktionary JSONL，源文件保存在 `../third-party/Spanish/kaikki.org-dictionary-Spanish.jsonl`，由 `tools/build-spanish-dictionary.py` 构建为 `assets/dictionaries/runtime/spanish-wiktionary/` 下的 SQLite gzip 包。该包沿用 ECDICT 兼容表结构，方便未来复用本地安装、查询、收藏和背词链路。
 
+2026-09-27 的首次完整构建已经完成：770,716 个合并词条，SQLite 原始大小 436,391,936 bytes，gzip 包 70,042,471 bytes。当前这只是可安装词典包的构建结果，还没有接入学习语言切换、安装 UI、西语查词、收藏隔离或背词入口。
+
 Kaikki/Wiktionary 释义当前主要是英文 gloss；中文学习解释、例句精修和学习提示应作为显式生成并缓存的上层数据。`../third-party/Spanish/spa-eng/spa.txt` 是 Tatoeba / manythings.org 的西英句库候选，不是词典来源，不能导入词库。
 
 在部署或公开分发前仍需复核 CC BY-SA 4.0 attribution、share-alike、下载包说明和页面内来源标注是否完整。

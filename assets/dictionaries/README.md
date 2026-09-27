@@ -38,6 +38,16 @@ same storage and lookup contract. The first build stores Kaikki/Wiktionary
 English glosses as the meaning text; cached Chinese learning explanations are a
 future layer, not part of the raw dictionary import.
 
+The first complete build from the 2026-09-27 owner-provided source produced:
+
+- 770,716 merged dictionary entries.
+- 436,391,936 bytes uncompressed SQLite.
+- 70,042,471 bytes compressed `spanish-wiktionary.sqlite.gz`.
+- SQLite SHA-256:
+  `28ba43f0ec67507af72f866c24be8aa73e1b00abfdd4e27da9287b1176e6f613`.
+- Package SHA-256:
+  `2a5f13af97f31a3b68e9c579b0ab5954446388f293e2e75d8c9e3645ee082bc6`.
+
 `../third-party/Spanish/spa-eng/spa.txt` is not a dictionary source. It is a
 Spanish-English sentence library candidate from Tatoeba / manythings.org and
 should be handled by sentence-library tooling instead of dictionary tooling.

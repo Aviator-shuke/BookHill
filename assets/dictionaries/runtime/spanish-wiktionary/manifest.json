@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "spanish-wiktionary",
+  "languageId": "es",
+  "name": "西语 Wiktionary 词典",
+  "version": "2026.09.27",
+  "format": "sqlite+gzip",
+  "file": "spanish-wiktionary.sqlite.gz",
+  "entryCount": 770716,
+  "databaseBytes": 436391936,
+  "downloadBytes": 70042471,
+  "sha256": "28ba43f0ec67507af72f866c24be8aa73e1b00abfdd4e27da9287b1176e6f613",
+  "packageSha256": "2a5f13af97f31a3b68e9c579b0ab5954446388f293e2e75d8c9e3645ee082bc6",
+  "source": "kaikki.org-dictionary-Spanish.jsonl",
+  "license": "CC BY-SA 4.0",
+  "notes": "Meanings are Wiktionary/Kaikki English glosses; Chinese learning explanations are a later cached layer."
+}
