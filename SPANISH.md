@@ -174,9 +174,9 @@ locale = 已保存口音或 en-GB
 
 ### 第二阶段：西班牙语词典与收藏
 
-- 选择许可允许随项目使用或按需安装的西班牙语词典。
+- 以 owner-provided `../third-party/Spanish/kaikki.org-dictionary-Spanish.jsonl` 作为第一版西语词典原料，按需构建浏览器可安装的 SQLite gzip 包。
 - 定义统一词典服务接口，避免 UI 直接依赖某种数据库结构。
-- 支持西班牙语词性、中文释义、音标/发音和常用词形。
+- 支持西班牙语词性、Wiktionary/Kaikki 英文释义、IPA 发音和常用词形/原形关系；中文学习解释作为后续缓存层，不混入原始词典构建。
 - 单词收藏、星级和详情页按语言隔离。
 - 相同拼写在不同语言中作为不同词条。
 
@@ -205,7 +205,11 @@ locale = 已保存口音或 en-GB
 
 ### 词典与授权
 
-ECDICT 是英语词典，不能用于西班牙语。新词典不仅要有合适的数据结构，还必须确认再分发、网页部署和本地缓存的授权条件。
+ECDICT 是英语词典，不能用于西班牙语。西语第一版词典原料采用 Kaikki Spanish Wiktionary JSONL，源文件保存在 `../third-party/Spanish/kaikki.org-dictionary-Spanish.jsonl`，由 `tools/build-spanish-dictionary.py` 构建为 `assets/dictionaries/runtime/spanish-wiktionary/` 下的 SQLite gzip 包。该包沿用 ECDICT 兼容表结构，方便未来复用本地安装、查询、收藏和背词链路。
+
+Kaikki/Wiktionary 释义当前主要是英文 gloss；中文学习解释、例句精修和学习提示应作为显式生成并缓存的上层数据。`../third-party/Spanish/spa-eng/spa.txt` 是 Tatoeba / manythings.org 的西英句库候选，不是词典来源，不能导入词库。
+
+在部署或公开分发前仍需复核 CC BY-SA 4.0 attribution、share-alike、下载包说明和页面内来源标注是否完整。
 
 ### 动词变位和原形还原
 

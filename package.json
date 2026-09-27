@@ -5,6 +5,7 @@
   "scripts": {
     "build": "node tools/build-web.mjs",
     "build:dictionary": "python tools/build-ecdict.py",
+    "build:dictionary:es": "python tools/build-spanish-dictionary.py",
     "vendor:sqlite": "node tools/vendor-sqlite-wasm.mjs",
     "prepare:dictionary": "npm run vendor:sqlite && npm run build:dictionary",
     "test:dictionary": "python tools/test-ecdict-build.py"

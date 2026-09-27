@@ -22,6 +22,7 @@ Local testing remains the default development workflow. Run `tools/start-langlsr
 - Configurable colors for all grammar roles, with a color picker, editable HEX value, common color palette, local persistence, and reset defaults.
 - The listening toolbar keeps the read-aloud action beside the accent selector and provides a compact `0.5x-2.0x` speech-rate stepper in `0.1x` increments, shared by sentence, automatic, and word playback.
 - Installable local ECDICT foundation using SQLite WASM in a dedicated Worker and browser OPFS persistence. The page accesses it through a storage-independent dictionary service rather than issuing SQL from UI code.
+- A Spanish dictionary build path has been added for the owner-provided Kaikki Spanish Wiktionary JSONL source at `../third-party/Spanish/kaikki.org-dictionary-Spanish.jsonl`. It generates an ECDICT-compatible SQLite gzip package under `assets/dictionaries/runtime/spanish-wiktionary/`, with Kaikki/Wiktionary English glosses as the current meaning layer. Runtime language switching, Chinese cached explanations, Spanish frequency categories, and Spanish word-study UI wiring are not implemented yet.
 - Dictionary, collection, and inline lookup details pronounce the current word from either the phonetic transcription or its adjacent sound control, using the active accent, voice, and speech-rate settings.
 - Inline right-click dictionary details size to their content within 471–800px wide and at most 640px tall (lines wrap; only the first five English definitions show until `展开全部`, which keeps the popover height and scrolls the rest inside, with `收起` to fold them again), and are positioned above or below the source text according to available viewport space.
 - Dictionary inflections are grouped compactly by noun, tense, participle, comparison, base-form, and fallback categories; empty categories are omitted without dropping stored forms.
@@ -142,6 +143,7 @@ langLSRW/
 ```
 
 The local-only upstream dictionary source used by the build tool lives at `../third-party/ECDICT-master/`, outside the `langLSRW` repository and its deployment boundary.
+The local-only Spanish Wiktionary source lives at `../third-party/Spanish/kaikki.org-dictionary-Spanish.jsonl`; `../third-party/Spanish/spa-eng/spa.txt` is a Spanish-English sentence-library candidate rather than a dictionary source.
 
 The HTML, CSS, bundled material, generated prompt, and launcher are separated. Most application behavior is still concentrated in `src/app.js`; splitting listening, speaking, storage, settings, and grammar rendering into modules remains architectural work, not a completed migration.
 
