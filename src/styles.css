@@ -4828,3 +4828,29 @@
       line-height: 1;
       text-align: center;
     }
+
+    .audio-library-list {
+      display: grid;
+      gap: 6px;
+    }
+
+    .audio-library-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+      border-radius: 6px;
+    }
+
+    .audio-library-item.is-current {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+    }
+
+    .audio-library-info {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }

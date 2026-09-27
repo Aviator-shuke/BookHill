@@ -282,8 +282,9 @@ const fallbackSentences = [
       const select = $("currentLibrarySelect");
       const isCommon = label === "常用句库";
       const isFavorites = label === "用户收藏";
+      const isAudio = label === "音频字幕";
       let customOption = select.querySelector('option[value="custom"]');
-      if (!isCommon && !isFavorites) {
+      if (!isCommon && !isFavorites && !isAudio) {
         if (!customOption) {
           customOption = document.createElement("option");
           customOption.value = "custom";
@@ -293,7 +294,7 @@ const fallbackSentences = [
         select.value = "custom";
       } else {
         if (customOption) customOption.remove();
-        select.value = isCommon ? "common" : "favorites";
+        select.value = isCommon ? "common" : isAudio ? "audio" : "favorites";
       }
       select.title = `当前使用：${label}`;
     }
@@ -958,14 +959,19 @@ const fallbackSentences = [
     }
 
     function setLibraryView(view) {
-      const showSettings = view === "settings";
-      $("commonLibraryPanel").hidden = showSettings;
-      $("librarySettingsPanel").hidden = !showSettings;
-      $("commonLibraryTabBtn").classList.toggle("is-active", !showSettings);
-      $("librarySettingsTabBtn").classList.toggle("is-active", showSettings);
-      $("commonLibraryTabBtn").setAttribute("aria-current", String(!showSettings));
-      $("librarySettingsTabBtn").setAttribute("aria-current", String(showSettings));
-      if (!showSettings) $("librarySearchInput").focus();
+      const views = [
+        ["common", "commonLibraryPanel", "commonLibraryTabBtn"],
+        ["settings", "librarySettingsPanel", "librarySettingsTabBtn"],
+        ["audio", "audioLibraryPanel", "audioLibraryTabBtn"]
+      ];
+      const active = views.some(([name]) => name === view) ? view : "common";
+      views.forEach(([name, panelId, buttonId]) => {
+        $(panelId).hidden = name !== active;
+        $(buttonId).classList.toggle("is-active", name === active);
+        $(buttonId).setAttribute("aria-current", String(name === active));
+      });
+      if (active === "common") $("librarySearchInput").focus();
+      if (active === "audio") renderAudioLibrary();
     }
 
     function useFavoritesLibrary() {
@@ -1140,7 +1146,9 @@ const fallbackSentences = [
           text: pair ? pair.text : entry.content,
           translation: pair ? pair.translation : "",
           start: entry.time,
-          end: next ? next.time : null
+          // Stop a little before the next line: subtitle stamps often lag the speech, so the next sentence's
+          // first sounds would otherwise leak into this one.
+          end: next ? Math.max(entry.time + 0.5, next.time - TIMED_SEGMENT_END_MARGIN_SECONDS) : null
         });
       });
       // Cap each subtitle line first, so a merged sentence ends where its last line's speech is expected to end.
@@ -1178,6 +1186,7 @@ const fallbackSentences = [
 
     // A segment ends at the next line's start, but long music or silence (and the last line, which has no next line)
     // would otherwise be played too. Cap each segment at 2.5 s + 0.6 s per word, well above normal speaking speed.
+    const TIMED_SEGMENT_END_MARGIN_SECONDS = 0.3;
     const TIMED_SEGMENT_BASE_SECONDS = 2.5;
     const TIMED_SEGMENT_SECONDS_PER_WORD = 0.6;
 
@@ -1189,12 +1198,12 @@ const fallbackSentences = [
       });
     }
 
-    function setAudioMaterial(file) {
+    function setAudioMaterial(blob, name = blob?.name || "") {
       clearAudioMaterial();
-      const url = URL.createObjectURL(file);
+      const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       audio.preload = "auto";
-      state.audioMaterial = { url, audio, name: file.name, playToken: 0, finishPlayback: null };
+      state.audioMaterial = { url, audio, name, playToken: 0, finishPlayback: null };
     }
 
     function clearAudioMaterial() {
@@ -1282,18 +1291,86 @@ const fallbackSentences = [
         return false;
       }
       if (!audioFile) return importSentenceFile(textFile);
-      const sentences = parseTimedLrc(await textFile.text());
+      return applyTimedMaterial(await textFile.text(), audioFile, textFile.name, audioFile.name);
+    }
+
+    function applyTimedMaterial(lrcText, audioBlob, subtitleName, audioName) {
+      const sentences = parseTimedLrc(lrcText);
       if (!sentences.length) {
         alert("字幕里没有识别到带时间的句子。请使用每行带 [分:秒] 时间标记的 .lrc 文件。");
         return false;
       }
       state.sentences = sentences;
       state.index = 0;
-      setCurrentLibrary("自定义句库", `${sentenceSourceLabel(textFile.name, sentences)}，原声：${audioFile.name}`);
-      setAudioMaterial(audioFile);
+      setCurrentLibrary("音频字幕", `${sentenceSourceLabel(subtitleName, sentences)}，原声：${audioName}`);
+      setAudioMaterial(audioBlob, audioName);
       resetCurrent(true);
       closeTopMenus();
       return true;
+    }
+
+    // 音频字幕 panel: bundled audio + subtitle materials in assets/audio/. The audio is fetched whole into a Blob
+    // because the local Python server does not answer HTTP Range requests, which seeking to each sentence needs.
+    const AUDIO_LIBRARY_DEFAULT_ID = "audio-example";
+    const AUDIO_LIBRARY_MATERIALS = [
+      { id: "audio-example", title: "Audio_Example", audio: "assets/audio/Audio_Example.m4a", subtitles: "assets/audio/Audio_Example.lrc" }
+    ];
+
+    function renderAudioLibrary(statusText = "") {
+      const currentName = state.audioMaterial?.name || "";
+      $("audioLibraryStatus").textContent = statusText || (currentName ? `正在使用：${currentName}` : "当前句库没有使用原声。");
+      $("audioLibraryList").innerHTML = AUDIO_LIBRARY_MATERIALS.map((item) => {
+        const audioName = item.audio.split("/").pop();
+        const subtitleName = item.subtitles.split("/").pop();
+        const inUse = currentName === audioName;
+        return `<div class="audio-library-item${inUse ? " is-current" : ""}">
+          <div class="audio-library-info"><strong>${escapeHtml(item.title)}</strong><span class="small-note">${escapeHtml(audioName)} + ${escapeHtml(subtitleName)}</span></div>
+          <button type="button" class="primary" data-audio-library="${escapeHtml(item.id)}" title="加载这份音频和字幕，每句播放原声片段">${inUse ? "重新加载" : "使用"}</button>
+        </div>`;
+      }).join("");
+    }
+
+    async function loadAudioLibraryMaterial(id, { navigate = true } = {}) {
+      const material = AUDIO_LIBRARY_MATERIALS.find((item) => item.id === id);
+      if (!material) return;
+      renderAudioLibrary(`正在加载“${material.title}”…`);
+      try {
+        const [lrcText, audioBlob] = await Promise.all([
+          fetch(material.subtitles).then((response) => {
+            if (!response.ok) throw new Error(`字幕 ${material.subtitles}：HTTP ${response.status}`);
+            return response.text();
+          }),
+          fetch(material.audio).then((response) => {
+            if (!response.ok) throw new Error(`音频 ${material.audio}：HTTP ${response.status}`);
+            return response.blob();
+          })
+        ]);
+        if (applyTimedMaterial(lrcText, audioBlob, material.subtitles.split("/").pop(), material.audio.split("/").pop()) && navigate) {
+          closeLibraryModal();
+          setActivePage("listenPage");
+        }
+      } catch (error) {
+        alert(`无法加载音频字幕：${error.message || error}`);
+        syncCurrentLibrarySelect(state.currentLibraryLabel);
+      } finally {
+        renderAudioLibrary();
+      }
+    }
+
+    async function importAudioLibraryFiles(fileList) {
+      const files = Array.from(fileList || []);
+      const hasText = files.some((file) => /\.lrc$/i.test(file.name));
+      const hasAudio = files.some((file) => /^audio\//i.test(file.type || "") || AUDIO_FILE_PATTERN.test(file.name));
+      if (!hasText || !hasAudio) {
+        alert("请同时选择一个音频文件和对应的 .lrc 字幕文件。");
+        return false;
+      }
+      const imported = await importSentenceFiles(files);
+      if (imported) {
+        closeLibraryModal();
+        setActivePage("listenPage");
+      }
+      return imported;
     }
 
     async function importSentenceFile(file) {
@@ -6387,6 +6464,15 @@ const fallbackSentences = [
     });
     $("commonLibraryTabBtn").addEventListener("click", () => setLibraryView("common"));
     $("librarySettingsTabBtn").addEventListener("click", () => setLibraryView("settings"));
+    $("audioLibraryTabBtn").addEventListener("click", () => setLibraryView("audio"));
+    $("audioLibraryList").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-audio-library]");
+      if (button) loadAudioLibraryMaterial(button.dataset.audioLibrary);
+    });
+    $("audioLibraryFileInput").addEventListener("change", async (event) => {
+      await importAudioLibraryFiles(event.target.files);
+      event.target.value = "";
+    });
     $("libraryModal").addEventListener("pointerdown", (event) => {
       if (event.target === $("libraryModal")) closeLibraryModal();
     });
@@ -6414,6 +6500,9 @@ const fallbackSentences = [
         useCommonLibrary();
       } else if (value === "favorites") {
         useFavoritesLibrary();
+      } else if (value === "audio") {
+        // Choosing 音频字幕 in the toolbar loads the default material (Audio_Example) and stays on the current page.
+        await loadAudioLibraryMaterial(AUDIO_LIBRARY_DEFAULT_ID, { navigate: false });
       }
     });
     counterIndexInput.addEventListener("change", jumpToEnteredCounterIndex);

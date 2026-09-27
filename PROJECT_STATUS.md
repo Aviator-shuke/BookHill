@@ -69,7 +69,7 @@ Local testing remains the default development workflow. Run `tools/start-langlsr
 ### Listening and dictation
 
 - Import `.txt` and `.lrc`, paste sentence lists, or use the built-in common sentence library.
-- Import an audio file (for example `.m4a` / `.mp3`) together with its timed `.lrc` subtitles: every subtitle line becomes a sentence that plays its own segment of the original recording for listening, replay (with speed control), the speaking model shortcut, and `原声对比`; single-word replay still uses TTS. See `AUDIO_LRC.md` for usage, subtitle format, and limits.
+- Import an audio file (for example `.m4a` / `.mp3`) together with its timed `.lrc` subtitles: every subtitle line becomes a sentence that plays its own segment of the original recording for listening, replay (with speed control), the speaking model shortcut, and `原声对比`; single-word replay still uses TTS. The `句库` dialog's `音频字幕` view lists bundled materials in `assets/audio/` (default `Audio_Example.m4a` + `Audio_Example.lrc`) and imports new audio + `.lrc` pairs; `assets/audio/` is copied into the deployment build, so bundled materials are publicly downloadable once committed and deployed. See `AUDIO_LRC.md` for usage, subtitle format, and limits.
 - English source above Chinese translation, with independent source and translation visibility.
 - Ordered, random, and mistake practice modes, with random practice as the default.
 - Source-file import and pasted sentence input are grouped under Library > Custom Library; current-sentence translations are edited directly in the practice translation area, and AI provider settings are grouped under the global Settings menu.

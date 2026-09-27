@@ -9,6 +9,7 @@ const runtimePaths = [
   "index.html",
   "src",
   "assets/materials",
+  "assets/audio",
   "assets/libraries",
   "assets/dictionaries/runtime"
 ];

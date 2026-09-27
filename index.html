@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
-  <link rel="stylesheet" href="src/styles.css?v=20260927-170">
+  <link rel="stylesheet" href="src/styles.css?v=20260927-171">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -199,6 +199,7 @@
               <select id="currentLibrarySelect" class="current-library-indicator" aria-label="切换句库">
                 <option value="common">常用句库</option>
                 <option value="favorites">用户收藏</option>
+                <option value="audio">音频字幕</option>
               </select>
               <select id="modeSelect" class="compact-select" aria-label="练习模式">
                 <option value="ordered">顺序</option>
@@ -349,6 +350,7 @@
         <aside class="library-sidebar" aria-label="句库分类">
           <button id="librarySettingsTabBtn" class="library-type-button library-settings-button" type="button">自定义句库</button>
           <button id="commonLibraryTabBtn" class="library-type-button is-active" type="button" aria-current="true">常用句库</button>
+          <button id="audioLibraryTabBtn" class="library-type-button" type="button" aria-current="false" title="管理音频 + 字幕材料，每句播放原声">音频字幕</button>
           <button class="library-type-button" type="button" disabled>情景句库</button>
           <button class="library-type-button" type="button" disabled>语法句库</button>
           <button class="library-type-button" type="button" disabled>等级句库</button>
@@ -391,6 +393,17 @@
             <textarea id="sentenceInput" class="sentence-list" spellcheck="false"></textarea>
           </label>
           <button id="useTextBtn" type="button">使用粘贴内容</button>
+        </section>
+        <section id="audioLibraryPanel" class="library-settings-panel" hidden>
+          <div>
+            <h3>音频字幕</h3>
+            <div id="audioLibraryStatus" class="source-status">当前句库没有使用原声。</div>
+          </div>
+          <div id="audioLibraryList" class="audio-library-list"></div>
+          <label title="同时选中一个音频文件（如 .m4a、.mp3）和对应的 .lrc 字幕，每句播放原声片段">
+            导入音频 + lrc 字幕
+            <input id="audioLibraryFileInput" type="file" accept=".lrc,audio/*,.m4a,.mp3,.wav,.ogg,.aac,.flac" multiple title="按住 Ctrl 同时选中音频和 .lrc 两个文件">
+          </label>
         </section>
       </div>
     </div>
@@ -610,6 +623,6 @@
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
   <script src="src/dictionary/dictionary-service.js?v=20260926-10"></script>
-  <script src="src/app.js?v=20260927-144"></script>
+  <script src="src/app.js?v=20260927-148"></script>
 </body>
 </html>

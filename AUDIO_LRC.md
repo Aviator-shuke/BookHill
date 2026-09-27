@@ -14,12 +14,28 @@ TTS 读音标准但生硬，缺少真实语速、连读、弱读和语调。导�
 
 ## 2. 怎么导入
 
-两种方式，都需要**同时**提供音频和字幕两个文件：
+### 音频字幕面板
 
-1. 打开`句库` → `设置`，点`导入 txt / lrc 句库，或音频 + lrc 字幕`，在文件选择窗口中按住 Ctrl（Mac 为 Command）同时选中音频和 `.lrc` 两个文件。
+`句库`对话框左侧的`音频字幕`专门管理音频 + 字幕材料：
+
+- **内置材料**：列出放在 `assets/audio/` 的材料，默认是 `Audio_Example.m4a` + `Audio_Example.lrc`。点`使用`即加载并跳到`听`页面；正在使用的材料高亮，按钮变为`重新加载`。面板顶部显示当前正在使用的原声文件。
+- **导入音频 + lrc 字幕**：按住 Ctrl（Mac 为 Command）同时选中一个音频和对应的 `.lrc`；只选一个文件会提示需要两个都选。
+- 内置材料在代码中登记（`AUDIO_LIBRARY_MATERIALS`），新增材料时把文件放进 `assets/audio/` 并在该列表中加一项。
+- 内置材料通过网址读取，音频会整个读入内存后再播放：本地测试服务器（Python `http.server`）不支持按范围读取文件，直接用网址播放时无法跳到每句的开始位置。
+- 构建脚本 `tools/build-web.mjs` 会把 `assets/audio/` 复制进网站，所以本地测试服务器和部署后的网站都能使用内置材料。部署前 `assets/audio/` 里的文件需要纳入 git 并推送；放进这里的材料对网站访问者公开可下载，只放有权公开的内容。
+
+### 工具栏快速切换
+
+工具栏的`句库`下拉框固定有`音频字幕`一项。选择它会加载默认材料 `Audio_Example`（`AUDIO_LIBRARY_DEFAULT_ID`），留在当前页面；加载失败时下拉框恢复为原来的句库。已经在用某份原声材料时，下拉框显示`音频字幕`。
+
+### 其他导入方式
+
+也可以不经过音频字幕面板，都需要**同时**提供音频和字幕两个文件：
+
+1. 打开`句库` → `自定义句库`，点`导入 txt / lrc 句库，或音频 + lrc 字幕`，同时选中音频和 `.lrc` 两个文件。
 2. 在`听`页面，把两个文件一起拖进窗口。
 
-导入成功后，状态栏显示：
+导入成功后，工具栏的`句库`下拉框显示`音频字幕`（不再显示`自定义句库`），状态栏显示：
 
 ```
 当前句库：BBC记录片_第1期_月球之谜.lrc（28句，0句有翻译），原声：BBC记录片_第1期_月球之谜.m4a
@@ -60,7 +76,7 @@ TTS 读音标准但生硬，缺少真实语速、连读、弱读和语调。导�
 ### 第 1 步：按字幕时间定出每一行的片段
 
 - **开始**：这一行的时间。
-- **结束**：下一行英文（或空的时间行）的开始时间。中文翻译行不会截断英文。
+- **结束**：下一行英文（或空的时间行）开始时间的 **0.3 秒前**。字幕时间常比真实语音晚一点，如果正好停在下一行的时间，会多读出下一句开头的几个音；提前 0.3 秒停止可以避开（每句至少保留 0.5 秒）。中文翻译行不会截断英文。
 - 与纯文字导入不同，**重复的行都保留**（同一句话在不同时间出现，对应不同的原声）。
 
 ### 第 2 步：限制每行最长时长
@@ -125,6 +141,7 @@ TTS 读音标准但生硬，缺少真实语速、连读、弱读和语调。导�
 | 提示“没有识别到带时间的句子” | 字幕没有 `[分:秒]` 时间标记，或格式不同。可把字幕开头几行发出来检查 |
 | 提示“原声播放失败” | 浏览器不支持该音频编码，可转换为 `.m4a` 或 `.mp3` |
 | 刷新后又变回 TTS | 音频不保存，需要重新导入 |
+| 句尾多出下一句开头的几个音 | 字幕时间比语音晚得多，0.3 秒的提前量不够；可反馈调大 `TIMED_SEGMENT_END_MARGIN_SECONDS` |
 | 句子开头或结尾被截 | 字幕时间不准，用 `[offset:]` 校正或修改对应行的时间；语速很慢时也可能是第 4 节的时长上限，可反馈调整 |
 
 ## 8. 可能的后续改进
@@ -139,11 +156,15 @@ TTS 读音标准但生硬，缺少真实语速、连读、弱读和语调。导�
 | 函数 | 作用 |
 |---|---|
 | `importSentenceFiles(files)` | 识别文字文件和音频文件，决定走原声导入还是纯文字导入 |
+| `applyTimedMaterial(lrcText, audioBlob, subtitleName, audioName)` | 文件导入和内置材料共用：解析字幕、设置原声、切换句库 |
+| `AUDIO_LIBRARY_MATERIALS` / `renderAudioLibrary()` / `loadAudioLibraryMaterial(id)` | 音频字幕面板的内置材料列表、渲染和加载 |
+| `importAudioLibraryFiles(files)` | 音频字幕面板的导入，要求音频和 `.lrc` 同时选中 |
 | `parseTimedLrc(text)` | 解析带时间的 LRC，生成 `{ text, translation, start, end }`，再依次限长、合并 |
+| `TIMED_SEGMENT_END_MARGIN_SECONDS` | 第 1 步：在下一行开始前 0.3 秒结束，避免带出下一句的开头 |
 | `capTimedSegments(items)` | 第 2 步：每行最长 2.5 秒 + 0.6 秒/词（`TIMED_SEGMENT_BASE_SECONDS`、`TIMED_SEGMENT_SECONDS_PER_WORD`） |
 | `mergeTimedFragments(items)` | 第 3 步：把半句合并成完整句子（最多 `TIMED_MERGE_MAX_LINES` = 4 行） |
 | `parseLrcTime(stamp)` | 把 `mm:ss.xx` 转成秒 |
-| `setAudioMaterial(file)` / `clearAudioMaterial()` | 创建 / 释放内存中的音频（`state.audioMaterial`） |
+| `setAudioMaterial(blob, name)` / `clearAudioMaterial()` | 创建 / 释放内存中的音频（`state.audioMaterial`） |
 | `currentSentenceAudioSegment()` | 当前句的原声片段；没有原声时返回空 |
 | `playSentenceAudioAndWait(rate)` | 播放当前句片段，到结束时间自动暂停 |
 | `stopSentenceAudio()` | 停止正在播放的片段 |
