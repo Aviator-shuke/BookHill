@@ -1566,6 +1566,11 @@
       width: 48px;
     }
 
+    .sentence-tools #accentSelect.is-wide {
+      min-width: 72px;
+      width: 72px;
+    }
+
     .sentence-tools #voiceSelect {
       width: 120px;
       min-width: 120px;

@@ -178,7 +178,8 @@ const fallbackSentences = [
         wordStudyEnabled: false,
         commonLibraryManifestUrl: "assets/libraries/common-spanish-134910/manifest.json",
         commonLibraryContent: "西语原句 + 英文翻译",
-        accents: [["es-ES", "西语"]],
+        // Accent regions for TTS voices and speech recognition; materials and records are not region-specific yet.
+        accents: [["es-ES", "西班牙"], ["es-MX", "墨西哥"], ["es-US", "美国"], ["es-AR", "阿根廷"], ["es-CO", "哥伦比亚"], ["es-CL", "智利"]],
         // Sentence favorites and AI grammar analysis are not language-scoped yet; keep them off for Spanish.
         sentenceFavoritesEnabled: false,
         grammarAnalysisEnabled: false
@@ -1358,7 +1359,9 @@ const fallbackSentences = [
       const select = $("accentSelect");
       const original = select.querySelector('option[value="original"]');
       const wasOriginal = select.value === "original";
-      select.innerHTML = currentLearningLanguage().accents.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+      const accents = currentLearningLanguage().accents;
+      select.innerHTML = accents.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+      select.classList.toggle("is-wide", accents.some(([, label]) => label.length > 2));
       if (original) select.prepend(original);
       select.value = wasOriginal && original ? "original" : defaultAccentForLanguage();
       populateVoices();
