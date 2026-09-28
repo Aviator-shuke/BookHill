@@ -2918,13 +2918,13 @@ ${orderNote}`;
     function renderShortcutSettings() {
       updateSentenceNavigationTitles();
       const keyboardRows = shortcutActions.map((action) => `
-        <label class="shortcut-row">
+        <label class="shortcut-row" title="${escapeHtml(action.label)}：点击按键框，再按下想用的组合键">
           <span>${escapeHtml(action.label)}</span>
           <input class="shortcut-input" type="text" readonly data-shortcut="${escapeHtml(action.id)}" value="${escapeHtml(state.shortcuts[action.id] || "")}" placeholder="未设置">
         </label>
       `).join("");
       const mouseRows = fixedMouseActions.map((action) => `
-        <div class="shortcut-row">
+        <div class="shortcut-row" title="${escapeHtml(action.label)}：固定的鼠标操作，不能修改">
           <span>${escapeHtml(action.label)}</span>
           <span class="shortcut-input shortcut-fixed">${escapeHtml(action.control)}</span>
         </div>
@@ -3008,7 +3008,7 @@ ${orderNote}`;
         if (word) speakText(word, { rate: currentReplayRate() });
         return true;
       }
-      if (document.querySelector(".font-menu[open], .user-menu[open]") || !$("libraryModal").hidden) return false;
+      if (document.querySelector(".font-menu[open], .user-menu[open]") || !$("settingsModal").hidden || !$("libraryModal").hidden) return false;
       if (state.activePage === "listenPage") {
         speakCurrentSentence();
         return true;
@@ -3023,6 +3023,7 @@ ${orderNote}`;
     function isTopMenuOpen() {
       return Boolean(
         document.querySelector(".font-menu[open], .user-menu[open]")
+        || !$("settingsModal").hidden
         || !$("libraryModal").hidden
         || !$("dictionaryLibraryModal").hidden
         || !$("userPhrasesModal").hidden
@@ -3057,6 +3058,11 @@ ${orderNote}`;
       if (event.key === "Escape" && !$("dictionaryLibraryModal").hidden) {
         event.preventDefault();
         closeDictionaryLibrary();
+        return;
+      }
+      if (event.key === "Escape" && !$("settingsModal").hidden) {
+        event.preventDefault();
+        closeSettings();
         return;
       }
       const speakShortcut = normalizeShortcutEvent(event);
@@ -4076,6 +4082,47 @@ ${orderNote}`;
       $("dictionaryLibraryDetail").innerHTML = `<div class="user-phrases-empty">将鼠标移到${typeLabel}上查看释义。</div>`;
       updateDictionaryStudyButton();
       if (refresh) renderDictionaryLibrary();
+    }
+
+    // 设置 dialog: categories on the left, the selected category's controls in the middle, and on the right the
+    // category's introduction plus the explanation (the control's title) of the control under the pointer or in focus.
+    function openSettings() {
+      closeTopMenus();
+      closeDictionaryLookup();
+      $("settingsModal").hidden = false;
+      selectSettingsTab(document.querySelector("[data-settings-tab].is-active")?.dataset.settingsTab || "appearance");
+    }
+
+    function closeSettings() {
+      $("settingsModal").hidden = true;
+    }
+
+    function selectSettingsTab(key) {
+      document.querySelectorAll("[data-settings-tab]").forEach((button) => {
+        const active = button.dataset.settingsTab === key;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      document.querySelectorAll("[data-settings-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.settingsPanel !== key;
+      });
+      renderSettingsDetail(null);
+    }
+
+    function renderSettingsDetail(control) {
+      const panel = document.querySelector("[data-settings-panel]:not([hidden])");
+      if (!panel) return;
+      const title = panel.querySelector(".settings-section-title")?.textContent || "";
+      const explanation = control ? (control.getAttribute("title") || control.dataset.tooltip || "") : "";
+      const name = control ? (control.closest("label")?.firstChild?.textContent || control.textContent || "").trim() : "";
+      $("settingsDetail").innerHTML = `<h3>${escapeHtml(title)}</h3>
+        <p class="settings-detail-intro">${escapeHtml(panel.dataset.settingsIntro || "")}</p>
+        ${explanation ? `<div class="settings-detail-item">${name ? `<strong>${escapeHtml(name)}</strong>` : ""}<p>${escapeHtml(explanation).replace(/\n/g, "<br>")}</p></div>`
+          : '<p class="small-note">把鼠标移到某个设置上，这里显示它的说明。</p>'}`;
+    }
+
+    function settingsControlAt(target) {
+      return target?.closest?.(".settings-panels [title], .settings-panels [data-tooltip]") || null;
     }
 
     function closeDictionaryLibrary() {
@@ -8328,6 +8375,22 @@ ${orderNote}`;
     });
 
     $("themeToggleBtn").addEventListener("click", toggleTheme);
+    $("openSettingsBtn").addEventListener("click", openSettings);
+    $("closeSettingsBtn").addEventListener("click", closeSettings);
+    document.querySelectorAll("[data-settings-tab]").forEach((button) => {
+      button.addEventListener("click", () => selectSettingsTab(button.dataset.settingsTab));
+    });
+    $("settingsModal").addEventListener("pointerdown", (event) => {
+      if (event.target === $("settingsModal")) closeSettings();
+    });
+    document.querySelector(".settings-panels").addEventListener("pointerover", (event) => {
+      const control = settingsControlAt(event.target);
+      if (control) renderSettingsDetail(control);
+    });
+    document.querySelector(".settings-panels").addEventListener("focusin", (event) => {
+      const control = settingsControlAt(event.target);
+      if (control) renderSettingsDetail(control);
+    });
     $("englishFontSelect").addEventListener("change", saveFontSettings);
     $("chineseFontSelect").addEventListener("change", saveFontSettings);
     $("resetFontSettingsBtn").addEventListener("click", resetFontSettings);

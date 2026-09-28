@@ -2993,6 +2993,185 @@
       resize: both;
     }
 
+    /* 设置 dialog: same three columns as 词库; the middle column holds the controls, so it is the wide one.
+       Each setting is one row: a fixed-width name column and the control, so every control lines up. */
+    .settings-dialog {
+      --settings-name: 104px;
+      width: min(960px, 100%);
+      height: min(620px, calc(100vh - 36px));
+    }
+
+    .settings-dialog .library-header {
+      padding-block: 8px;
+    }
+
+    .settings-dialog .user-phrases-layout {
+      grid-template-columns: 124px minmax(0, 1fr) minmax(200px, 260px);
+    }
+
+    .settings-dialog .user-phrases-tabs {
+      gap: 2px;
+      padding: 8px 6px;
+    }
+
+    .settings-dialog .user-phrases-tabs button {
+      min-height: 32px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      transition: background 120ms ease, color 120ms ease;
+    }
+
+    .settings-dialog .user-phrases-tabs button:not(.is-active):hover {
+      background: color-mix(in srgb, var(--ink) 7%, transparent);
+    }
+
+    .settings-panels {
+      display: block;
+      padding: 12px 16px;
+      overflow-y: auto;
+      font-size: 13px;
+    }
+
+    .settings-panels > .settings-section {
+      gap: 6px;
+      border-top: 0;
+      padding-top: 0;
+      animation: settings-panel-in 160ms ease;
+    }
+
+    @keyframes settings-panel-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .settings-panels > .settings-section[hidden] {
+      display: none;
+    }
+
+    /* The selected tab and the right column already name the category. */
+    .settings-panels .settings-section-title {
+      display: none;
+    }
+
+    .settings-panels .settings-section > label:not(.grammar-color-row) {
+      display: grid;
+      grid-template-columns: var(--settings-name) minmax(0, 300px);
+      align-items: center;
+      gap: 10px;
+      margin: 0 -6px;
+      padding: 3px 6px;
+      border-radius: 6px;
+      transition: background 120ms ease;
+    }
+
+    .settings-panels .settings-section > label:not(.grammar-color-row):hover,
+    .settings-panels .shortcut-row:hover {
+      background: color-mix(in srgb, var(--ink) 5%, transparent);
+    }
+
+    .settings-panels .settings-section > label select,
+    .settings-panels .settings-section > label input {
+      min-height: 30px;
+      width: 100%;
+    }
+
+    .settings-panels .settings-section > label input[type="number"] {
+      width: 90px;
+    }
+
+    /* Buttons start under the controls, not under the names. */
+    .settings-panels .settings-section > button,
+    .settings-panels .settings-section > .button-row {
+      justify-self: start;
+      margin-top: 6px;
+      margin-left: calc(var(--settings-name) + 10px);
+    }
+
+    .settings-panels .settings-section > .button-row {
+      display: flex;
+      gap: 6px;
+      margin-left: 0;
+    }
+
+    .settings-panels [data-settings-panel="shortcuts"] > .small-note {
+      display: none;
+    }
+
+    .settings-panels .shortcut-list {
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 2px 16px;
+    }
+
+    .settings-panels .shortcut-row {
+      grid-template-columns: minmax(0, 1fr) 112px;
+      margin: 0 -6px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      transition: background 120ms ease;
+    }
+
+    .settings-panels .shortcut-input {
+      min-height: 28px;
+      padding: 3px 6px;
+      border-radius: 6px;
+    }
+
+    .settings-panels .grammar-color-grid {
+      grid-template-columns: repeat(2, minmax(0, 220px));
+      gap: 2px 12px;
+    }
+
+    .settings-panels .grammar-common-palette {
+      grid-template-columns: repeat(12, 22px);
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .settings-panels .grammar-common-palette button {
+      transition: transform 100ms ease;
+    }
+
+    .settings-panels .grammar-palette-title {
+      margin-top: 6px;
+    }
+
+    .settings-panels > [data-settings-panel="grammar"] > button {
+      margin-left: 0;
+    }
+
+    .settings-panels .dictionary-settings-list {
+      max-width: 460px;
+    }
+
+    .settings-detail {
+      padding: 14px;
+      background: color-mix(in srgb, var(--surface) 60%, var(--panel));
+      font-size: 13px;
+    }
+
+    .settings-detail h3 {
+      margin: 0 0 6px;
+      font-size: 15px;
+    }
+
+    .settings-detail-intro {
+      margin: 0 0 12px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .settings-detail-item {
+      padding-top: 10px;
+      border-top: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+      animation: settings-panel-in 120ms ease;
+    }
+
+    .settings-detail-item p {
+      margin: 4px 0 0;
+      line-height: 1.6;
+    }
+
     .dialog-header-actions {
       display: flex;
       align-items: center;

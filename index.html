@@ -6,7 +6,7 @@
   <title>langLSRW</title>
   <!-- Page content stays hidden until the user's own settings (theme, fonts) are applied, so the default look never flashes. -->
   <style>html.is-booting body > * { visibility: hidden; }</style>
-  <link rel="stylesheet" href="src/styles.css?v=20260928-229">
+  <link rel="stylesheet" href="src/styles.css?v=20260928-231">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -74,112 +74,7 @@
         <button id="openLibraryBtn" type="button">句库</button>
         <button id="openDictionaryLibraryBtn" type="button">词库</button>
         <button id="userPhrasesBtn" type="button">收藏</button>
-        <details class="font-menu">
-          <summary>设置</summary>
-          <div class="font-popover settings">
-            <label>
-              英文字体
-              <select id="englishFontSelect">
-                <option value="default">默认（Segoe UI）</option>
-                <option value="georgia">Georgia</option>
-                <option value="times">Times New Roman</option>
-                <option value="segoe">Segoe UI</option>
-                <option value="arial">Arial</option>
-              </select>
-            </label>
-            <label>
-              中文字体
-              <select id="chineseFontSelect">
-                <option value="yahei">微软雅黑</option>
-                <option value="simsun">宋体</option>
-                <option value="simhei">黑体</option>
-                <option value="kaiti">楷体</option>
-              </select>
-            </label>
-            <button id="resetFontSettingsBtn" type="button">恢复默认字体</button>
-            <div class="settings-section">
-              <div class="settings-section-title">快捷键</div>
-              <div id="shortcutList" class="shortcut-list"></div>
-              <div class="button-row">
-                <button id="resetShortcutsBtn" type="button">恢复默认</button>
-                <button id="clearShortcutFocusBtn" type="button">完成设置</button>
-              </div>
-              <div class="small-note">点击按键框后，按下你想设置的组合键。</div>
-            </div>
-            <div class="settings-section">
-              <div class="settings-section-title">练习</div>
-              <label title="背单词每轮最多加入几个新词；新词也按这个数分组（5–100）">
-                单词练习每组
-                <input id="wordGroupSizeInput" type="number" min="5" max="100" step="1" inputmode="numeric" title="背单词每轮最多加入几个新词；新词也按这个数分组（5–100）">
-              </label>
-              <label title="背句子每轮最多加入几个新句子（5–100）；背句子功能尚在开发，先保存这个设置">
-                句子练习每组
-                <input id="sentenceGroupSizeInput" type="number" min="5" max="100" step="1" inputmode="numeric" title="背句子每轮最多加入几个新句子（5–100）；背句子功能尚在开发，先保存这个设置">
-              </label>
-            </div>
-            <div class="settings-section">
-              <div class="settings-section-title">AI 接口</div>
-              <label>
-                接口地址
-                <input id="aiBaseUrlInput" type="text" placeholder="https://api.openai.com/v1">
-              </label>
-              <label>
-                模型
-                <input id="aiModelInput" type="text" placeholder="gpt-5.6-luna">
-              </label>
-              <label>
-                API Key
-                <input id="aiApiKeyInput" type="password" autocomplete="off" placeholder="只保存在当前浏览器">
-              </label>
-              <button id="saveAiSettingsBtn" type="button">保存 AI 设置</button>
-              <div id="aiSettingsStatus" class="small-note" aria-live="polite"></div>
-            </div>
-            <div class="settings-section">
-              <div class="settings-section-title">本地词典</div>
-              <div id="dictionarySettingsList" class="dictionary-settings-list" aria-live="polite"></div>
-            </div>
-            <div class="settings-section">
-              <div class="settings-section-title">翻译缓存</div>
-              <button id="clearTranslationCacheBtn" type="button" title="清除浏览器里保存的免费翻译结果（按英文原句保存）；不影响学习记录、收藏，也不影响已经写进字幕文件的翻译">清除翻译缓存</button>
-              <div id="translationCacheStatus" class="small-note"></div>
-            </div>
-            <div class="settings-section">
-              <div class="settings-section-title">句子成分颜色</div>
-              <div id="grammarColorGrid" class="grammar-color-grid">
-                <label class="grammar-color-row is-active" data-grammar-color-row="subject"><span>主语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="subject" aria-label="主语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="subject" maxlength="7" spellcheck="false" aria-label="主语 HEX 颜色"></span></span></label>
-                <label class="grammar-color-row" data-grammar-color-row="predicate"><span>谓语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="predicate" aria-label="谓语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="predicate" maxlength="7" spellcheck="false" aria-label="谓语 HEX 颜色"></span></span></label>
-                <label class="grammar-color-row" data-grammar-color-row="object"><span>宾语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="object" aria-label="宾语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="object" maxlength="7" spellcheck="false" aria-label="宾语 HEX 颜色"></span></span></label>
-                <label class="grammar-color-row" data-grammar-color-row="predicative"><span>表语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="predicative" aria-label="表语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="predicative" maxlength="7" spellcheck="false" aria-label="表语 HEX 颜色"></span></span></label>
-                <label class="grammar-color-row" data-grammar-color-row="complement"><span>补语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="complement" aria-label="补语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="complement" maxlength="7" spellcheck="false" aria-label="补语 HEX 颜色"></span></span></label>
-                <label class="grammar-color-row" data-grammar-color-row="attribute"><span>定语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="attribute" aria-label="定语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="attribute" maxlength="7" spellcheck="false" aria-label="定语 HEX 颜色"></span></span></label>
-                <label class="grammar-color-row" data-grammar-color-row="adverbial"><span>状语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="adverbial" aria-label="状语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="adverbial" maxlength="7" spellcheck="false" aria-label="状语 HEX 颜色"></span></span></label>
-                <label class="grammar-color-row" data-grammar-color-row="appositive"><span>同位语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="appositive" aria-label="同位语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="appositive" maxlength="7" spellcheck="false" aria-label="同位语 HEX 颜色"></span></span></label>
-                <label class="grammar-color-row" data-grammar-color-row="head"><span>中心语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="head" aria-label="中心语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="head" maxlength="7" spellcheck="false" aria-label="中心语 HEX 颜色"></span></span></label>
-                <label class="grammar-color-row" data-grammar-color-row="other"><span>其他</span><span class="grammar-color-controls"><input type="color" data-grammar-color="other" aria-label="其他颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="other" maxlength="7" spellcheck="false" aria-label="其他 HEX 颜色"></span></span></label>
-              </div>
-              <div class="grammar-palette-title">常用颜色 · 当前：<strong id="grammarColorActiveLabel">主语</strong></div>
-              <div id="grammarCommonPalette" class="grammar-common-palette" aria-label="常用颜色">
-                <button type="button" data-grammar-preset="#ef4444" style="--swatch:#ef4444" aria-label="红色 #EF4444" title="#EF4444"></button>
-                <button type="button" data-grammar-preset="#f97316" style="--swatch:#f97316" aria-label="橙色 #F97316" title="#F97316"></button>
-                <button type="button" data-grammar-preset="#eab308" style="--swatch:#eab308" aria-label="黄色 #EAB308" title="#EAB308"></button>
-                <button type="button" data-grammar-preset="#b58ba0" style="--swatch:#b58ba0" aria-label="豆沙色 #B58BA0" title="#B58BA0"></button>
-                <button type="button" data-grammar-preset="#22c55e" style="--swatch:#22c55e" aria-label="绿色 #22C55E" title="#22C55E"></button>
-                <button type="button" data-grammar-preset="#14b8a6" style="--swatch:#14b8a6" aria-label="青绿色 #14B8A6" title="#14B8A6"></button>
-                <button type="button" data-grammar-preset="#06b6d4" style="--swatch:#06b6d4" aria-label="青色 #06B6D4" title="#06B6D4"></button>
-                <button type="button" data-grammar-preset="#3b82f6" style="--swatch:#3b82f6" aria-label="蓝色 #3B82F6" title="#3B82F6"></button>
-                <button type="button" data-grammar-preset="#6366f1" style="--swatch:#6366f1" aria-label="靛蓝色 #6366F1" title="#6366F1"></button>
-                <button type="button" data-grammar-preset="#a855f7" style="--swatch:#a855f7" aria-label="紫色 #A855F7" title="#A855F7"></button>
-                <button type="button" data-grammar-preset="#ec4899" style="--swatch:#ec4899" aria-label="粉色 #EC4899" title="#EC4899"></button>
-                <button type="button" data-grammar-preset="#94a3b8" style="--swatch:#94a3b8" aria-label="灰色 #94A3B8" title="#94A3B8"></button>
-              </div>
-              <button id="resetGrammarColorsBtn" type="button">恢复默认颜色</button>
-            </div>
-            <div class="settings-section">
-              <div class="settings-section-title">设置管理</div>
-              <button id="resetSettingsBtn" type="button">重置全部设置</button>
-            </div>
-          </div>
-        </details>
+        <button id="openSettingsBtn" type="button" title="打开设置（字体、快捷键、练习、AI 接口等）">设置</button>
         <details class="user-menu">
           <summary id="userBadge">未登录</summary>
           <div class="user-popover">
@@ -443,6 +338,136 @@
       </div>
     </div>
   </div>
+  <div id="settingsModal" class="library-modal" hidden>
+    <div class="user-phrases-dialog settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="library-header">
+        <div><h2 id="settingsTitle">设置</h2><div class="small-note">设置按用户保存</div></div>
+        <div class="dialog-header-actions">
+          <button id="closeSettingsBtn" type="button" title="关闭设置（Esc）">关闭</button>
+        </div>
+      </div>
+      <div class="user-phrases-layout">
+        <aside class="user-phrases-tabs" role="tablist" aria-label="设置分类">
+          <button type="button" role="tab" data-settings-tab="appearance" class="is-active" aria-selected="true" title="查看「字体」">字体</button>
+          <button type="button" role="tab" data-settings-tab="shortcuts" aria-selected="false" title="查看「快捷键」">快捷键</button>
+          <button type="button" role="tab" data-settings-tab="practice" aria-selected="false" title="查看「练习」">练习</button>
+          <button type="button" role="tab" data-settings-tab="ai" aria-selected="false" title="查看「AI 接口」">AI 接口</button>
+          <button type="button" role="tab" data-settings-tab="dictionary" aria-selected="false" title="查看「本地词典」">本地词典</button>
+          <button type="button" role="tab" data-settings-tab="translation" aria-selected="false" title="查看「翻译缓存」">翻译缓存</button>
+          <button type="button" role="tab" data-settings-tab="grammar" aria-selected="false" title="查看「句子成分颜色」">句子成分颜色</button>
+          <button type="button" role="tab" data-settings-tab="manage" aria-selected="false" title="查看「设置管理」">设置管理</button>
+        </aside>
+        <div class="user-phrases-collection settings-panels settings">
+            <div class="settings-section" data-settings-panel="appearance" data-settings-intro="英文、中文正文使用的字体。页面主题用顶部的主题按钮切换。">
+              <div class="settings-section-title">字体</div>
+
+            <label>
+              英文字体
+              <select id="englishFontSelect" title="英文正文使用的字体">
+                <option value="default">默认（Segoe UI）</option>
+                <option value="georgia">Georgia</option>
+                <option value="times">Times New Roman</option>
+                <option value="segoe">Segoe UI</option>
+                <option value="arial">Arial</option>
+              </select>
+            </label>
+            <label>
+              中文字体
+              <select id="chineseFontSelect" title="中文正文使用的字体">
+                <option value="yahei">微软雅黑</option>
+                <option value="simsun">宋体</option>
+                <option value="simhei">黑体</option>
+                <option value="kaiti">楷体</option>
+              </select>
+            </label>
+            <button id="resetFontSettingsBtn" type="button" title="英文、中文字体都恢复为默认">恢复默认字体</button>
+            </div>
+            <div class="settings-section" data-settings-panel="shortcuts" data-settings-intro="听、说页面和背单词的键盘快捷键。点击按键框后按下想用的组合键。" hidden>
+              <div class="settings-section-title">快捷键</div>
+              <div id="shortcutList" class="shortcut-list"></div>
+              <div class="button-row">
+                <button id="resetShortcutsBtn" type="button" title="全部快捷键恢复为默认按键">恢复默认</button>
+                <button id="clearShortcutFocusBtn" type="button" title="结束按键录入，离开正在设置的按键框">完成设置</button>
+              </div>
+              <div class="small-note">点击按键框后，按下你想设置的组合键。</div>
+            </div>
+            <div class="settings-section" data-settings-panel="practice" data-settings-intro="背单词、背句子每轮加入多少个新内容。" hidden>
+              <div class="settings-section-title">练习</div>
+              <label title="背单词每轮最多加入几个新词；新词也按这个数分组（5–100）">
+                单词练习每组
+                <input id="wordGroupSizeInput" type="number" min="5" max="100" step="1" inputmode="numeric" title="背单词每轮最多加入几个新词；新词也按这个数分组（5–100）">
+              </label>
+              <label title="背句子每轮最多加入几个新句子（5–100）；背句子功能尚在开发，先保存这个设置">
+                句子练习每组
+                <input id="sentenceGroupSizeInput" type="number" min="5" max="100" step="1" inputmode="numeric" title="背句子每轮最多加入几个新句子（5–100）；背句子功能尚在开发，先保存这个设置">
+              </label>
+            </div>
+            <div class="settings-section" data-settings-panel="ai" data-settings-intro="AI 语法分析等功能使用的接口。API Key 只保存在本机，不会导出或同步。" hidden>
+              <div class="settings-section-title">AI 接口</div>
+              <label>
+                接口地址
+                <input id="aiBaseUrlInput" type="text" title="AI 服务的接口地址（兼容 OpenAI 格式）" placeholder="https://api.openai.com/v1">
+              </label>
+              <label>
+                模型
+                <input id="aiModelInput" type="text" title="调用的模型名称" placeholder="gpt-5.6-luna">
+              </label>
+              <label>
+                API Key
+                <input id="aiApiKeyInput" type="password" title="你的 API Key；只保存在本机浏览器，不会导出或同步" autocomplete="off" placeholder="只保存在当前浏览器">
+              </label>
+              <button id="saveAiSettingsBtn" type="button" title="保存接口地址、模型和 API Key">保存 AI 设置</button>
+              <div id="aiSettingsStatus" class="small-note" aria-live="polite"></div>
+            </div>
+            <div class="settings-section" data-settings-panel="dictionary" data-settings-intro="本机安装的词典，用于查词、词库和背单词。" hidden>
+              <div class="settings-section-title">本地词典</div>
+              <div id="dictionarySettingsList" class="dictionary-settings-list" aria-live="polite"></div>
+            </div>
+            <div class="settings-section" data-settings-panel="translation" data-settings-intro="免费翻译的结果会缓存在浏览器里，避免重复请求。" hidden>
+              <div class="settings-section-title">翻译缓存</div>
+              <button id="clearTranslationCacheBtn" type="button" title="清除浏览器里保存的免费翻译结果（按英文原句保存）；不影响学习记录、收藏，也不影响已经写进字幕文件的翻译">清除翻译缓存</button>
+              <div id="translationCacheStatus" class="small-note"></div>
+            </div>
+            <div class="settings-section" data-settings-panel="grammar" data-settings-intro="语法分析中各句子成分显示的颜色。" hidden>
+              <div class="settings-section-title">句子成分颜色</div>
+              <div id="grammarColorGrid" class="grammar-color-grid">
+                <label class="grammar-color-row is-active" data-grammar-color-row="subject"><span>主语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="subject" aria-label="主语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="subject" maxlength="7" spellcheck="false" aria-label="主语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="predicate"><span>谓语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="predicate" aria-label="谓语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="predicate" maxlength="7" spellcheck="false" aria-label="谓语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="object"><span>宾语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="object" aria-label="宾语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="object" maxlength="7" spellcheck="false" aria-label="宾语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="predicative"><span>表语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="predicative" aria-label="表语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="predicative" maxlength="7" spellcheck="false" aria-label="表语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="complement"><span>补语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="complement" aria-label="补语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="complement" maxlength="7" spellcheck="false" aria-label="补语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="attribute"><span>定语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="attribute" aria-label="定语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="attribute" maxlength="7" spellcheck="false" aria-label="定语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="adverbial"><span>状语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="adverbial" aria-label="状语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="adverbial" maxlength="7" spellcheck="false" aria-label="状语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="appositive"><span>同位语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="appositive" aria-label="同位语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="appositive" maxlength="7" spellcheck="false" aria-label="同位语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="head"><span>中心语</span><span class="grammar-color-controls"><input type="color" data-grammar-color="head" aria-label="中心语颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="head" maxlength="7" spellcheck="false" aria-label="中心语 HEX 颜色"></span></span></label>
+                <label class="grammar-color-row" data-grammar-color-row="other"><span>其他</span><span class="grammar-color-controls"><input type="color" data-grammar-color="other" aria-label="其他颜色"><span class="grammar-color-hex-control"><span>HEX</span><input class="grammar-color-hex" type="text" data-grammar-hex="other" maxlength="7" spellcheck="false" aria-label="其他 HEX 颜色"></span></span></label>
+              </div>
+              <div class="grammar-palette-title">常用颜色 · 当前：<strong id="grammarColorActiveLabel">主语</strong></div>
+              <div id="grammarCommonPalette" class="grammar-common-palette" aria-label="常用颜色">
+                <button type="button" data-grammar-preset="#ef4444" style="--swatch:#ef4444" aria-label="红色 #EF4444" title="#EF4444"></button>
+                <button type="button" data-grammar-preset="#f97316" style="--swatch:#f97316" aria-label="橙色 #F97316" title="#F97316"></button>
+                <button type="button" data-grammar-preset="#eab308" style="--swatch:#eab308" aria-label="黄色 #EAB308" title="#EAB308"></button>
+                <button type="button" data-grammar-preset="#b58ba0" style="--swatch:#b58ba0" aria-label="豆沙色 #B58BA0" title="#B58BA0"></button>
+                <button type="button" data-grammar-preset="#22c55e" style="--swatch:#22c55e" aria-label="绿色 #22C55E" title="#22C55E"></button>
+                <button type="button" data-grammar-preset="#14b8a6" style="--swatch:#14b8a6" aria-label="青绿色 #14B8A6" title="#14B8A6"></button>
+                <button type="button" data-grammar-preset="#06b6d4" style="--swatch:#06b6d4" aria-label="青色 #06B6D4" title="#06B6D4"></button>
+                <button type="button" data-grammar-preset="#3b82f6" style="--swatch:#3b82f6" aria-label="蓝色 #3B82F6" title="#3B82F6"></button>
+                <button type="button" data-grammar-preset="#6366f1" style="--swatch:#6366f1" aria-label="靛蓝色 #6366F1" title="#6366F1"></button>
+                <button type="button" data-grammar-preset="#a855f7" style="--swatch:#a855f7" aria-label="紫色 #A855F7" title="#A855F7"></button>
+                <button type="button" data-grammar-preset="#ec4899" style="--swatch:#ec4899" aria-label="粉色 #EC4899" title="#EC4899"></button>
+                <button type="button" data-grammar-preset="#94a3b8" style="--swatch:#94a3b8" aria-label="灰色 #94A3B8" title="#94A3B8"></button>
+              </div>
+              <button id="resetGrammarColorsBtn" type="button" title="全部句子成分颜色恢复为默认">恢复默认颜色</button>
+            </div>
+            <div class="settings-section" data-settings-panel="manage" data-settings-intro="把当前用户的全部设置恢复为默认值。" hidden>
+              <div class="settings-section-title">设置管理</div>
+              <button id="resetSettingsBtn" type="button" title="当前用户的全部设置恢复为默认值">重置全部设置</button>
+            </div>
+        </div>
+        <section id="settingsDetail" class="user-phrase-detail settings-detail" aria-live="polite"></section>
+      </div>
+    </div>
+  </div>
   <div id="dictionaryLibraryModal" class="library-modal" hidden>
     <div class="user-phrases-dialog" role="dialog" aria-modal="true" aria-labelledby="dictionaryLibraryTitle">
       <div class="library-header">
@@ -664,6 +689,6 @@
   <script src="src/languages/en/dictionary.js?v=20260928-2"></script>
   <script src="src/languages/es/dictionary.js?v=20260928-2"></script>
   <script src="src/user-data.js?v=20260928-4"></script>
-  <script src="src/app.js?v=20260928-246"></script>
+  <script src="src/app.js?v=20260928-248"></script>
 </body>
 </html>
