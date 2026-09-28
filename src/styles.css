@@ -3272,8 +3272,8 @@
       text-align: left;
     }
 
-    .user-word-item:hover,
-    .user-word-item:focus-visible,
+    #dictionaryLibraryList:not(.is-keyboard-navigation) .user-word-item:hover,
+    #userPhrasesList:not(.is-keyboard-navigation) .user-word-item:hover,
     .user-word-item.is-current {
       border-top-color: color-mix(in srgb, var(--ink) 58%, transparent);
       border-bottom-color: color-mix(in srgb, var(--ink) 58%, transparent);
