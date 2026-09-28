@@ -1665,6 +1665,76 @@ const fallbackSentences = [
       });
     }
 
+    // 中译 / 英译 (non-English learning languages): a one-off switch for the current sentence only. 中译 replaces that
+    // sentence's English translation with a Chinese one, translated from the English text by the browser's on-device
+    // Translator (en -> zh; English is the translator's pivot language, so this is more faithful than translating the
+    // Spanish directly); 英译 switches back. Moving to another sentence returns to English. Nothing is cached: the
+    // Chinese text lives only in state.translationChinese and is translated again on the next 中译.
+    let chineseTranslatorPromise = null;
+
+    // state.translationChinese = { index, key, text } for the sentence shown in Chinese (text is "" while translating);
+    // any other sentence, or an edited translation, clears it.
+    function chineseTranslationActive() {
+      const shown = state.translationChinese;
+      if (!shown) return false;
+      if (shown.index !== state.index || shown.key !== translationCacheKey(currentTranslation()) || currentLearningLanguage().id === "en") {
+        state.translationChinese = null;
+        return false;
+      }
+      return true;
+    }
+
+    // Shows the English text until the Chinese translation arrives.
+    function displayedTranslation(text) {
+      return text && chineseTranslationActive() && state.translationChinese.text ? state.translationChinese.text : text;
+    }
+
+    function chineseTranslationToggle(translation) {
+      if (currentLearningLanguage().id === "en" || !translation) return "";
+      const active = chineseTranslationActive();
+      const pending = active && !state.translationChinese.text;
+      const title = pending
+        ? "正在用浏览器内置翻译译成中文…"
+        : active ? "换回这一句的英文翻译" : "用浏览器内置翻译把这一句的英文翻译换成中文（只对当前句，在本机翻译）";
+      return `<button class="translation-edit-button translation-language-button" type="button" data-translation-action="language"${pending ? " disabled" : ""} title="${title}">${active ? "英译" : "中译"}</button>`;
+    }
+
+    function toggleChineseTranslation() {
+      if (chineseTranslationActive()) {
+        state.translationChinese = null;
+        renderTarget();
+        return;
+      }
+      if (!("Translator" in window)) {
+        alert("当前浏览器不支持内置翻译。请使用电脑版 Chrome 或 Edge（138 或更新版本）。");
+        return;
+      }
+      const english = currentTranslation();
+      const shown = { index: state.index, key: translationCacheKey(english), text: "" };
+      state.translationChinese = shown;
+      renderTarget();
+      translateToChinese(shown, english);
+    }
+
+    async function translateToChinese(shown, english) {
+      let failure = "";
+      try {
+        chineseTranslatorPromise ||= createFreeTranslator(() => false);
+        const translator = await chineseTranslatorPromise;
+        shown.text = String(await translator.translate(english) || "").trim();
+        if (!shown.text) failure = "没有得到翻译结果。";
+      } catch (error) {
+        chineseTranslatorPromise = null;
+        failure = error.message || String(error);
+      }
+      if (state.translationChinese !== shown) return;
+      if (failure) {
+        state.translationChinese = null;
+        alert(`中译失败：${failure}`);
+      }
+      if (!state.translationEditing) renderTarget();
+    }
+
     async function translateSentencesForFree(pending, existingTranslator = null) {
       const translator = existingTranslator || await createFreeTranslator();
       const cache = loadTranslationCache();
@@ -6917,7 +6987,8 @@ ${orderNote}`;
           ? "当前句已有缓存：左键查看，右键更多选项"
           : "左键分析当前句，右键更多选项";
       const showTranslation = $("showTranslationToggle").checked;
-      const translationText = translation ? escapeHtml(translation) : "暂无翻译";
+      const translationText = translation ? escapeHtml(displayedTranslation(translation)) : "暂无翻译";
+      const languageToggle = chineseTranslationToggle(translation);
       const translationHtml = state.translationEditing
         ? `<div class="translation-prompt translation-editor">
             <textarea id="translationInlineInput" spellcheck="false" aria-label="编辑当前句翻译">${escapeHtml(state.translationDraft)}</textarea>
@@ -6926,9 +6997,9 @@ ${orderNote}`;
               <button type="button" data-translation-action="cancel">取消</button>
             </div>
           </div>`
-        : `<div class="translation-prompt ${showTranslation ? "" : "is-hidden"}">
+        : `<div class="translation-prompt ${showTranslation ? "" : "is-hidden"}${languageToggle ? " has-language-toggle" : ""}">
             <span aria-hidden="${showTranslation ? "false" : "true"}">${translationText}</span>
-            <div class="translation-actions">${hasGrammarCache ? grammarToggleButton(state.grammarVisible) : ""}<button class="translation-edit-button" type="button" data-translation-action="edit">编辑</button></div>
+            <div class="translation-actions">${hasGrammarCache ? grammarToggleButton(state.grammarVisible) : ""}${languageToggle}<button class="translation-edit-button" type="button" data-translation-action="edit">编辑</button></div>
           </div>`;
       const grammarHtml = renderGrammarAnalysis();
       const input = typingBox.value;
@@ -7036,9 +7107,10 @@ ${orderNote}`;
           continue;
         }
         const item = normalizeSentenceItem(state.sentences[index]);
+        const languageToggle = chineseTranslationToggle(item.translation);
         rows.push(`<div class="long-text-item" data-long-text-index="${index}" title="点击切换到这一句">
           <span class="target-english"><span class="target-english-text${showSource ? "" : " long-text-hidden-note"}">${showSource ? longTextEnglishHtml(item.text) : "原文已隐藏"}</span>${sentenceFavoriteButton(item.text)}</span>
-          <div class="translation-prompt ${showTranslation ? "" : "is-hidden"}"><span aria-hidden="${showTranslation ? "false" : "true"}">${escapeHtml(item.translation || "暂无翻译")}</span><div class="translation-actions">${sentenceHasGrammar(item, analysedKeys) ? grammarToggleButton(false) : ""}<button class="translation-edit-button long-text-edit-spacer" type="button" tabindex="-1" aria-hidden="true">编辑</button></div></div>
+          <div class="translation-prompt ${showTranslation ? "" : "is-hidden"}${languageToggle ? " has-language-toggle" : ""}"><span aria-hidden="${showTranslation ? "false" : "true"}">${escapeHtml(item.translation || "暂无翻译")}</span><div class="translation-actions">${sentenceHasGrammar(item, analysedKeys) ? grammarToggleButton(false) : ""}${languageToggle}<button class="translation-edit-button" type="button" data-translation-action="edit" title="切换到这一句并编辑翻译">编辑</button></div></div>
         </div>`);
       }
       targetEl.className = `target long-text-target${focus ? " is-focus" : ""}${hiddenSource ? " hidden-source" : ""}`;
@@ -7781,9 +7853,16 @@ ${orderNote}`;
       const translationAction = event.target.closest("[data-translation-action]");
       if (translationAction) {
         const action = translationAction.dataset.translationAction;
+        const row = translationAction.closest(".long-text-item:not(.is-current)");
+        const rowIndex = row ? Number(row.dataset.longTextIndex) : state.index;
+        if (row && Number.isInteger(rowIndex) && rowIndex >= 0 && rowIndex < state.sentences.length && rowIndex !== state.index) {
+          state.index = rowIndex;
+          resetCurrent(true);
+        }
         if (action === "edit") beginTranslationEdit();
         if (action === "save") saveCurrentTranslation();
         if (action === "cancel") cancelTranslationEdit();
+        if (action === "language") toggleChineseTranslation();
         return;
       }
 

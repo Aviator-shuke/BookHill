@@ -5165,7 +5165,9 @@
       line-height: 16px;
     }
 
-    .long-text-target .long-text-edit-spacer {
+    /* 长文聚焦: only the current sentence keeps its favorite stars and translation buttons (中译 / 编辑). */
+    .long-text-target.is-focus .long-text-item:not(.is-current) .sentence-rating,
+    .long-text-target.is-focus .long-text-item:not(.is-current) .translation-actions .translation-edit-button {
       visibility: hidden;
     }
 
@@ -5255,6 +5257,12 @@
       display: inline-flex;
       align-items: center;
       gap: 4px;
+    }
+
+    /* 中译 / 英译 and 编辑 share the 75px star column (non-English learning languages). */
+    .translation-prompt.has-language-toggle .translation-actions .translation-edit-button {
+      padding-left: 4px;
+      padding-right: 4px;
     }
 
     .translation-grammar-button {
