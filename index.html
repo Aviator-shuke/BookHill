@@ -1,13 +1,17 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="is-booting">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>langLSRW</title>
+  <!-- Page content stays hidden until the user's own settings (theme, fonts) are applied, so the default look never flashes. -->
+  <style>html.is-booting body > * { visibility: hidden; }</style>
   <link rel="stylesheet" href="src/styles.css?v=20260928-216">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
+  <!-- Browser cache of the last shown theme (langLSRWBootTheme), applied before anything renders; the user's own theme setting replaces it once personal data loads. -->
+  <script>try { var bootTheme = localStorage.getItem("langLSRWBootTheme"); if (bootTheme) document.body.dataset.theme = bootTheme; } catch (error) {}</script>
   <section id="loginScreen" class="login-screen active" aria-label="登录" tabindex="-1">
     <div class="login-card">
       <h1>langLSRW</h1>
@@ -648,7 +652,7 @@
   <script src="src/languages/es/text.js?v=20260928-2"></script>
   <script src="src/languages/en/dictionary.js?v=20260928-2"></script>
   <script src="src/languages/es/dictionary.js?v=20260928-2"></script>
-  <script src="src/user-data.js?v=20260928-3"></script>
-  <script src="src/app.js?v=20260928-228"></script>
+  <script src="src/user-data.js?v=20260928-4"></script>
+  <script src="src/app.js?v=20260928-233"></script>
 </body>
 </html>

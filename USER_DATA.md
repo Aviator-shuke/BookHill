@@ -22,7 +22,8 @@
 | Google 云账号 | `Google 登录`（Supabase Auth） | `cloud:<Supabase 用户 id>` | 项目已连接 Supabase（公开配置在 `src/cloud-config.js`，线上由 Vercel 环境变量注入）；线上 Google 登录已验证，跨设备同步尚未做双浏览器 / 双设备验证 |
 | 未登录 | 两者都没有 | `guest` | 与其他身份一样保存数据 |
 
-- 启动时、本机用户登录、云账号登录、退出、删除用户后，都会重新打开对应身份的数据（`openUserData()`），并应用该身份的设置、恢复该语言的最后位置。
+- 启动时、本机用户登录、云账号登录、退出、删除用户后，都会重新打开对应身份的数据（`openUserData()`），切换到该身份的学习语言、应用其设置，再恢复该语言的最后位置。
+- 每次打开网站都从“听”页面开始，不记住上次停留的页面。
 - 本机用户登录时若有云登录会先退出云账号；云账号登录时清掉当前本机用户（`langLSRWCurrentUser`）。
 
 ## 3. 存储
@@ -36,14 +37,15 @@
   ```
 
   范围为 `global`（按身份，不分语言）或学习语言代码（`en`、`es`）。删除只留“已删除”标记（墓碑），便于导入合并和以后同步。
-- **清单外的数据集**：数据库中不在清单上、或标为隐藏的数据集，启动时一律忽略，不读入、不导出。删掉或暂停一个功能后，它留下的旧记录自动失效。
-- **设置的本机副本**：设置同时在 localStorage 保留一份本机副本（原来的 `langLSRWTheme` 等键），只用于页面打开时先显示上次的外观，身份数据载入后以身份设置为准。
+- **清单外的数据集**：数据库中不在清单上、或标为隐藏的数据集，启动时一律忽略，不读入、不导出。删掉或暂停一个功能后，它留下的旧记录自动失效。标为仅本机（`exportable: false`，目前只有 `localSecrets`）的数据集照常读写，但不导出、不导入、不上传云端。
+- **设置只属于身份**：设置不在浏览器存储中保留副本（owner 决定，2026-09-28）。页面内容在启动时先隐藏（`index.html` 的 `is-booting`），身份的设置应用后再显示（最多等 1.5 秒），所以不会闪出默认外观。唯一的例外是主题：浏览器另存一份“上次显示的主题”（`langLSRWBootTheme`），网页开头的脚本在渲染前先用它设置底色，避免打开时背景色闪变；它只是缓存，身份设置中的 `theme` 才是准的。每次显示主题（切换主题、登录后应用设置、恢复默认）都会更新这份缓存，而页面打开时恢复的正是上次在用的身份，所以两者一致、不会闪；只有该身份的主题在别处被改过（例如另一台设备改后同步过来）时，打开页面会先显示旧底色，数据载入后再换成新主题。
 
 ## 4. 数据清单
 
 | 范围 | 数据集 | 类型 | 编号 | 内容 |
 |---|---|---|---|---|
-| 身份 | `settings` | 状态 | `theme`、`shortcuts`、`speech`、`fonts`、`grammarColors`、`dictionaryAutoSpeak` | 各项设置；朗读设置中英语与西语的口音、声音分开（`accent` / `accent_es`，`voiceURI` / `voiceURI_es`） |
+| 身份 | `settings` | 状态 | `learningLanguage`、`theme`、`shortcuts`、`speech`、`fonts`、`grammarColors`、`dictionaryAutoSpeak`、`ai` | 学习语言（新身份默认 `en`）和各项设置；朗读设置中英语与西语的口音、声音分开（`accent` / `accent_es`，`voiceURI` / `voiceURI_es`）；`ai` 只含接口地址和模型。新身份缺少的设置使用默认值 |
+| 身份 | `localSecrets` | 状态（仅本机） | `aiApiKey` | 个人 AI API Key：按身份保存，但标为 `exportable: false`，永不导出、不参与导入、不上传云端；换设备需重新填写 |
 | 语言 | `position` | 状态 | `last` | 最后位置：`{ libraryLabel, index }` |
 | 语言 | `favoriteWord` | 状态 | 单词（小写） | `{ w 单词, r 星级, t 收藏时间（秒）, f 筛选字段, s 来源句引用 或 st/sx 来源句原文和翻译 }`。`f` 只存非空的 `tag`、`oxford`、`collins`、`bnc`、`frq` |
 | 语言 | `favoriteSentence` | 状态 | 见“记录编号” | 内置句库句子：`{ lib, id, lf 句库指纹, fp: null, r, t }`；其他句子：`{ text, tr 翻译, fp: null, r, t }` |
@@ -86,22 +88,47 @@
 
 已知的冗余（2026-09-28 审查导出文件时发现）：非内置句子的收藏，编号里有一份统一格式的原文，内容里的 `text` 又保存一份原样原文，原文存了两次。可以把编号改成由统一格式原文算出的短指纹（如 `t:3f9a1c07e2b84`），去重和合并作用不变、每条省下一句原文的长度，代价是导出文件中看编号认不出是哪一句。这类收藏数量通常不多，节省有限，**owner 决定暂不修改**，以后需要时再改（调试阶段不迁移旧数据）。
 
-### 不属于个人数据、不导出的内容
+### 跟着用户走 / 跟着浏览器走 / 只在本页
 
-| 内容 | 位置 | 原因 |
+同一个浏览器里可以有多个身份（本机用户、云账号、未登录）。数据按归属分三类：
+
+**跟着用户走**（个人数据记录，按身份保存；切换用户就换成该用户的数据；随导出、导入、云同步）
+
+| 数据 | 数据集 | 是否分语言 |
+|---|---|---|
+| 学习语言（英 / 西；新用户默认英语） | `settings` 中的 `learningLanguage` | — |
+| 主题、快捷键、字体、语法颜色、查词自动发音 | `settings` | 否 |
+| AI 服务的接口地址和模型 | `settings` 中的 `ai` | 否 |
+| 朗读设置：口音和声音（英语、西语各一套）、自动朗读、原文显示方式、朗读单词、显示原文、显示翻译 | `settings` 中的 `speech` | 口音和声音分语言，其余不分 |
+| 最后位置（句库和句子序号） | `position` | 是 |
+| 单词收藏、句子收藏 | `favoriteWord`、`favoriteSentence` | 是 |
+| 背单词进度、手动掌握 | `wordProgress` | 是 |
+| AI 语法分析结果 | `grammarResult` | 是 |
+
+**跟着浏览器走**（存在这个浏览器里，同一浏览器的所有身份共用；不导出、不同步；换浏览器或清除网站数据就没有）
+
+| 数据 | 位置 | 说明 |
 |---|---|---|
 | 本机用户列表、当前本机用户 | localStorage `langLSRWKnownUsers`、`langLSRWCurrentUser` | 这台设备上的身份入口 |
-| 当前学习语言、当前页面 | localStorage `langLSRWLearningLanguage`、`activeLearningPage` | 界面状态 |
-| AI 服务设置（含个人 API Key） | localStorage `langLSRWAISettings` | 敏感信息，永不导出、永不同步 |
+| 上次显示的主题（缓存） | localStorage `langLSRWBootTheme` | 只用于打开页面时先设对底色；每次应用主题时更新；用户的主题设置才是准的 |
 | 浏览器翻译缓存 | localStorage `langLSRWTranslationCache` | 可免费重新生成；设置中可清除 |
-| 词典、西语词频表 | OPFS `.langlsrw-dictionary` | 可重新下载 |
-| 中译结果 | 页面内存 | 不保存 |
+| 已安装的词典、西语词频表 | OPFS `.langlsrw-dictionary` | 可重新下载 |
 
-重构前的旧键（`langLSRWUserWords:*`、`langLSRWUserSentences:*`、`langLSRWWordReviews:*`、`langLSRWWordManualMastery:*`、`langLSRWHistory:*`、`langLSRWLearnedCount:*`、`langLSRWLastPosition:*`、`langLSRWGrammarCache`）不再读取，也没有删除，仍留在浏览器存储中。
+**跟着用户、但只在本机**（按身份保存，不导出、不同步，换设备需重新填写）
+
+- 个人 AI API Key（`localSecrets` 的 `aiApiKey`）。
+
+**只在本页**（不保存，刷新页面就没有）
+
+- 导入的自定义句库、音频字幕材料（音频和字幕需重新选择）
+- 中译结果、录音、原声对比结果
+- 当前停留的页面（每次打开都从“听”开始）、词库当前选中的分类等窗口内状态
+
+重构前的旧键（`langLSRWUserWords:*`、`langLSRWUserSentences:*`、`langLSRWWordReviews:*`、`langLSRWWordManualMastery:*`、`langLSRWHistory:*`、`langLSRWLearnedCount:*`、`langLSRWLastPosition:*`、`langLSRWGrammarCache`），以及已不再使用的 `langLSRWLearningLanguage`、`activeLearningPage`、`learningPageMigratedToListen`、`langLSRWAISettings` 和设置副本 `langLSRWTheme`、`langLSRWShortcuts`、`langLSRWSpeechSettings`、`langLSRWFontSettings`、`langLSRWGrammarColors`、`langLSRWDictionaryAutoSpeak`，都不再读取，也没有删除，仍留在浏览器存储中。
 
 ## 5. 导出（`exportData()`）
 
-- 导出当前身份（本机用户、云账号或未登录）的全部有效记录，与当前页面和句库无关。
+- 导出当前身份（本机用户、云账号或未登录）的全部有效记录（仅本机的 API Key 除外），与当前页面和句库无关。
 - 文件名 `langlsrw-<身份名>-<日期>.json`，紧凑 JSON（不排版、不压缩）。
 - 格式：
 

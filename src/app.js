@@ -61,14 +61,6 @@ const fallbackSentences = [
       return { english: "default", chinese: "yahei" };
     }
 
-    function loadStoredFontSettings() {
-      try {
-        return { ...fontDefaults(), ...JSON.parse(localStorage.getItem("langLSRWFontSettings") || "{}") };
-      } catch {
-        return fontDefaults();
-      }
-    }
-
     function grammarColorDefaults() {
       return {
         subject: "#ef4444",
@@ -90,14 +82,6 @@ const fallbackSentences = [
         const value = String(colors?.[key] || "").trim();
         return [key, /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : fallback];
       }));
-    }
-
-    function loadStoredGrammarColors() {
-      try {
-        return normalizeGrammarColors(JSON.parse(localStorage.getItem("langLSRWGrammarColors") || "{}"));
-      } catch {
-        return grammarColorDefaults();
-      }
     }
 
     const shortcutActions = [
@@ -123,34 +107,9 @@ const fallbackSentences = [
       { label: "查询所点单词", control: "鼠标右键" }
     ];
 
-    function loadShortcutSettings() {
-      const saved = JSON.parse(localStorage.getItem("langLSRWShortcuts") || "null") || {};
-      if (saved.peekCurrentWord === "[" && saved.speakCurrentWord === "]") {
-        saved.peekCurrentWord = "]";
-        saved.speakCurrentWord = "[";
-        localStorage.setItem("langLSRWShortcuts", JSON.stringify(saved));
-      }
-      if (saved.peekCurrentWord === "]" && saved.speakCurrentWord === "[") {
-        saved.peekCurrentWord = "Alt+1";
-        saved.speakCurrentWord = "Alt+`";
-        localStorage.setItem("langLSRWShortcuts", JSON.stringify(saved));
-      }
-      return { ...defaultShortcuts, ...saved };
-    }
-
+    // The page is not remembered: every visit starts on 听.
     function loadActiveLearningPage() {
-      const savedPage = localStorage.getItem("activeLearningPage");
-      const migrated = localStorage.getItem("learningPageMigratedToListen");
-      if (savedPage === "speakPage") {
-        localStorage.setItem("activeLearningPage", "listenPage");
-        return "listenPage";
-      }
-      if ((!savedPage || savedPage === "writePage") && !migrated) {
-        localStorage.setItem("activeLearningPage", "listenPage");
-        localStorage.setItem("learningPageMigratedToListen", "1");
-        return "listenPage";
-      }
-      return savedPage || "listenPage";
+      return "listenPage";
     }
 
     const LEARNING_LANGUAGES = {
@@ -199,11 +158,6 @@ const fallbackSentences = [
       }
     };
 
-    function loadLearningLanguageId() {
-      const saved = localStorage.getItem("langLSRWLearningLanguage");
-      return LEARNING_LANGUAGES[saved] ? saved : "en";
-    }
-
     const state = {
       sentences: normalizeSentenceList(fallbackSentences),
       index: 0,
@@ -232,14 +186,17 @@ const fallbackSentences = [
       voices: [],
       lastSpokenWordKey: "",
       replayRate: 1,
-      shortcuts: loadShortcutSettings(),
-      speechSettings: JSON.parse(localStorage.getItem("langLSRWSpeechSettings") || "{}"),
-      aiSettings: JSON.parse(localStorage.getItem("langLSRWAISettings") || "{}"),
-      fontSettings: loadStoredFontSettings(),
-      grammarColors: loadStoredGrammarColors(),
-      theme: localStorage.getItem("langLSRWTheme") || "eye",
+      // Settings belong to the identity (applyIdentitySettings()); these defaults show until its data opens.
+      shortcuts: { ...defaultShortcuts },
+      speechSettings: {},
+      aiSettings: {},
+      fontSettings: fontDefaults(),
+      grammarColors: grammarColorDefaults(),
+      // The theme starts from the browser's cache of the last shown theme (see applyTheme()).
+      theme: document.body.dataset.theme || "eye",
       activePage: loadActiveLearningPage(),
-      learningLanguageId: loadLearningLanguageId(),
+      // The learning language is a per-identity setting, applied once the identity's data opens; English until then.
+      learningLanguageId: "en",
       currentLibraryLabel: "示例句库",
       grammarLoading: false,
       grammarVisible: false,
@@ -877,6 +834,7 @@ const fallbackSentences = [
       localStorage.removeItem("langLSRWCurrentUser");
       state.currentUser = "";
       await openUserData();
+      await tryLoadDefaultLibrary();
       $("userBadge").textContent = "未登录";
       renderCloudAuthState();
       closeTopMenus();
@@ -2371,55 +2329,44 @@ const fallbackSentences = [
       return `当前句库：${name}（${sentences.length}句，${translated}句有翻译）`;
     }
 
-    // Settings belong to the identity (settings records). localStorage keeps a device copy so the page opens with
-    // the last used look before the identity's records have loaded.
-    const SETTING_STORAGE_KEYS = {
-      theme: "langLSRWTheme",
-      shortcuts: "langLSRWShortcuts",
-      speech: "langLSRWSpeechSettings",
-      fonts: "langLSRWFontSettings",
-      grammarColors: "langLSRWGrammarColors",
-      dictionaryAutoSpeak: "langLSRWDictionaryAutoSpeak"
-    };
-
-    function mirrorSetting(name, value) {
-      try {
-        localStorage.setItem(SETTING_STORAGE_KEYS[name], typeof value === "string" ? value : JSON.stringify(value));
-      } catch {
-        /* ignore storage errors */
-      }
-    }
+    // Settings belong to the identity (settings records) and are not kept in browser storage. The AI API key is
+    // per identity too but stays on this device (localSecrets: never exported or synced).
+    const IDENTITY_SETTING_NAMES = ["theme", "shortcuts", "speech", "fonts", "grammarColors", "dictionaryAutoSpeak"];
 
     function persistSetting(name, value) {
-      mirrorSetting(name, value);
       if (!userData.identity) return;
       userData.put("settings", name, value, "global");
       scheduleCloudSync();
     }
 
-    function currentSettingValue(name) {
+    // What a new identity starts with.
+    function defaultSettingValue(name) {
       return {
-        theme: state.theme,
-        shortcuts: state.shortcuts,
-        speech: state.speechSettings,
-        fonts: state.fontSettings,
-        grammarColors: state.grammarColors,
-        dictionaryAutoSpeak: dictionaryAutoSpeakEnabled() ? "1" : "0"
+        theme: "eye",
+        shortcuts: { ...defaultShortcuts },
+        speech: {},
+        fonts: fontDefaults(),
+        grammarColors: grammarColorDefaults(),
+        dictionaryAutoSpeak: "1"
       }[name];
     }
 
-    // Applies the open identity's settings. An identity without saved settings starts from what is on screen.
+    // Applies the open identity's settings; missing ones start from the defaults.
     function applyIdentitySettings() {
       const saved = (name) => userData.get("settings", name, "global");
-      Object.keys(SETTING_STORAGE_KEYS).forEach((name) => {
-        if (saved(name) === undefined) userData.put("settings", name, currentSettingValue(name), "global");
+      // A new identity learns English.
+      if (!LEARNING_LANGUAGES[saved("learningLanguage")]) userData.put("settings", "learningLanguage", "en", "global");
+      setLearningLanguage(saved("learningLanguage"), { persist: false, reloadLibrary: false });
+      IDENTITY_SETTING_NAMES.forEach((name) => {
+        if (saved(name) === undefined) userData.put("settings", name, defaultSettingValue(name), "global");
       });
       applyTheme(saved("theme"), { persist: false });
       state.shortcuts = { ...defaultShortcuts, ...(saved("shortcuts") || {}) };
       state.speechSettings = { ...(saved("speech") || {}) };
       applyFontSettings(saved("fonts"), { persist: false });
       applyGrammarColors(saved("grammarColors"), { persist: false });
-      Object.keys(SETTING_STORAGE_KEYS).forEach((name) => mirrorSetting(name, saved(name)));
+      state.aiSettings = { ...(saved("ai") || {}), apiKey: String(userData.get("localSecrets", "aiApiKey", "global") || "") };
+      loadAiSettings();
       document.querySelectorAll("[data-dictionary-auto-speak]").forEach((checkbox) => {
         checkbox.checked = dictionaryAutoSpeakEnabled();
       });
@@ -2477,7 +2424,8 @@ const fallbackSentences = [
         apiKey: $("aiApiKeyInput").value.trim()
       };
       state.aiSettings = settings;
-      localStorage.setItem("langLSRWAISettings", JSON.stringify(settings));
+      persistSetting("ai", { baseUrl: settings.baseUrl, model: settings.model });
+      if (userData.identity) userData.put("localSecrets", "aiApiKey", settings.apiKey, "global");
       $("aiSettingsStatus").textContent = "AI 设置已保存。";
     }
 
@@ -2653,7 +2601,9 @@ const fallbackSentences = [
       });
     }
 
-    function setLearningLanguage(languageId, { persist = true } = {}) {
+    // reloadLibrary: false leaves loading the new language's library to the caller (identity changes call
+    // tryLoadDefaultLibrary() themselves after applying settings).
+    function setLearningLanguage(languageId, { persist = true, reloadLibrary = true } = {}) {
       const language = LEARNING_LANGUAGES[languageId] || LEARNING_LANGUAGES.en;
       if (state.learningLanguageId === language.id) {
         renderLearningLanguageTabs();
@@ -2666,7 +2616,7 @@ const fallbackSentences = [
       stopSpeech();
       closeDictionaryLookup();
       state.learningLanguageId = language.id;
-      if (persist) localStorage.setItem("langLSRWLearningLanguage", language.id);
+      if (persist) persistSetting("learningLanguage", language.id);
       window.langLSRWDictionary?.setActiveDictionary(language.dictionaryId);
       renderLearningLanguageTabs();
       dictionaryStudyDeckCache.clear();
@@ -2686,6 +2636,7 @@ const fallbackSentences = [
       renderAccentOptions();
       // Each learning language practises its own common library, resuming that language's last position.
       resetCommonLibraryState();
+      if (!reloadLibrary) return;
       tryLoadDefaultLibrary().then(() => {
         if (!$("libraryModal").hidden) loadCommonLibrary();
       });
@@ -2743,6 +2694,13 @@ const fallbackSentences = [
       const nextTheme = themeMap[theme] || theme;
       state.theme = themes.some((item) => item.id === nextTheme) ? nextTheme : "eye";
       document.body.dataset.theme = state.theme;
+      // Browser cache of the last shown theme, read by index.html before the page renders so opening the page does
+      // not flash another background; the identity's theme setting stays authoritative.
+      try {
+        localStorage.setItem("langLSRWBootTheme", state.theme);
+      } catch {
+        /* ignore storage errors */
+      }
       const current = themes.find((item) => item.id === state.theme);
       $("themeToggleBtn").textContent = current.label;
       $("themeToggleBtn").title = `背景：${current.label}`;
@@ -2843,7 +2801,7 @@ const fallbackSentences = [
       saveShortcuts();
       state.speechSettings = {};
       persistSetting("speech", state.speechSettings);
-      applyTheme("black");
+      applyTheme(defaultSettingValue("theme"));
       applyFontSettings(fontDefaults());
       applyGrammarColors(grammarColorDefaults());
       loadSpeechSettings();
@@ -2865,7 +2823,6 @@ const fallbackSentences = [
       if (!page) return;
       state.activePage = pageId;
       document.body.dataset.activePage = pageId;
-      localStorage.setItem("activeLearningPage", pageId);
       if (pageId !== "listenPage") {
         closeTopMenus();
         dragDepth = 0;
@@ -4270,16 +4227,10 @@ ${orderNote}`;
         : "";
     }
 
-    // Word lookup popover: optional automatic pronunciation whenever a word is looked up (saved per browser).
-    const DICTIONARY_AUTO_SPEAK_KEY = "langLSRWDictionaryAutoSpeak";
-
+    // Word lookup popover: optional automatic pronunciation whenever a word is looked up (an identity setting).
     function dictionaryAutoSpeakEnabled() {
-      try {
-        // On by default; only an explicit "0" (the learner unticked it) turns it off.
-        return localStorage.getItem(DICTIONARY_AUTO_SPEAK_KEY) !== "0";
-      } catch {
-        return true;
-      }
+      // On by default; only an explicit "0" (the learner unticked it) turns it off.
+      return userData.get("settings", "dictionaryAutoSpeak", "global") !== "0";
     }
 
     function dictionaryAutoSpeakToggle() {
@@ -8442,8 +8393,16 @@ ${orderNote}`;
     }
 
     render();
+    // Reveal the page once the identity's settings are applied (index.html hides it while booting); the timeout
+    // keeps the page usable even if the personal-data store is slow or unavailable.
+    const revealPage = () => document.documentElement.classList.remove("is-booting");
+    setTimeout(revealPage, 1500);
     (async () => {
-      await openUserData();
+      try {
+        await openUserData();
+      } finally {
+        revealPage();
+      }
       await tryLoadDefaultLibrary();
       render();
       initializeCloudAuth();

@@ -12,9 +12,11 @@
   // Registry of personal data. Export, import, delete, and sync all work from this list.
   // kind "state": the latest value per key; kind "event": append-only history.
   // enabled: false keeps a collection's code but hides it: nothing is written, loaded, exported, or imported.
+  // exportable: false keeps a collection on this device only: never exported, imported, or synced.
   // The answer records (practiceEvent, reviewEvent) are hidden until a feature uses them (USER_DATA.md 8.2).
   const COLLECTIONS = {
     settings: { scope: "global", kind: "state" },
+    localSecrets: { scope: "global", kind: "state", exportable: false },
     position: { scope: "language", kind: "state" },
     favoriteWord: { scope: "language", kind: "state" },
     favoriteSentence: { scope: "language", kind: "state" },
@@ -47,6 +49,10 @@
 
   function isActive(collection) {
     return Boolean(COLLECTIONS[collection]) && COLLECTIONS[collection].enabled !== false;
+  }
+
+  function isPortable(collection) {
+    return isActive(collection) && COLLECTIONS[collection].exportable !== false;
   }
 
   function openDatabase() {
@@ -187,6 +193,7 @@
   function exportDocument(meta = {}) {
     const document = { format: FORMAT, version: FORMAT_VERSION, exportedAt: Date.now(), identity: meta.identity || { id: identity }, global: {}, languages: {} };
     cache.forEach((record) => {
+      if (!isPortable(record.collection)) return;
       const target = record.scope === "global"
         ? document.global
         : (document.languages[record.scope] ||= {});
@@ -200,7 +207,7 @@
     const records = [];
     const addScope = (scope, collections) => {
       Object.entries(collections || {}).forEach(([collection, items]) => {
-        if (!isActive(collection) || !items || typeof items !== "object") return;
+        if (!isPortable(collection) || !items || typeof items !== "object") return;
         Object.entries(items).forEach(([key, entry]) => {
           if (!Array.isArray(entry)) return;
           records.push({ scope, collection, key, value: entry[0], updatedAt: Number(entry[1]) || 0, deleted: entry[2] === 1 });
