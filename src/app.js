@@ -181,11 +181,12 @@ const fallbackSentences = [
         shortLabel: "西",
         dictionaryId: "spanish-wiktionary",
         dictionaryName: "西语 Wiktionary",
-        // Word and sentence favorites and 背单词 records are stored per learning language. The Spanish dictionary has
-        // no word-list categories, so 词库 has no category decks and 识义 distractors come from random dictionary pages.
+        // Word and sentence favorites and 背单词 records are stored per learning language.
         collectionEnabled: true,
         wordStudyEnabled: true,
-        dictionaryStudyDeckEnabled: false,
+        // 词库 categories are subtitle-frequency tiers (常用 500 ... 10000), see src/languages/es/dictionary.js.
+        dictionaryStudyDeckEnabled: true,
+        reviewDistractorCategory: "top3000",
         wordLabel: "西语",
         meaningLabel: "英文",
         commonLibraryManifestUrl: "assets/libraries/common-spanish-134910/manifest.json",
@@ -2730,18 +2731,27 @@ const fallbackSentences = [
       applyLearningLanguageFavoriteOptions();
     }
 
-    // 收藏 page: word categories and BNC / 当代语料 / 柯林斯 sorts come from the English dictionary, and 背单词 is not
-    // connected for every language, so these controls follow the current learning language.
+    // 收藏 page: categories, sorts, and 背单词 controls follow the current learning language.
+    // The category and sort selects of 词库 and 收藏 list the current learning language's options. English keeps the
+    // options written in index.html; another language provides its own lists in src/languages/<id>/dictionary.js.
+    const englishSelectOptions = {};
+
+    function applyLanguageSelectOptions(selectId, options) {
+      const select = $(selectId);
+      if (!(selectId in englishSelectOptions)) englishSelectOptions[selectId] = select.innerHTML;
+      const previous = select.value;
+      select.innerHTML = options
+        ? options.map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join("")
+        : englishSelectOptions[selectId];
+      if ([...select.options].some((option) => option.value === previous)) select.value = previous;
+    }
+
     function applyLearningLanguageFavoriteOptions() {
-      const isEnglishDictionary = currentLearningLanguage().id === "en";
-      const categorySelect = $("userWordsCategorySelect");
-      categorySelect.closest("label").hidden = !isEnglishDictionary;
-      if (!isEnglishDictionary) categorySelect.value = "all";
-      const sortSelect = $("userWordsSortSelect");
-      sortSelect.querySelectorAll("option").forEach((option) => {
-        option.hidden = !isEnglishDictionary && ["bnc", "frq", "collins"].includes(option.value);
-      });
-      if (sortSelect.selectedOptions[0]?.hidden) sortSelect.value = "saved-desc";
+      const rules = languageDictionary();
+      applyLanguageSelectOptions("dictionaryCategorySelect", rules.libraryCategoryOptions);
+      applyLanguageSelectOptions("dictionarySortSelect", rules.librarySortOptions);
+      applyLanguageSelectOptions("userWordsCategorySelect", rules.favoriteCategoryOptions);
+      applyLanguageSelectOptions("userWordsSortSelect", rules.favoriteSortOptions);
       $("userWordsControls").querySelector(".word-review-launchers").hidden = !dictionaryWordStudyEnabled();
       $("userPhrasesList").classList.toggle("is-without-review-status", !dictionaryWordStudyEnabled());
     }
@@ -3717,8 +3727,8 @@ ${orderNote}`;
           ${dictionaryTagBadges(tags)}
         </div>` : ""}
         ${bnc || frq ? `<div class="dictionary-frequency">
-          ${bnc ? `<span><b>BNC</b> 词频 #${bnc}</span>` : ""}
-          ${frq ? `<span><b>当代语料</b> 词频 #${frq}</span>` : ""}
+          ${bnc ? `<span><b>${escapeHtml(rules.frequencyLabels?.bnc || "BNC")}</b> 词频 #${bnc}</span>` : ""}
+          ${frq ? `<span><b>${escapeHtml(rules.frequencyLabels?.frq || "")}</b> 词频 #${frq}</span>` : ""}
         </div>` : ""}
         ${dictionaryExchangeHtml(exchanges, rules)}`;
     }
@@ -3849,6 +3859,13 @@ ${orderNote}`;
       popover.dataset.word = "";
     }
 
+    // One-line frequency ranks of an entry, labelled by the learning language's dictionary rules.
+    function dictionaryFrequencyHtml(bnc, frq, rules = languageDictionary()) {
+      if (!bnc && !frq) return "";
+      const labels = rules.frequencyLabels || {};
+      return `<div class="dictionary-frequency">${bnc ? `<span><b>${escapeHtml(labels.bnc || "BNC")}</b> 词频 #${bnc}</span>` : ""}${frq ? `<span><b>${escapeHtml(labels.frq || "")}</b> 词频 #${frq}</span>` : ""}</div>`;
+    }
+
     function dictionaryRank(value) {
       const rank = Number(value);
       return Number.isFinite(rank) && rank > 0 ? rank.toLocaleString() : "";
@@ -3899,10 +3916,8 @@ ${orderNote}`;
       list.innerHTML = '<div class="user-phrases-empty">正在读取词库...</div>';
       const language = currentLearningLanguage();
       const isEnglishDictionary = language.id === "en";
-      $("dictionaryCategorySelect").disabled = !isEnglishDictionary;
-      $("dictionarySortSelect").disabled = !isEnglishDictionary;
-      const category = isEnglishDictionary ? $("dictionaryCategorySelect").value : "all";
-      const sort = isEnglishDictionary ? $("dictionarySortSelect").value : "alphabetical";
+      const category = $("dictionaryCategorySelect").value;
+      const sort = $("dictionarySortSelect").value;
       try {
         const result = await window.langLSRWDictionary.list({
           entryType: state.dictionaryLibraryType,
@@ -4001,7 +4016,7 @@ ${orderNote}`;
         ${translations.length ? `<div class="dictionary-meanings">${translations.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
         ${definitions.length ? `<div class="dictionary-definitions">${definitions.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
         ${collins || Number(item.oxford) > 0 || tags.length ? `<div class="dictionary-badges">${collins ? `<span class="dictionary-collins">柯林斯 <span class="dictionary-collins-stars">${"★".repeat(collins)}</span></span>` : ""}${Number(item.oxford) > 0 ? '<span class="dictionary-level-tag dictionary-level-oxford">Oxford 3000</span>' : ""}${dictionaryTagBadges(tags)}</div>` : ""}
-        ${bnc || frq ? `<div class="dictionary-frequency">${bnc ? `<span><b>BNC</b> 词频 #${bnc}</span>` : ""}${frq ? `<span><b>当代语料</b> 词频 #${frq}</span>` : ""}</div>` : ""}
+        ${dictionaryFrequencyHtml(bnc, frq)}
         ${dictionaryExchangeHtml(exchanges)}
         ${masteryHtml}`;
     }
@@ -4283,10 +4298,7 @@ ${orderNote}`;
     }
 
     function userWordMatchesCategory(item, category) {
-      if (category === "all") return true;
-      if (category === "oxford") return Number(item.oxford) > 0;
-      if (category === "collins") return Number(item.collins) > 0;
-      return String(item.tag || "").toLowerCase().split(/\s+/).includes(category);
+      return languageDictionary().matchesCategory(item, category);
     }
 
     function filteredAndSortedUserWords(words) {
@@ -4398,7 +4410,7 @@ ${orderNote}`;
           ${Number(item.oxford) > 0 ? '<span class="dictionary-level-tag dictionary-level-oxford">Oxford 3000</span>' : ""}
           ${dictionaryTagBadges(tags)}
         </div>` : ""}
-        ${bnc || frq ? `<div class="dictionary-frequency">${bnc ? `<span><b>BNC</b> 词频 #${bnc}</span>` : ""}${frq ? `<span><b>当代语料</b> 词频 #${frq}</span>` : ""}</div>` : ""}
+        ${dictionaryFrequencyHtml(bnc, frq)}
         ${dictionaryExchangeHtml(exchanges)}
         ${item.sourceSentence ? `<div class="user-phrase-source"><div>${escapeHtml(item.sourceSentence)}</div>${item.sourceTranslation ? `<div>${escapeHtml(item.sourceTranslation)}</div>` : ""}</div>` : ""}
         ${dictionaryWordStudyEnabled() ? dictionaryWordMasteryHtml(item.word) : ""}`;
@@ -4996,9 +5008,7 @@ ${orderNote}`;
     function wordReviewHelpHtml(mode, source, stats) {
       const label = wordReviewModeLabel(mode);
       const scope = source === "favorites"
-        ? currentLearningLanguage().id === "en"
-          ? `收藏中 ${wordReviewModeMinStars(mode)} 星及以上的单词，按收藏页当前分类（${escapeHtml($("userWordsCategorySelect").selectedOptions[0]?.textContent || "全部")}）统计。`
-          : `收藏中 ${wordReviewModeMinStars(mode)} 星及以上的${currentLearningLanguage().wordLabel}单词。`
+        ? `收藏中 ${wordReviewModeMinStars(mode)} 星及以上的单词，按收藏页当前分类（${escapeHtml($("userWordsCategorySelect").selectedOptions[0]?.textContent || "全部")}）统计。`
         : `词表【${escapeHtml($("dictionaryCategorySelect").selectedOptions[0]?.textContent || "当前分类")}】中的全部单词。`;
       const statItems = [["未学习", "fresh", " is-new"], ["学习中📕", "learning", " is-learning"], ["已掌握✅", "mastered", " is-mastered"], ["已到期🕗", "due", " is-due"]];
       const statsHtml = stats

@@ -37,6 +37,16 @@
       { key: "tense", label: "时态", types: ["3", "p"] },
       { key: "participle", label: "分词", types: ["i", "d"] },
       { key: "comparison", label: "比较", types: ["r", "t"] }
-    ]
+    ],
+    // Labels of the dictionary's frequency fields (BNC and COCA ranks in ECDICT).
+    frequencyLabels: { bnc: "BNC", frq: "当代语料" },
+    // 收藏 category filter: ECDICT Oxford 3000 / Collins flags and exam tags saved with each favorite.
+    // The 词库 and 收藏 category and sort options stay in index.html (no *Options arrays here).
+    matchesCategory(item, category) {
+      if (category === "all") return true;
+      if (category === "oxford") return Number(item.oxford) > 0;
+      if (category === "collins") return Number(item.collins) > 0;
+      return String(item.tag || "").toLowerCase().split(/\s+/).includes(category);
+    }
   };
 })();

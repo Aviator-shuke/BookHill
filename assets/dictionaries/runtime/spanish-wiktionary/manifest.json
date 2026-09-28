@@ -13,5 +13,12 @@
   "packageSha256": "2a5f13af97f31a3b68e9c579b0ab5954446388f293e2e75d8c9e3645ee082bc6",
   "source": "kaikki.org-dictionary-Spanish.jsonl",
   "license": "CC BY-SA 4.0",
-  "notes": "Meanings are Wiktionary/Kaikki English glosses; Chinese learning explanations are a later cached layer."
+  "notes": "Meanings are Wiktionary/Kaikki English glosses; Chinese learning explanations are a later cached layer.",
+  "frequency": {
+    "file": "frequency.tsv",
+    "version": "2026.09.28",
+    "entryCount": 17458,
+    "source": "doozan/spanish_data frequency.csv @ 43c5aa2 (2026-09-01 data)",
+    "license": "CC BY-SA 3.0 (doozan/spanish_data; FrequencyWords / OpenSubtitles)"
+  }
 }

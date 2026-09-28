@@ -24,6 +24,25 @@
     // Display groups in order; every other form (gender, number, conjugation) goes to 其他 for now.
     exchangeGroups: [
       { key: "base", label: "原形", types: ["0"] }
-    ]
+    ],
+    // `frq` is the lemma's rank in the subtitle frequency list (assets/dictionaries/runtime/spanish-wiktionary/
+    // frequency.tsv), imported by the dictionary Worker; categories are rank tiers.
+    frequencyLabels: { frq: "字幕" },
+    libraryCategoryOptions: [
+      ["top500", "常用 500"], ["top1000", "常用 1000"], ["top2000", "常用 2000"], ["top3000", "常用 3000"],
+      ["top5000", "常用 5000"], ["top10000", "常用 10000"], ["all", "全部"]
+    ],
+    librarySortOptions: [["alphabetical", "字母 A-Z"], ["frq", "字幕词频"]],
+    favoriteCategoryOptions: [
+      ["all", "全部"], ["top500", "常用 500"], ["top1000", "常用 1000"], ["top2000", "常用 2000"],
+      ["top3000", "常用 3000"], ["top5000", "常用 5000"], ["top10000", "常用 10000"]
+    ],
+    favoriteSortOptions: [["saved-desc", "收藏时间"], ["rating", "收藏星级"], ["alphabetical", "字母 A-Z"], ["frq", "字幕词频"]],
+    matchesCategory(item, category) {
+      if (category === "all") return true;
+      const limit = Number(String(category).replace(/^top/, ""));
+      const rank = Number(item.frq);
+      return limit > 0 && rank > 0 && rank <= limit;
+    }
   };
 })();

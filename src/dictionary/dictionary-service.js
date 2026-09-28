@@ -22,7 +22,7 @@
     constructor(options = {}) {
       this.packages = options.packages || DICTIONARY_PACKAGES;
       this.activeDictionaryId = options.activeDictionaryId || "ecdict";
-      this.workerUrl = options.workerUrl || "src/dictionary/dictionary-worker.js?v=20260927-2";
+      this.workerUrl = options.workerUrl || "src/dictionary/dictionary-worker.js?v=20260928-1";
       this.worker = null;
       this.sequence = 0;
       this.pending = new Map();
@@ -98,6 +98,19 @@
       };
     }
 
+    // Frequency ranks shipped beside a dictionary package (manifest `frequency`); the Worker imports them into the
+    // installed database when their version changes. Dictionaries without ranks return null.
+    async frequencyOptions(id = this.activeDictionaryId) {
+      const dictionary = this.dictionary(id);
+      const manifest = await this.loadManifest(id).catch(() => null);
+      const frequency = manifest?.frequency;
+      if (!frequency?.file || !frequency.version) return null;
+      return {
+        url: new URL(frequency.file, new URL(dictionary.manifestUrl, location.href)).href,
+        version: String(frequency.version)
+      };
+    }
+
     async status(id = this.activeDictionaryId) {
       const [manifest, installed] = await Promise.all([
         this.loadManifest(id),
@@ -130,7 +143,8 @@
         compression: manifest.format === "sqlite+gzip" ? "gzip" : "none",
         schemaVersion: manifest.schemaVersion,
         version: manifest.version,
-        dictionaryId: manifest.id || dictionary.id
+        dictionaryId: manifest.id || dictionary.id,
+        frequency: await this.frequencyOptions(id)
       });
     }
 
@@ -138,12 +152,12 @@
       return this.call("remove", { dictionary: this.workerDictionary(id) });
     }
 
-    query(word, id = this.activeDictionaryId) {
-      return this.call("query", { dictionary: this.workerDictionary(id), word: String(word || "").trim() });
+    async query(word, id = this.activeDictionaryId) {
+      return this.call("query", { dictionary: this.workerDictionary(id), frequency: await this.frequencyOptions(id), word: String(word || "").trim() });
     }
 
-    queryMany(words, id = this.activeDictionaryId) {
-      return this.call("queryMany", { dictionary: this.workerDictionary(id), words: Array.isArray(words) ? words : [] });
+    async queryMany(words, id = this.activeDictionaryId) {
+      return this.call("queryMany", { dictionary: this.workerDictionary(id), frequency: await this.frequencyOptions(id), words: Array.isArray(words) ? words : [] });
     }
 
     match(word, limit = 10, strip = false, id = this.activeDictionaryId) {
@@ -154,12 +168,12 @@
       return this.call("count", { dictionary: this.workerDictionary(id) });
     }
 
-    list(options = {}, id = this.activeDictionaryId) {
-      return this.call("list", { dictionary: this.workerDictionary(id), options });
+    async list(options = {}, id = this.activeDictionaryId) {
+      return this.call("list", { dictionary: this.workerDictionary(id), frequency: await this.frequencyOptions(id), options });
     }
 
-    studyList(options = {}, id = this.activeDictionaryId) {
-      return this.call("studyList", { dictionary: this.workerDictionary(id), options });
+    async studyList(options = {}, id = this.activeDictionaryId) {
+      return this.call("studyList", { dictionary: this.workerDictionary(id), frequency: await this.frequencyOptions(id), options });
     }
 
     onProgress(listener) {
