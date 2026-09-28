@@ -2,3 +2,4 @@ node_modules/
 dist/
 tools/__pycache__/
 assets/dictionaries/runtime/ecdict/*.sqlite
+debug/*
