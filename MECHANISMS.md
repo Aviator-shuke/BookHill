@@ -214,11 +214,13 @@ A real listening recording can be imported together with its timed subtitle file
 
 Spanish sentence-library preparation uses a separate local helper page in
 `../third-party/Spanish/spa-eng/03_translate_spanish_zh.html`. It reads the
-numbered Spanish TSV, calls the browser `Translator API` only with
-`sourceLanguage: "es"` and `targetLanguage: "zh"`, and writes a fourth Chinese
-translation column. It must fail loudly when `es -> zh` is unavailable; the
-existing English translation column is not an allowed fallback source for
-Chinese.
+numbered Spanish TSV and writes a fourth Chinese translation column with the
+browser `Translator API`, translating the human English column
+(`sourceLanguage: "en"`, `targetLanguage: "zh"`); only rows with an empty English
+column fall back to the Spanish sentence (`es -> zh`). Owner decision
+2026-09-28: machine translation pivots through English, so when the English is
+accurate enough it is the better source. The page fails loudly when `en -> zh`
+is unavailable.
 
 The `音频字幕` panel's `翻译字幕` button (`[data-subtitle-translate]`) calls `translateSubtitleFile()`, which works on any timed `.lrc` without loading it or any audio. Inside the click it starts `createFreeTranslator(canReport)` (first-use model downloads need the user gesture; download messages show only when `Translator.availability()` is not `available`, since Chrome also reports progress for an installed model), opens `showOpenFilePicker()` (or a hidden file input that also resolves on `cancel`); cancelling or picking an unusable file stops progress reporting, clears the status, and destroys the pending translator; parses the file with `parseTimedLrc()`, fills cached translations, and translates the rest through `translateSentencesForFree(pending, translator)`. The bilingual text is kept in `pendingSubtitleWrite` and a `写入原文件` button (`[data-subtitle-write]`) appears; `writePendingSubtitle()` then requests `readwrite` permission on the same handle and writes it, which needs that second click's user activation. A `另存字幕文件` button (`[data-subtitle-save-as]`, `savePendingSubtitleAs()`) instead writes the same text to a new file from `showSaveFilePicker()` (suggested name `<name>_双语.lrc`), leaving the original untouched. Without the File System Access API the second button downloads a same-named file and the save-as button stays hidden. `buildBilingualLrc()` preserves every original line and inserts `[same stamp]中文` after the English line where each sentence starts, so a merged sentence gets one line after its first fragment, which `parseTimedLrc()` reattaches to the whole sentence; sentences that already have a Chinese line at their start time are skipped. A Node round trip on `Audio_Example.lrc` (136 sentences) inserted every translation, reparsed to identical sentences and timings, and a second pass inserted nothing.
 

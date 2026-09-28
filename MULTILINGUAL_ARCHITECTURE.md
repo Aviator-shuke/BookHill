@@ -283,10 +283,12 @@ Spanish browser capability boundary:
 
 - Current owner testing confirms Edge exposes `es-ES` speech synthesis voices,
   so the first Spanish TTS target is fixed to Spain Spanish `es-ES`.
-- Spanish sentence-library Chinese translations are generated from Spanish
-  source text through browser `Translator API` `es -> zh`. If that pair is not
-  available, the translation tool reports an error; it must not silently use the
-  English translation column as a fallback.
+- Spanish sentence-library Chinese translations are machine translations from
+  the human English column through browser `Translator API` `en -> zh` (owner
+  decision 2026-09-28: browser machine translation pivots through English, so
+  `es -> zh` would add a machine step). Only rows without an accurate English
+  translation use `es -> zh`. If `en -> zh` is not available, the translation
+  tool reports an error.
 
 ## 8. 实施顺序
 

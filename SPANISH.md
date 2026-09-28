@@ -143,7 +143,7 @@ locale = 已保存口音或 en-GB
 
 - 位置：`assets/libraries/common-spanish-134910/`（`manifest.json`、`sentences.tsv`、`LICENSE.md`）。
 - 来源：Tatoeba，经 manythings.org `spa-eng` 整理，CC BY 2.0 FR，需署名 `www.manythings.org/anki` 和 `tatoeba.org`。
-- 内容：按西语原句去重后的 134,910 句，三列`编号 / 西语原句 / 英文翻译`。当前默认用英文翻译作为句子翻译显示；由西语原句机器翻译的中文列仍在上层仓库 `third-party/Spanish/libraries/spa-eng/sentences.zh.tsv` 中逐步生成，完成后再决定是否加入句库。
+- 内容：按西语原句去重后的 134,910 句，三列`编号 / 西语原句 / 英文翻译`。当前默认用英文翻译作为句子翻译显示；由英文翻译机器翻译的中文列仍在上层仓库 `third-party/Spanish/libraries/spa-eng/sentences.zh.tsv` 中逐步生成（2026-09-28 已按新规则从头重翻，完成 9,930 / 134,910 句），完成后再决定是否加入句库。
 - 文件约 10 MB，随网站部署。
 
 切换学习语言时同步切换：
@@ -172,7 +172,7 @@ locale = 已保存口音或 en-GB
 浏览器支持状态：
 
 - Owner 当前 Edge 浏览器的 `speechSynthesis.getVoices()` 已确认提供多种西语在线自然语音，包括 `es-ES` 的 Microsoft Elvira、Álvaro、Ximena。因此当前西语 TTS 方向可以先固定使用 `es-ES`。
-- 浏览器内置 `Translator API` 属于能力检测型依赖。西语句库第四列中文翻译只允许使用浏览器 `es -> zh` 机器翻译生成；如果当前浏览器不支持 `Translator.availability({ sourceLanguage: "es", targetLanguage: "zh" })`，翻译工具必须报错停止，不能退回到第三列英语翻中文。
+- 浏览器内置 `Translator API` 属于能力检测型依赖。西语句库第四列中文翻译用浏览器机器翻译生成，来源是第三列英文翻译（`en -> zh`）；如果当前浏览器不支持 `Translator.availability({ sourceLanguage: "en", targetLanguage: "zh" })`，翻译工具报错停止。
 - 这些浏览器能力不是所有浏览器和设备都具备。当前开发默认以 owner 的桌面 Edge/Chrome 能力为准；正式发布前需要清楚显示不可用状态和替代流程。
 
 ## 7. 分阶段实施
@@ -264,7 +264,7 @@ ECDICT 是英语词典，不能用于西班牙语。西语第一版词典原料�
 
 Kaikki/Wiktionary 释义当前主要是英文 gloss；中文学习解释、例句精修和学习提示应作为显式生成并缓存的上层数据。`../third-party/Spanish/spa-eng/spa.txt` 是 Tatoeba / manythings.org 的西英句库候选，不是词典来源，不能导入词库。
 
-西语句库中文翻译方向：`spa-eng` 源数据原始列为英语、西语、授权归属。整理成 langLSRW 句库时，基础三列是序号、西语原句、英语翻译。第四列中文翻译应由西语原句通过浏览器 `es -> zh` 机器翻译生成；第三列英语翻译仅作参考和检索辅助，不作为中文翻译来源。
+西语句库中文翻译方向：`spa-eng` 源数据原始列为英语、西语、授权归属。整理成 langLSRW 句库时，基础三列是序号、西语原句、英语翻译。第四列中文翻译规则（owner 2026-09-28 决定）：使用浏览器等机器翻译时，如果英文翻译足够准确，就由英文翻译成中文（`en -> zh`）；只有英文缺失或不够准确时才由西语原句翻译（`es -> zh`）。原因是浏览器机器翻译以英语为中转，`es -> zh` 实际是 `es -> en -> zh`，多一次机器翻译；此前按西语直译的前 8,006 句中已出现 `¡Agáchate!` → `鸭子!`（把英文 Duck 当成鸭子）、`Id.` → `同上。`、`Ve.` → `看。` 等错误。Tatoeba 的英文是人工翻译，满足“足够准确”。按新规则重翻后速度明显更快，`Ve.`、`Vaya.`、`Id.` 都得到 `去。`。代价：英文不区分的信息（如 `tú / usted / vosotros` 都是 you）在中文里同样丢失；只有一个词、没有上下文的英文仍可能误译，如共用 `Duck!` 的 `¡Agáchate!` 等几句都成了 `鸭子!`（此前西语直译有时能得到 `蹲!`），这类短句可列入人工复核。
 
 在部署或公开分发前仍需复核 CC BY-SA 4.0 attribution、share-alike、下载包说明和页面内来源标注是否完整。
 
