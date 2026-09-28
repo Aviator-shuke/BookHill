@@ -85,14 +85,14 @@ const fallbackSentences = [
     }
 
     const shortcutActions = [
-      { id: "speakSentence", label: "朗读当前句" },
+      { id: "speakSentence", label: "朗读当前词/句" },
       { id: "toggleSource", label: "显示/隐藏原文" },
       { id: "toggleTranslation", label: "显示/隐藏翻译" },
       { id: "nextSentence", label: "下一句（随机模式下为随机下一句）" },
       { id: "previousSentence", label: "上一句（随机模式下为退回上一个随机句）" },
       { id: "nextSentenceInOrder", label: "按顺序下一句（任何模式）" },
       { id: "previousSentenceInOrder", label: "按顺序上一句（任何模式）" },
-      { id: "speakCurrentWord", label: "朗读当前词" },
+      { id: "speakCurrentWord", label: "长文默写时手动发音下一个词" },
       { id: "peekCurrentWord", label: "按住显示当前词" },
       { id: "lookupCurrentWord", label: "查询当前词" },
       { id: "stopSpeech", label: "停止朗读" },
@@ -2331,7 +2331,7 @@ const fallbackSentences = [
 
     // Settings belong to the identity (settings records) and are not kept in browser storage. The AI API key is
     // per identity too but stays on this device (localSecrets: never exported or synced).
-    const IDENTITY_SETTING_NAMES = ["theme", "shortcuts", "speech", "fonts", "grammarColors", "dictionaryAutoSpeak"];
+    const IDENTITY_SETTING_NAMES = ["theme", "shortcuts", "speech", "fonts", "grammarColors", "dictionaryAutoSpeak", "practice"];
 
     function persistSetting(name, value) {
       if (!userData.identity) return;
@@ -2347,7 +2347,8 @@ const fallbackSentences = [
         speech: {},
         fonts: fontDefaults(),
         grammarColors: grammarColorDefaults(),
-        dictionaryAutoSpeak: "1"
+        dictionaryAutoSpeak: "1",
+        practice: { wordGroupSize: 20, sentenceGroupSize: 20 }
       }[name];
     }
 
@@ -2367,6 +2368,7 @@ const fallbackSentences = [
       applyGrammarColors(saved("grammarColors"), { persist: false });
       state.aiSettings = { ...(saved("ai") || {}), apiKey: String(userData.get("localSecrets", "aiApiKey", "global") || "") };
       loadAiSettings();
+      loadPracticeSettings();
       document.querySelectorAll("[data-dictionary-auto-speak]").forEach((checkbox) => {
         checkbox.checked = dictionaryAutoSpeakEnabled();
       });
@@ -2374,6 +2376,23 @@ const fallbackSentences = [
       populateVoices();
       renderShortcutSettings();
       updateSpeechRateIndicator();
+    }
+
+    // 练习 settings: how many new words / sentences one practice round adds (also the size of a new-word group).
+    function practiceGroupSize(kind) {
+      const value = Number(userData.get("settings", "practice", "global")?.[kind]);
+      return Number.isInteger(value) && value >= 5 && value <= 100 ? value : 20;
+    }
+
+    function loadPracticeSettings() {
+      $("wordGroupSizeInput").value = practiceGroupSize("wordGroupSize");
+      $("sentenceGroupSizeInput").value = practiceGroupSize("sentenceGroupSize");
+    }
+
+    function savePracticeSettings() {
+      const read = (id) => Math.max(5, Math.min(100, Math.round(Number($(id).value) || 20)));
+      persistSetting("practice", { wordGroupSize: read("wordGroupSizeInput"), sentenceGroupSize: read("sentenceGroupSizeInput") });
+      loadPracticeSettings();
     }
 
     function saveSpeechSettings() {
@@ -2804,6 +2823,8 @@ const fallbackSentences = [
       applyTheme(defaultSettingValue("theme"));
       applyFontSettings(fontDefaults());
       applyGrammarColors(grammarColorDefaults());
+      persistSetting("practice", defaultSettingValue("practice"));
+      loadPracticeSettings();
       loadSpeechSettings();
       populateVoices();
       renderShortcutSettings();
@@ -2959,6 +2980,46 @@ ${orderNote}`;
       return true;
     }
 
+    // 朗读当前词/句 works wherever something can be spoken: the word in an open lookup popover, review card, or
+    // 收藏 / 词库 detail; otherwise the current sentence on the 听 and 说 pages. Returns true when it spoke.
+    function speakCurrentWordOrSentence() {
+      if (!$("englishLookupPopover").hidden && $("englishLookupPopover").dataset.word) {
+        speakText($("englishLookupPopover").dataset.word, englishReferenceSpeechOptions());
+        return true;
+      }
+      if (!$("dictionaryLookupPopover").hidden && $("dictionaryLookupPopover").dataset.word) {
+        speakText($("dictionaryLookupPopover").dataset.word, { rate: currentReplayRate() });
+        return true;
+      }
+      if (document.querySelector(".word-review-modal:not([hidden])")) {
+        const review = state.wordReview;
+        const word = currentWordReviewItem()?.word;
+        // 默写 must not give the answer away by sound before it is answered.
+        if (word && !(review?.mode === "spell" && !review.answered)) speakReviewWord(word);
+        return true;
+      }
+      if (!$("userPhrasesModal").hidden) {
+        const word = $("userPhraseDetail").dataset.word;
+        if (word) speakText(word, { rate: currentReplayRate() });
+        return true;
+      }
+      if (!$("dictionaryLibraryModal").hidden) {
+        const word = $("dictionaryLibraryDetail").dataset.word;
+        if (word) speakText(word, { rate: currentReplayRate() });
+        return true;
+      }
+      if (document.querySelector(".font-menu[open], .user-menu[open]") || !$("libraryModal").hidden) return false;
+      if (state.activePage === "listenPage") {
+        speakCurrentSentence();
+        return true;
+      }
+      if (state.activePage === "speakPage") {
+        speakSentence(1);
+        return true;
+      }
+      return false;
+    }
+
     function isTopMenuOpen() {
       return Boolean(
         document.querySelector(".font-menu[open], .user-menu[open]")
@@ -2996,6 +3057,14 @@ ${orderNote}`;
       if (event.key === "Escape" && !$("dictionaryLibraryModal").hidden) {
         event.preventDefault();
         closeDictionaryLibrary();
+        return;
+      }
+      const speakShortcut = normalizeShortcutEvent(event);
+      const inOtherField = event.target?.closest?.("input, textarea, select") && event.target !== typingBox && !event.target.matches?.("[data-word-review-input]");
+      if (speakShortcut && speakShortcut === state.shortcuts.speakSentence && !inOtherField && !event.repeat && speakCurrentWordOrSentence()) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
         return;
       }
       if (isTopMenuOpen()) return;
@@ -4608,7 +4677,6 @@ ${orderNote}`;
       closeEnglishLookup();
     }
 
-    const WORD_REVIEW_NEW_LIMIT = 20;
     // The interval factor (间隔扩大系数) is stored in hundredths as the record field `e` (250 = 2.5), so every step is
     // exact integer arithmetic and never drifts like 2.3 - 0.2 = 2.0999999999999996. It is divided by 100 only to
     // compute an interval and to display it.
@@ -4830,10 +4898,11 @@ ${orderNote}`;
       const dueReviewed = words
         .filter((item) => wordReviewRecord(item, mode, review) && Number(wordReviewRecord(item, mode, review).due) <= now)
         .sort((a, b) => Number(wordReviewRecord(a, mode, review).due) - Number(wordReviewRecord(b, mode, review).due));
-      const fresh = words.filter((item) => !wordReviewRecord(item, mode, review)).slice(0, WORD_REVIEW_NEW_LIMIT);
-      // New words form groups of WORD_REVIEW_NEW_LIMIT; the group number counts what this scope has already learned.
+      // New words are drawn at random from all not-yet-practised words in scope, not taken in list order.
+      const fresh = shuffledWordReviewItems(words.filter((item) => !wordReviewRecord(item, mode, review))).slice(0, practiceGroupSize("wordGroupSize"));
+      // New words form groups of the 单词练习每组 setting; the group number counts what this scope has already learned.
       const learned = words.filter((item) => wordReviewRecord(item, mode, review)).length;
-      if (review) review.queueParts = { due: dueReviewed.length, fresh: fresh.length, group: Math.floor(learned / WORD_REVIEW_NEW_LIMIT) + 1 };
+      if (review) review.queueParts = { due: dueReviewed.length, fresh: fresh.length, group: Math.floor(learned / practiceGroupSize("wordGroupSize")) + 1 };
       return [...dueReviewed, ...fresh].map((item) => dictionaryFavoriteKey(item.word));
     }
 
@@ -4854,7 +4923,7 @@ ${orderNote}`;
     // Results are never saved, so it cannot change the spaced-repetition schedule.
     function buildFreeWordReviewQueue(mode, review = state.wordReview) {
       const learned = wordReviewSourceItems(review).filter((item) => wordReviewRecord(item, mode, review));
-      return shuffledWordReviewItems(learned).slice(0, WORD_REVIEW_NEW_LIMIT).map((item) => dictionaryFavoriteKey(item.word));
+      return shuffledWordReviewItems(learned).slice(0, practiceGroupSize("wordGroupSize")).map((item) => dictionaryFavoriteKey(item.word));
     }
 
     function nextWordReviewDue(mode, review = state.wordReview) {
@@ -5058,7 +5127,7 @@ ${orderNote}`;
           <section><div class="dictionary-section-label">2. 练习方式</div><ul><li>${method}</li></ul></section>
           <section><div class="dictionary-section-label">3. 练习组题</div><ul>
             <li><b>到期复习</b>：已到复习时间的词，最早到期的排最前，不限数量。</li>
-            <li><b>新词学习</b>：从没练过的词，每轮最多 ${WORD_REVIEW_NEW_LIMIT} 个；每 ${WORD_REVIEW_NEW_LIMIT} 个新词为一组，进度栏显示第几组。</li>
+            <li><b>新词学习</b>：从没练过的词，每轮最多 ${practiceGroupSize("wordGroupSize")} 个；每 ${practiceGroupSize("wordGroupSize")} 个新词为一组，进度栏显示第几组。</li>
             <li><b>忘了再练</b>：本轮答错的词追加到队尾，本轮再考一次。</li>
           </ul></section>
           <section><div class="dictionary-section-label">4. 复习时间怎么定</div>
@@ -5123,23 +5192,57 @@ ${orderNote}`;
       return state.wordReview?.currentItem || null;
     }
 
-    function wordReviewPatternHtml(word, revealed) {
-      return Array.from(word).map((char, index) => {
-        if (/\s/.test(char)) return '<span class="word-review-gap"></span>';
-        if (!languageText().isLetterChar(char)) return `<span class="word-review-letter is-shown">${escapeHtml(char)}</span>`;
-        return `<span class="word-review-letter${index < revealed ? " is-shown" : ""}">${index < revealed ? escapeHtml(char) : "_"}</span>`;
+    // Spelling cards cover the whole word with one mask; the first `revealed` letters (typed correctly so far or shown by
+    // hints) are uncovered one by one. A non-letter (space, hyphen, apostrophe) uncovers once every letter before it does.
+    // With `typed` (after answering), letters that differ from the learner's input at the same letter position are red.
+    function wordReviewPatternHtml(word, revealed, typed = null) {
+      const rules = languageText();
+      const typedLetters = typed === null ? null : Array.from(String(typed)).filter(rules.isLetterChar).map(rules.normalizeChar);
+      let letters = 0;
+      return Array.from(word).map((char) => {
+        const isLetter = rules.isLetterChar(char);
+        const shown = isLetter ? letters < revealed : letters <= revealed;
+        const wrong = Boolean(typedLetters) && isLetter && typedLetters[letters] !== rules.normalizeChar(char);
+        if (isLetter) letters += 1;
+        return `<span class="word-review-letter${shown ? " is-shown" : ""}${wrong ? " is-wrong-letter" : ""}">${escapeHtml(char === " " ? "\u00a0" : char)}</span>`;
       }).join("");
     }
 
-    function wordReviewDiffHtml(target, input) {
-      const expected = Array.from(target);
-      const typed = Array.from(input);
-      const letters = expected.map((char, index) => {
-        const ok = (typed[index] || "").toLocaleLowerCase("en-US") === char.toLocaleLowerCase("en-US");
-        return `<span class="${ok ? "is-ok" : "is-bad"}">${escapeHtml(char)}</span>`;
-      }).join("");
-      const extra = typed.slice(expected.length).map((char) => `<span class="is-extra">${escapeHtml(char)}</span>`).join("");
-      return letters + extra;
+    // Letters typed correctly from the start of the word (case-insensitive, accents strict per language rules).
+    function wordReviewTypedLetters(word, input) {
+      const rules = languageText();
+      const target = Array.from(String(word || "")).filter(rules.isLetterChar).map(rules.normalizeChar);
+      const typed = Array.from(String(input || "")).filter(rules.isLetterChar).map(rules.normalizeChar);
+      let count = 0;
+      while (count < target.length && count < typed.length && typed[count] === target[count]) count += 1;
+      return count;
+    }
+
+    function wordReviewLetterCount(word) {
+      return Array.from(String(word || "")).filter(languageText().isLetterChar).length;
+    }
+
+    function wordReviewRevealedLetters(review, word) {
+      if (review.answered) return wordReviewLetterCount(word);
+      return Math.max(review.hints || 0, wordReviewTypedLetters(word, review.input));
+    }
+
+    // Typing uncovers the mask live, without re-rendering the card (so the input keeps its focus and caret).
+    function updateWordReviewMask(input) {
+      const review = state.wordReview;
+      const item = currentWordReviewItem();
+      if (!review || review.answered || review.mode === "recognize" || !item) return;
+      review.input = input.value;
+      const pattern = input.closest(".word-review-card, [id$='ReviewCard']")?.querySelector("[data-word-review-pattern]")
+        || document.querySelector("[data-word-review-pattern]");
+      if (pattern) pattern.innerHTML = wordReviewPatternHtml(String(item.word || ""), wordReviewRevealedLetters(review, item.word));
+      const main = document.querySelector(".word-review-modal:not([hidden]) [data-word-review-main]");
+      if (main) main.innerHTML = wordReviewMainButtonHtml(review, item);
+      // 默写: say the word as soon as it is spelled right, once per card, without waiting for Enter.
+      if (review.mode === "spell" && review.spokenIndex !== review.index && wordReviewInputCorrect(review, item)) {
+        review.spokenIndex = review.index;
+        speakReviewWord(item.word);
+      }
     }
 
     function speakReviewWord(word) {
@@ -5153,7 +5256,7 @@ ${orderNote}`;
     }
 
     function wordReviewAnswerHtml(item) {
-      return `<div class="word-review-answer"><strong>${escapeHtml(item.word)}</strong>${item.phonetic ? ` <span class="dictionary-phonetic">[${escapeHtml(item.phonetic)}]</span>` : ""}</div>
+      return `<div class="word-review-answer"><strong>${escapeHtml(item.word)}</strong>${item.phonetic ? ` <button type="button" class="dictionary-phonetic" data-word-review-action="speak" title="点击朗读">[${escapeHtml(item.phonetic)}]</button>` : ""}</div>
         ${item.sourceSentence ? `<div class="word-review-source">${escapeHtml(item.sourceSentence)}</div>` : ""}`;
     }
 
@@ -5245,7 +5348,7 @@ ${orderNote}`;
 
     function renderRecognizeHeader(item) {
       const word = String(item.word || "");
-      return `<div class="word-review-recognize-header"><div class="word-review-headword"><strong>${escapeHtml(word)}</strong>${item.phonetic ? `<span class="word-review-phonetic">[${escapeHtml(item.phonetic)}]</span>` : ""}<button type="button" class="word-review-sound" data-word-review-action="speak" title="朗读">🔊</button></div><div class="word-review-rating">${dictionaryFavoriteButton(word)}</div></div>`;
+      return `<div class="word-review-recognize-header"><div class="word-review-headword"><strong>${escapeHtml(word)}</strong>${item.phonetic ? `<button type="button" class="word-review-phonetic" data-word-review-action="speak" title="点击朗读">[${escapeHtml(item.phonetic)}]</button>` : ""}<button type="button" class="word-review-sound" data-word-review-action="speak" title="朗读">🔊</button></div><div class="word-review-rating">${dictionaryFavoriteButton(word)}</div></div>`;
     }
 
     function renderRecognizeCard(item) {
@@ -5270,7 +5373,7 @@ ${orderNote}`;
             : `${isFocused ? " is-focused" : ""}`;
           return `<button type="button" class="word-review-choice${stateClass}" data-word-review-choice="${index}" ${review.answered ? "disabled" : ""}><span>${index + 1}</span><span>${escapeHtml(choice)}</span></button>`;
         }).join("")}</div>
-        <div class="word-review-keys small-note">${review.answered ? "Enter 下一个 · Esc 关闭" : "按 1–5 或 ↑↓ 选择答案 · Esc 关闭"}</div>`;
+        ${wordReviewFooterHtml(review.answered, "Esc=关闭；按1–5或↑↓选择答案；Enter=下一个")}`;
     }
 
     function renderWordReviewResultPanel(item, mode) {
@@ -5283,18 +5386,19 @@ ${orderNote}`;
           ${item.sourceSentence ? `<div class="word-review-source">${escapeHtml(item.sourceSentence)}</div>` : ""}`;
       } else {
         verdict = review.correct ? "正确" : review.revealed ? "已显示答案" : review.spelledRight ? "拼对了，但用了提示，算答错" : "拼写错误";
-        body = `${review.spelledRight || !review.input.trim() ? "" : `<div class="word-review-diff">${wordReviewDiffHtml(item.word, review.input)}</div>`}
-          ${wordReviewAnswerHtml(item)}
+        body = `${wordReviewAnswerHtml(item)}
           ${mode === "listen" ? wordReviewMeaningsHtml(item) : ""}`;
       }
       return `
         <div class="word-review-result ${review.correct ? "is-correct" : "is-wrong"}">
           <div class="word-review-verdict">${verdict}</div>
           ${body}
-        </div>
-        <div class="word-review-actions">
-          <button type="button" class="primary" data-word-review-action="next">下一个</button>
         </div>`;
+    }
+
+    // Bottom row of every review card: key hints on the left, 下一个 at the bottom right (disabled until answered).
+    function wordReviewFooterHtml(answered, keys) {
+      return `<div class="word-review-footer"><span class="word-review-keys small-note">${keys}</span><button type="button" class="primary" data-word-review-action="next" title="${answered ? "进入下一个（Enter）" : "先作答，再进入下一个"}" ${answered ? "" : "disabled"}>下一个</button></div>`;
     }
 
     function renderSpellingCard(item, mode) {
@@ -5305,20 +5409,33 @@ ${orderNote}`;
       const showSound = mode === "listen" || answered;
       return `
         <div class="word-review-prompt">
-          ${mode === "spell" ? wordReviewMeaningsHtml(item) : '<div class="word-review-listen-note">听发音，拼出这个单词</div>'}
+          ${mode === "spell" ? wordReviewMeaningsHtml(item) : ""}
           <div class="word-review-pattern-row">
+            <span class="word-review-pattern" data-word-review-pattern aria-hidden="true">${wordReviewPatternHtml(word, wordReviewRevealedLetters(review, word), answered ? review.input : null)}</span>
             ${showSound ? '<button type="button" class="word-review-sound" data-word-review-action="speak" title="朗读">🔊</button>' : ""}
-            <span class="word-review-pattern">${wordReviewPatternHtml(word, answered ? word.length : review.hints)}</span>
-            <span class="word-review-count">${word.replace(/[^a-z]/gi, "").length} 个字母</span>
           </div>
         </div>
         <input class="word-review-input${answered ? (correct ? " is-correct" : " is-wrong") : ""}" data-word-review-input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="拼写这个单词" value="${escapeHtml(review.input)}" ${answered ? "readonly" : ""}>
-        <div class="word-review-actions">
-          <button type="button" data-word-review-action="hint" ${answered ? "disabled" : ""}>提示字母</button>
-          <button type="button" data-word-review-action="reveal" ${answered ? "disabled" : ""}>不会，看答案</button>
-          <button type="button" class="primary" data-word-review-action="check" ${answered ? "disabled" : ""}>提交</button>
-        </div>
-        <div class="word-review-keys small-note">${answered ? "Enter 下一个 · Esc 关闭" : "Enter 提交 · Tab 提示下一个字母 · Esc 关闭"}</div>`;
+        <div class="word-review-footer">
+          <span class="word-review-keys small-note">Esc=退出；Tab=补一个字母；Enter=不会/下一个。</span>
+          <div class="word-review-actions">
+            <button type="button" data-word-review-action="hint" title="补出下一个字母（Tab）；用了提示，本题算答错" ${answered ? "disabled" : ""}>提示</button>
+            <span class="word-review-main" data-word-review-main>${wordReviewMainButtonHtml(review, item)}</span>
+          </div>
+        </div>`;
+    }
+
+    function wordReviewInputCorrect(review, item) {
+      return normalizeReviewAnswer(review.input) === normalizeReviewAnswer(item?.word);
+    }
+
+    // The second button: 不会 (show the answer, counts as wrong) until the input spells the word correctly without
+    // hints, then 下一个. After a hint it stays 不会 and turns red. Enter always does what this button shows.
+    function wordReviewMainButtonHtml(review, item) {
+      if (review.answered) return '<button type="button" class="primary" data-word-review-action="next" title="进入下一个（Enter）">下一个</button>';
+      if (review.hints) return '<button type="button" class="is-hinted" data-word-review-action="reveal" title="已用提示，本题算答错；看答案（Enter）">不会</button>';
+      if (wordReviewInputCorrect(review, item)) return '<button type="button" class="primary" data-word-review-action="accept" title="拼写正确，进入下一个（Enter）">下一个</button>';
+      return '<button type="button" data-word-review-action="reveal" title="不会拼，直接看答案，算答错（Enter）">不会</button>';
     }
 
     function renderWordReview() {
@@ -5349,7 +5466,7 @@ ${orderNote}`;
         elements.progress.textContent = total ? `本轮完成 ${total} 个` : "没有待复习的单词";
         const due = nextWordReviewDue(review.mode, review);
         const scopeNote = review.source === "wordList"
-          ? `${review.sourceLabel}共 ${review.words.length.toLocaleString()} 个词；每轮最多加入 ${WORD_REVIEW_NEW_LIMIT} 个新词`
+          ? `${review.sourceLabel}共 ${review.words.length.toLocaleString()} 个词；每轮最多加入 ${practiceGroupSize("wordGroupSize")} 个新词`
           : `${label}只包含 ${wordReviewModeMinStars(review.mode)} 星及以上的收藏词`;
         const nextNote = due
           ? `下一个单词将在 ${new Date(due).toLocaleString()} 到期`
@@ -5545,7 +5662,15 @@ ${orderNote}`;
       review.revealed = forceReveal;
       gradeWordReview(review.correct ? "good" : "again");
       renderWordReview();
-      speakReviewWord(item.word);
+      if (review.spokenIndex !== review.index) speakReviewWord(item.word);
+    }
+
+    // A correct spelling without hints: record it and go straight to the next word.
+    function acceptWordReview() {
+      const review = state.wordReview;
+      if (!review || review.answered) return;
+      answerWordReview();
+      if (review.answered) nextWordReview();
     }
 
     function hintWordReview() {
@@ -5555,19 +5680,20 @@ ${orderNote}`;
       if (!item) return;
       const input = wordReviewElements(review.mode).card?.querySelector("[data-word-review-input]");
       review.input = input ? input.value : review.input;
-      review.hints = Math.min(item.word.length, review.hints + 1);
+      review.hints = Math.min(wordReviewLetterCount(item.word), wordReviewRevealedLetters(review, item.word) + 1);
       renderWordReview();
     }
 
     function nextWordReview() {
       const review = state.wordReview;
-      if (!review) return;
+      if (!review || !review.answered) return;
       review.index += 1;
       startWordReviewCard();
     }
 
     function handleWordReviewAction(action) {
       if (action === "check") answerWordReview();
+      else if (action === "accept") acceptWordReview();
       else if (action === "reveal") answerWordReview(true);
       else if (action === "hint") hintWordReview();
       else if (action === "next") nextWordReview();
@@ -5606,8 +5732,11 @@ ${orderNote}`;
       }
       if (event.key === "Enter") {
         event.preventDefault();
+        const input = wordReviewElements(review.mode).card?.querySelector("[data-word-review-input]");
+        if (input) review.input = input.value;
         if (review.answered) nextWordReview();
-        else answerWordReview();
+        else if (!review.hints && wordReviewInputCorrect(review, currentWordReviewItem())) acceptWordReview();
+        else answerWordReview(true);
       } else if (event.key === "Tab" && !review.answered) {
         event.preventDefault();
         hintWordReview();
@@ -7528,6 +7657,10 @@ ${orderNote}`;
     });
 
     $("saveAiSettingsBtn").addEventListener("click", saveAiSettings);
+    document.addEventListener("input", (event) => {
+      if (event.target.matches?.("[data-word-review-input]")) updateWordReviewMask(event.target);
+    });
+    ["wordGroupSizeInput", "sentenceGroupSizeInput"].forEach((id) => $(id).addEventListener("change", savePracticeSettings));
     $("googleLoginBtn").addEventListener("click", signInWithGoogle);
     $("syncCloudBtn").addEventListener("click", pushCloudState);
     $("cloudLogoutBtn").addEventListener("click", signOutCloudUser);

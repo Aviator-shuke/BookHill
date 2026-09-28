@@ -101,6 +101,15 @@
       background: var(--accent-strong);
     }
 
+    /* A disabled main action (e.g. 下一个 before answering) is gray instead of the accent color. */
+    button.primary:disabled,
+    button.primary:disabled:hover {
+      color: var(--muted);
+      background: color-mix(in srgb, var(--ink) 10%, var(--panel));
+      border-color: color-mix(in srgb, var(--ink) 18%, transparent);
+      cursor: not-allowed;
+    }
+
     #analyzeGrammarBtn.has-cache {
       border-color: var(--good);
       background: color-mix(in srgb, var(--good) 16%, var(--panel));
@@ -4643,6 +4652,13 @@
       align-items: center;
       gap: 10px;
       margin-top: 10px;
+      /* Always as tall as the sound button, so the row keeps its height when the button appears after answering. */
+      min-height: 32px;
+    }
+
+    /* 听写 has no meanings above the word, so the word row needs no top gap. */
+    .word-review-pattern-row:first-child {
+      margin-top: 0;
     }
 
     .word-review-sound {
@@ -4658,19 +4674,28 @@
     .word-review-pattern {
       display: inline-flex;
       flex-wrap: wrap;
-      gap: 3px;
+      gap: 0;
       font-family: var(--font-english-content), "Segoe UI", sans-serif;
       font-size: 20px;
       letter-spacing: 0.02em;
     }
 
+    /* Covered letters keep their width but are hidden under one continuous mask. */
     .word-review-letter {
-      color: var(--muted);
+      color: transparent;
+      background: color-mix(in srgb, var(--ink) 22%, transparent);
+      user-select: none;
     }
 
     .word-review-letter.is-shown {
       color: var(--ink);
+      background: transparent;
       font-weight: 600;
+    }
+
+    /* After answering, letters that differ from what was typed. */
+    .word-review-letter.is-shown.is-wrong-letter {
+      color: var(--bad);
     }
 
     .word-review-gap {
@@ -4772,6 +4797,14 @@
     }
 
     .word-review-phonetic {
+      width: auto;
+      min-width: 0;
+      height: auto;
+      min-height: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
       color: var(--muted);
       font-family: var(--font-english-content), "Segoe UI", sans-serif;
       font-size: 20px;
@@ -4866,8 +4899,32 @@
       gap: 8px;
     }
 
+    .word-review-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    /* After a hint the answer can only count as wrong, so 不会 turns red. */
+    .word-review-footer button.is-hinted,
+    .word-review-footer button.is-hinted:hover {
+      border-color: var(--bad);
+      background: var(--bad);
+      color: #fff;
+    }
+
+    .word-review-main {
+      display: contents;
+    }
+
+    .word-review-footer .word-review-keys,
+    .word-review-footer button {
+      white-space: nowrap;
+    }
+
     .word-review-keys {
-      text-align: right;
+      text-align: left;
     }
 
     .word-review-done {
@@ -4901,8 +4958,13 @@
     .word-review-stage {
       position: relative;
       display: grid;
-      width: min(560px, 100%);
+      width: min(600px, 100%);
       max-height: calc(100vh - 36px);
+    }
+
+    /* 听写 only needs the masked word, the input, and one short row of hints and two buttons. */
+    #wordListenReviewModal .word-review-stage {
+      width: min(520px, 100%);
     }
 
     .word-review-result-panel {
@@ -4958,7 +5020,8 @@
       }
     }
 
-    @media (max-width: 1220px) {
+    /* Dialog 600px + result panel 300px + gap on each side of the centered dialog. */
+    @media (max-width: 1260px) {
       .word-review-result-panel {
         top: 44px;
         bottom: 10px;

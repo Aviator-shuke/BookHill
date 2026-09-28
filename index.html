@@ -6,7 +6,7 @@
   <title>langLSRW</title>
   <!-- Page content stays hidden until the user's own settings (theme, fonts) are applied, so the default look never flashes. -->
   <style>html.is-booting body > * { visibility: hidden; }</style>
-  <link rel="stylesheet" href="src/styles.css?v=20260928-216">
+  <link rel="stylesheet" href="src/styles.css?v=20260928-229">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -105,6 +105,17 @@
                 <button id="clearShortcutFocusBtn" type="button">完成设置</button>
               </div>
               <div class="small-note">点击按键框后，按下你想设置的组合键。</div>
+            </div>
+            <div class="settings-section">
+              <div class="settings-section-title">练习</div>
+              <label title="背单词每轮最多加入几个新词；新词也按这个数分组（5–100）">
+                单词练习每组
+                <input id="wordGroupSizeInput" type="number" min="5" max="100" step="1" inputmode="numeric" title="背单词每轮最多加入几个新词；新词也按这个数分组（5–100）">
+              </label>
+              <label title="背句子每轮最多加入几个新句子（5–100）；背句子功能尚在开发，先保存这个设置">
+                句子练习每组
+                <input id="sentenceGroupSizeInput" type="number" min="5" max="100" step="1" inputmode="numeric" title="背句子每轮最多加入几个新句子（5–100）；背句子功能尚在开发，先保存这个设置">
+              </label>
             </div>
             <div class="settings-section">
               <div class="settings-section-title">AI 接口</div>
@@ -653,6 +664,6 @@
   <script src="src/languages/en/dictionary.js?v=20260928-2"></script>
   <script src="src/languages/es/dictionary.js?v=20260928-2"></script>
   <script src="src/user-data.js?v=20260928-4"></script>
-  <script src="src/app.js?v=20260928-233"></script>
+  <script src="src/app.js?v=20260928-246"></script>
 </body>
 </html>
