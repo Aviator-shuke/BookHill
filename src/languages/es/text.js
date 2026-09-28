@@ -14,6 +14,8 @@
     isCheckChar: (char) => /[\p{L}\p{M}\p{N}]/u.test(char || ""),
     normalizeChar: (char) => char.toLocaleLowerCase("es"),
     endsInWord: (text) => /[\p{L}\p{M}\p{N}'’.-]$/u.test(text || ""),
-    startsLowercase: (text) => /^\p{Ll}/u.test(text || "")
+    startsLowercase: (text) => /^\p{Ll}/u.test(text || ""),
+    // Letters hidden as blanks in 听写 / 默写 letter slots; other characters stay visible.
+    isLetterChar: (char) => /[\p{L}\p{M}]/u.test(char || "")
   };
 })();

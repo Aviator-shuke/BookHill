@@ -13,6 +13,8 @@
     isCheckChar: (char) => /[A-Za-z0-9]/.test(char || ""),
     normalizeChar: (char) => char.toLowerCase(),
     endsInWord: (text) => /[A-Za-z0-9'’.-]$/.test(text || ""),
-    startsLowercase: (text) => /^[a-z]/.test(text || "")
+    startsLowercase: (text) => /^[a-z]/.test(text || ""),
+    // Letters hidden as blanks in 听写 / 默写 letter slots; other characters stay visible.
+    isLetterChar: (char) => /[A-Za-z]/.test(char || "")
   };
 })();

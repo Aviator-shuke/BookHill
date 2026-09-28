@@ -162,6 +162,13 @@ const fallbackSentences = [
         dictionaryName: "ECDICT",
         collectionEnabled: true,
         wordStudyEnabled: true,
+        // 词库 category decks (Oxford 3000, CET4 ...) come from ECDICT tags.
+        dictionaryStudyDeckEnabled: true,
+        // Extra 识义 distractors when the favorites are too few.
+        reviewDistractorCategory: "oxford",
+        // Word review wording: the word's language and the language of its dictionary meanings.
+        wordLabel: "英文",
+        meaningLabel: "中文",
         commonLibraryManifestUrl: "assets/libraries/common-english-30150/manifest.json",
         commonLibraryContent: "英文原句 + 中文翻译",
         accents: [["en-GB", "英音"], ["en-US", "美音"]],
@@ -174,9 +181,13 @@ const fallbackSentences = [
         shortLabel: "西",
         dictionaryId: "spanish-wiktionary",
         dictionaryName: "西语 Wiktionary",
-        // Word and sentence favorites are stored per learning language; 背单词 is not connected for Spanish yet.
+        // Word and sentence favorites and 背单词 records are stored per learning language. The Spanish dictionary has
+        // no word-list categories, so 词库 has no category decks and 识义 distractors come from random dictionary pages.
         collectionEnabled: true,
-        wordStudyEnabled: false,
+        wordStudyEnabled: true,
+        dictionaryStudyDeckEnabled: false,
+        wordLabel: "西语",
+        meaningLabel: "英文",
         commonLibraryManifestUrl: "assets/libraries/common-spanish-134910/manifest.json",
         commonLibraryContent: "西语原句 + 英文翻译",
         // Accent regions for TTS voices and speech recognition; materials and records are not region-specific yet.
@@ -2659,6 +2670,10 @@ const fallbackSentences = [
       return Boolean(currentLearningLanguage().wordStudyEnabled);
     }
 
+    function dictionaryStudyDeckEnabled() {
+      return Boolean(currentLearningLanguage().dictionaryStudyDeckEnabled);
+    }
+
     function dictionaryDisabledNote(kind = "收藏") {
       return `<span class="dictionary-disabled-note" title="当前${currentLearningLanguage().label}${kind}还没有接入，先只提供查词。">${kind}稍后接入</span>`;
     }
@@ -2671,7 +2686,7 @@ const fallbackSentences = [
         button.setAttribute("aria-pressed", String(active));
         button.title = active
           ? `当前学习语言：${language.label}`
-          : `切换到${language.label}${language.id === "es" ? "（使用西语词典；收藏单独保存；背单词稍后接入）" : ""}`;
+          : `切换到${language.label}${language.id === "es" ? "（使用西语词典；收藏和背单词记录单独保存）" : ""}`;
       });
     }
 
@@ -3904,7 +3919,7 @@ ${orderNote}`;
           : state.dictionaryLibraryType === "phrases" ? "短语"
             : state.dictionaryLibraryType === "special" ? "特殊词条" : "单词";
         $("dictionaryLibraryCountText").textContent = `0 / ${result.total.toLocaleString()} 个${typeLabel}`;
-        $("dictionaryLibrarySummary").textContent = `${language.dictionaryName} · 每页 ${result.pageSize} 词${isEnglishDictionary ? "" : " · 背单词稍后接入"}`;
+        $("dictionaryLibrarySummary").textContent = `${language.dictionaryName} · 每页 ${result.pageSize} 词`;
         $("dictionaryPageInput").value = result.page;
         $("dictionaryPageInput").max = result.pageCount;
         $("dictionaryPageCount").textContent = `/ ${result.pageCount.toLocaleString()} 页`;
@@ -4036,7 +4051,7 @@ ${orderNote}`;
       if (!buttons.length) return;
       const token = ++dictionaryStudyCountToken;
       const category = $("dictionaryCategorySelect").value;
-      const hasStudyDeck = dictionaryWordStudyEnabled() && state.dictionaryLibraryType === "words" && category !== "all";
+      const hasStudyDeck = dictionaryStudyDeckEnabled() && state.dictionaryLibraryType === "words" && category !== "all";
       const available = hasStudyDeck && !state.dictionaryStudyLoading;
       buttons.forEach((button) => {
         const modeLabel = button.dataset.label || wordReviewModeLabel(button.dataset.dictionaryStudyMode);
@@ -4083,7 +4098,7 @@ ${orderNote}`;
     async function openDictionaryWordStudy(mode, free = false) {
       if (!WORD_REVIEW_MODES.some((item) => item.id === mode)) return;
       const category = $("dictionaryCategorySelect").value;
-      if (!dictionaryWordStudyEnabled() || state.dictionaryLibraryType !== "words" || category === "all" || state.dictionaryStudyLoading) return;
+      if (!dictionaryStudyDeckEnabled() || state.dictionaryLibraryType !== "words" || category === "all" || state.dictionaryStudyLoading) return;
       const label = $("dictionaryCategorySelect").selectedOptions[0]?.textContent || category;
       const sort = $("dictionarySortSelect").value;
       state.dictionaryStudyLoading = true;
@@ -4981,16 +4996,19 @@ ${orderNote}`;
     function wordReviewHelpHtml(mode, source, stats) {
       const label = wordReviewModeLabel(mode);
       const scope = source === "favorites"
-        ? `收藏中 ${wordReviewModeMinStars(mode)} 星及以上的单词，按收藏页当前分类（${escapeHtml($("userWordsCategorySelect").selectedOptions[0]?.textContent || "全部")}）统计。`
+        ? currentLearningLanguage().id === "en"
+          ? `收藏中 ${wordReviewModeMinStars(mode)} 星及以上的单词，按收藏页当前分类（${escapeHtml($("userWordsCategorySelect").selectedOptions[0]?.textContent || "全部")}）统计。`
+          : `收藏中 ${wordReviewModeMinStars(mode)} 星及以上的${currentLearningLanguage().wordLabel}单词。`
         : `词表【${escapeHtml($("dictionaryCategorySelect").selectedOptions[0]?.textContent || "当前分类")}】中的全部单词。`;
       const statItems = [["未学习", "fresh", " is-new"], ["学习中📕", "learning", " is-learning"], ["已掌握✅", "mastered", " is-mastered"], ["已到期🕗", "due", " is-due"]];
       const statsHtml = stats
         ? `<div class="dictionary-mastery-items">${statItems.map(([name, key, cls]) => `<div class="dictionary-mastery-item${cls}"><div class="dictionary-mastery-head"><b>${name}</b><span>${stats[key].toLocaleString()}</span></div></div>`).join("")}</div>`
         : '<div class="small-note">正在统计…（词库请先选一个词表）</div>';
+      const { wordLabel, meaningLabel } = currentLearningLanguage();
       const method = {
-        recognize: "看英文单词和音标（自动朗读），从 5 个选项中选出正确的中文意思。",
-        listen: "只听发音（自动朗读），看字母格和字母数，拼写出这个单词；答完后才显示中文释义。",
-        spell: "只看中文释义和词性，拼写出这个单词；答完之前不朗读，避免发音泄露拼写。"
+        recognize: `看${wordLabel}单词和音标（自动朗读），从 5 个选项中选出正确的${meaningLabel}意思。`,
+        listen: `只听发音（自动朗读），看字母格和字母数，拼写出这个单词；答完后才显示${meaningLabel}释义。`,
+        spell: `只看${meaningLabel}释义和词性，拼写出这个单词；答完之前不朗读，避免发音泄露拼写。`
       }[mode];
       return `
         <div class="word-review-help">
@@ -5067,7 +5085,7 @@ ${orderNote}`;
     function wordReviewPatternHtml(word, revealed) {
       return Array.from(word).map((char, index) => {
         if (/\s/.test(char)) return '<span class="word-review-gap"></span>';
-        if (!/[a-z]/i.test(char)) return `<span class="word-review-letter is-shown">${escapeHtml(char)}</span>`;
+        if (!languageText().isLetterChar(char)) return `<span class="word-review-letter is-shown">${escapeHtml(char)}</span>`;
         return `<span class="word-review-letter${index < revealed ? " is-shown" : ""}">${index < revealed ? escapeHtml(char) : "_"}</span>`;
       }).join("");
     }
@@ -5090,7 +5108,7 @@ ${orderNote}`;
     function wordReviewMeaningsHtml(item) {
       const meanings = dictionaryTextLines(item.translation).slice(0, 3);
       return `${item.pos ? `<div class="word-review-pos">${escapeHtml(item.pos)}</div>` : ""}
-        <div class="word-review-meanings">${meanings.length ? meanings.map((line) => `<div>${escapeHtml(line)}</div>`).join("") : "<div>（该词条暂无中文释义）</div>"}</div>`;
+        <div class="word-review-meanings">${meanings.length ? meanings.map((line) => `<div>${escapeHtml(line)}</div>`).join("") : `<div>（该词条暂无${currentLearningLanguage().meaningLabel}释义）</div>`}</div>`;
     }
 
     function wordReviewAnswerHtml(item) {
@@ -5113,6 +5131,23 @@ ${orderNote}`;
       return result;
     }
 
+    // Extra 识义 distractor words when the favorites are too few: a word-list category where the dictionary has one
+    // (English: Oxford 3000), otherwise one random page of ordinary words from the learning language's dictionary.
+    const reviewFallbackPageCounts = new Map();
+
+    async function loadReviewFallbackWords() {
+      const category = currentLearningLanguage().reviewDistractorCategory;
+      if (category) return loadDictionaryStudyWords(category, "alphabetical");
+      const dictionaryId = currentDictionaryId();
+      const pageSize = 60;
+      if (!reviewFallbackPageCounts.has(dictionaryId)) {
+        const first = await window.langLSRWDictionary.list({ entryType: "words", page: 1, pageSize }, dictionaryId);
+        reviewFallbackPageCounts.set(dictionaryId, first.pageCount);
+      }
+      const page = 1 + Math.floor(Math.random() * reviewFallbackPageCounts.get(dictionaryId));
+      return (await window.langLSRWDictionary.list({ entryType: "words", page, pageSize }, dictionaryId)).rows;
+    }
+
     async function loadRecognizeDistractors(review, item) {
       const currentKey = dictionaryFavoriteKey(item.word);
       const correctText = wordReviewChoiceText(item);
@@ -5120,7 +5155,7 @@ ${orderNote}`;
       let fallbackItems = [];
       if (sourceItems.length < 16) {
         try {
-          fallbackItems = await loadDictionaryStudyWords("oxford", "alphabetical");
+          fallbackItems = await loadReviewFallbackWords();
         } catch {
           fallbackItems = [];
         }
@@ -5136,7 +5171,7 @@ ${orderNote}`;
       const unresolved = candidates.filter((candidate) => !wordReviewChoiceText(candidate));
       if (unresolved.length) {
         try {
-          resolved.push(...await window.langLSRWDictionary.queryMany(unresolved.map((candidate) => candidate.word), "ecdict"));
+          resolved.push(...await window.langLSRWDictionary.queryMany(unresolved.map((candidate) => candidate.word), currentDictionaryId()));
         } catch {
           // The choices below can still use any already-resolved collection entries.
         }
@@ -5341,7 +5376,7 @@ ${orderNote}`;
       let item;
       if (review.source === "wordList") {
         try {
-          item = await window.langLSRWDictionary.query(review.wordIndex.get(key)?.word || key, "ecdict");
+          item = await window.langLSRWDictionary.query(review.wordIndex.get(key)?.word || key, currentDictionaryId());
         } catch {
           item = null;
         }
