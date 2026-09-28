@@ -1,6 +1,6 @@
 # 单词记忆机制（收藏背词与词表学习）
 
-最后更新：2026-09-26
+最后更新：2026-09-28
 
 本文档说明 `收藏`和`词库`中单词识义、听写、默写的完整机制，描述的是当前代码的实际行为。机制调整时同步更新本文档，并保持 [`MECHANISMS.md`](MECHANISMS.md) 中「Word Review (背词)」一节的英文摘要一致。
 
@@ -131,22 +131,23 @@
 
 ## 6. 复习记录
 
-每个单词在每种练习里各有一条独立记录。记录按标准化后的单词拼写保存，不属于任何词表分类，也不属于收藏：
+每个单词在每种练习里各有一条独立记录。记录按标准化后的单词拼写保存，不属于任何词表分类，也不属于收藏。每个词的三种练习记录和手动掌握合在一条个人数据记录 `wordProgress` 里（按身份、按学习语言，见 [`USER_DATA.md`](USER_DATA.md)）：
 
 ```json
-"words": {
-  "example": {
-    "recognize": { "interval": 3, "ease": 2.5, "reps": 2, "lapses": 0, "due": 1790000000000, "lastReviewedAt": "2026-09-26T08:00:00.000Z" },
+"example": {
+  "r": {
+    "recognize": { "interval": 3, "e": 250, "reps": 2, "lapses": 0, "due": 1790000000000, "lastReviewedAt": "2026-09-26T08:00:00.000Z", "lastGrade": "good" },
     "listen": { ... },
     "spell": { ... }
-  }
+  },
+  "m": { "spell": "2026-09-26T08:00:00.000Z" }
 }
 ```
 
 | 字段 | 中文名 | 含义 |
 |---|---|---|
 | `interval` | 当前间隔（天） | 这次答对后隔多少天再考 |
-| `ease` | 间隔扩大系数 | 答对后下一次间隔放大的倍数，初始 2.5，最低 1.3（早期文档称“复习间隔增长系数”） |
+| `e` | 间隔扩大系数 | 答对后下一次间隔放大的倍数，初始 2.5，最低 1.3（早期文档称“复习间隔增长系数”）。**按百分之几存成整数**：250 表示 2.5，答错减 20、答对加 5、范围 130～250；只在计算间隔（`间隔 × e ÷ 100` 后取整）和显示时除以 100。这样每一步都是精确的整数运算，不会出现 `2.3 − 0.2 = 2.0999999999999996` 这样的浮点误差（2026-09-28 改；此前的 `ease` 小数字段不再读取） |
 | `reps` | 连续答对次数 | 从上次答错之后连续答对几次 |
 | `lapses` | 答错次数 | 累计答错几次，只增不减 |
 | `due` | 下次到期时间 | 到这个时间才会再出现 |
@@ -157,6 +158,7 @@
 - 复习记录与收藏星级 `rating` 分开存放，互不影响；收藏只决定该词是否进入收藏练习范围。
 - Oxford 3000、中考、高考、CET4、CET6、考研、IELTS、TOEFL、GRE 和收藏只是入口。同一拼写只对应一份三维记录，在任一入口完成练习都会更新这份记录。
 - 开发阶段直接采用新结构，不读取、不合并旧的分类记录或收藏内 `review/reviews` 字段，也不保留迁移代码。
+- 每次作答还可以记一条作答记录（`reviewEvent`：单词、练习方式、答对 / 答错、是否用了提示、是否自由练习、时间），用于以后的学习统计和复习池；目前没有功能读取，暂时隐藏，不写入（`USER_DATA.md` 第 4 节）。
 
 ## 7. 间隔怎么计算（简化版 SM-2）
 
@@ -374,7 +376,7 @@ Anki 社区插件 **Straight Reward**（口号"Escape Ease Hell!"）采用类似
 - **列表图标**：该项显示 🟢，优先于 🕗 / 📕 / ✅。
 - **取消后**恢复显示原来的学习状态，并重新参加练习。
 - **清除某练习的记忆**时，范围内该练习的手动掌握标记也一并清除。
-- 存储：按用户单独保存在 `langLSRWWordManualMastery:*`，格式为 `{ version: 1, words: { 单词: { recognize: 标记时间, ... } } }`，不写入 `langLSRWWordReviews:*`。早期一个开发版本曾把手动掌握直接写进学习记录，读取时会自动还原那些记录并转成独立标记。
+- 存储：保存在该词 `wordProgress` 记录的 `m` 部分（`{ recognize: 标记时间, ... }`），与学习记录 `r` 分开，互不改动。
 
 ## 9. 三种练习相互独立
 
@@ -394,10 +396,9 @@ Anki 社区插件 **Straight Reward**（口号"Escape Ease Hell!"）采用类似
 
 ## 11. 数据存储与边界
 
-- 所有单词的统一复习记录保存在浏览器本地，按身份分开：本机用户为 `langLSRWWordReviews:<用户名>`，Google 账号为 `langLSRWWordReviews:cloud:<账号 ID>`。只保存实际学习过的词，不复制整套词典内容。
-- 手动掌握标记单独保存在 `langLSRWWordManualMastery:*`，同样按身份分开，不写入复习记录。
-- 收藏数据 `langLSRWUserWords:*` 只保存收藏词条与星级，不再承担掌握记录存储。
-- 复习记录和手动掌握标记目前都**不包含在备份导出和云同步中**；清除浏览器网站数据会同时清除它们。
+- 所有单词的统一复习记录和手动掌握保存在浏览器的个人数据库中（`wordProgress`），按身份、按学习语言分开。只保存实际学习过的词，不复制整套词典内容。
+- 收藏词（`favoriteWord`）只保存单词、星级、收藏时间、筛选字段和来源句，不保存释义，也不承担掌握记录存储；背词题卡的释义、音标实时查当前语言的词典。
+- 复习记录和手动掌握**包含在备份导出和云同步中**；清除浏览器网站数据会同时清除它们。详见 [`USER_DATA.md`](USER_DATA.md)。
 
 ## 12. 尚未实现 / 待定
 
@@ -446,7 +447,8 @@ B 和 C 可以组合使用：积压时不加新词，同时每轮最多 30 题�
 | `wordReviewEligible()` | 按星级判断某词是否进入某练习 |
 | `buildWordReviewQueue(mode)` | 生成一轮的出题队列 |
 | `openDictionaryWordStudy(mode)` / `loadDictionaryStudyWords()` | 从指定练习入口打开当前分类，并用单次 SQLite 查询缓存完整词名列表 |
-| `wordReviewsStorageKey()` / `loadWordReviewRecords()` / `saveWordReviewRecords()` | 按用户和单词读写唯一掌握记录 |
+| `loadWordReviewRecords()` / `saveWordReviewRecords()` / `loadWordManualMastery()` / `saveWordManualMastery()` | 按身份、语言和单词读写唯一掌握记录（`wordProgress`，经 `src/user-data.js`） |
+| `wordReviewEase()` / `easeText()` | 读取间隔扩大系数（百分之几的整数）/ 换算成显示用的小数 |
 | `scheduleWordReview(record, grade)` | 根据评分计算新的复习记录 |
 | `saveWordReviewGrade(key, mode, grade)` | 保存评分结果 |
 | `clearWordReviewMemory(mode, source)` | 清除收藏或当前词表范围内某一练习的记录 |

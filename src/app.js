@@ -229,8 +229,6 @@ const fallbackSentences = [
       userSentencesPage: 1,
       userSentencesPageCount: 1,
       userSentencesPageRanges: [],
-      history: [],
-      learnedCount: 0,
       voices: [],
       lastSpokenWordKey: "",
       replayRate: 1,
@@ -252,6 +250,7 @@ const fallbackSentences = [
       library: {
         manifest: null,
         items: [],
+        fingerprint: "",
         filteredItems: [],
         query: "",
         page: 0,
@@ -385,53 +384,51 @@ const fallbackSentences = [
       return name.trim().replace(/\s+/g, " ").slice(0, 24);
     }
 
-    function userStorageKey(name) {
-      if (name !== undefined) return `langLSRWHistory:${name}`;
-      if (state.cloudUser?.id) return `langLSRWHistory:cloud:${state.cloudUser.id}`;
-      return `langLSRWHistory:${state.currentUser}`;
+    // ---- Personal data (src/user-data.js, USER_DATA.md section 8). Every record belongs to an identity (a local
+    // user, a cloud account, or guest) and to "global" or one learning language.
+    const userData = window.langLSRWUserData;
+
+    function userDataIdentity() {
+      if (state.cloudUser?.id) return `cloud:${state.cloudUser.id}`;
+      if (state.currentUser) return `local:${state.currentUser}`;
+      return "guest";
     }
 
-    function learnedCountStorageKey(name) {
-      if (name !== undefined) return `langLSRWLearnedCount:${name}`;
-      if (state.cloudUser?.id) return `langLSRWLearnedCount:cloud:${state.cloudUser.id}`;
-      return `langLSRWLearnedCount:${state.currentUser || "guest"}`;
+    function userDataIdentityMeta() {
+      if (state.cloudUser?.id) return { type: "cloud", id: state.cloudUser.id, name: cloudDisplayName() };
+      if (state.currentUser) return { type: "local", name: state.currentUser };
+      return { type: "guest" };
     }
 
-    // Per-learning-language data (last position, favorites, word reviews) keeps English on its original keys and
-    // appends the language id for any other language, so each language's records stay completely separate.
-    function learningLanguageStorageSuffix(languageId = state.learningLanguageId) {
-      return languageId && languageId !== "en" ? `:${languageId}` : "";
+    function languageScope(languageId = state.learningLanguageId) {
+      return LEARNING_LANGUAGES[languageId] ? languageId : "en";
     }
 
-    function lastPositionStorageKey() {
-      const languageSuffix = learningLanguageStorageSuffix();
-      if (state.cloudUser?.id) return `langLSRWLastPosition:cloud:${state.cloudUser.id}${languageSuffix}`;
-      return `langLSRWLastPosition:${state.currentUser || "guest"}${languageSuffix}`;
+    // Opens the current identity's records and applies what depends on them.
+    async function openUserData() {
+      await userData.open(userDataIdentity());
+      applyIdentitySettings();
+    }
+
+    // After an import or a cloud download changed the open identity's records.
+    function refreshAfterUserDataChange() {
+      applyIdentitySettings();
+      render();
+      if (!$("userPhrasesModal").hidden) renderUserPhrases();
+      refreshWordReviewStatusIcons();
+      updateFavoriteReviewLaunchers();
     }
 
     function saveLastPosition() {
-      try {
-        localStorage.setItem(lastPositionStorageKey(), JSON.stringify({
-          libraryLabel: state.currentLibraryLabel,
-          index: state.index
-        }));
-      } catch {
-        /* ignore storage errors */
-      }
+      userData.put("position", "last", {
+        libraryLabel: state.currentLibraryLabel,
+        index: state.index
+      }, languageScope());
     }
 
     function loadLastPosition() {
-      try {
-        const saved = JSON.parse(localStorage.getItem(lastPositionStorageKey()) || "null");
-        if (!saved || typeof saved !== "object") return null;
-        return saved;
-      } catch {
-        return null;
-      }
-    }
-
-    function hasActiveIdentity() {
-      return Boolean(state.cloudUser?.id || state.currentUser);
+      const saved = userData.get("position", "last", languageScope());
+      return saved && typeof saved === "object" ? saved : null;
     }
 
     function getKnownUsers() {
@@ -444,33 +441,66 @@ const fallbackSentences = [
       localStorage.setItem("langLSRWKnownUsers", JSON.stringify(users.slice(0, 8)));
     }
 
-    function loadUserHistory() {
-      if (!hasActiveIdentity()) {
-        state.history = [];
-        return;
+    // Built-in library references: sentences are stored as library id + sentence id + library fingerprint, never as
+    // text. A reference whose fingerprint no longer matches the loaded library is treated as invalid (SENTENCE_REVIEW.md
+    // section 8); the per-sentence fingerprint `fp` is reserved for later.
+    function textFingerprint(text) {
+      let h1 = 0xdeadbeef;
+      let h2 = 0x41c6ce57;
+      for (let i = 0; i < text.length; i += 1) {
+        const ch = text.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
       }
-      state.history = JSON.parse(localStorage.getItem(userStorageKey()) || "[]");
+      h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+      h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+      return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
     }
 
-    function loadLearnedCount() {
-      const stored = Number(localStorage.getItem(learnedCountStorageKey()));
-      state.learnedCount = Number.isFinite(stored) && stored >= 0 ? Math.floor(stored) : 0;
+    let librarySentenceMap = { items: null, map: new Map() };
+
+    function librarySentenceById(id) {
+      if (librarySentenceMap.items !== state.library.items) {
+        librarySentenceMap = { items: state.library.items, map: new Map(state.library.items.map((item) => [String(item.id), item])) };
+      }
+      return librarySentenceMap.map.get(String(id)) || null;
     }
 
-    function saveLearnedCount() {
-      localStorage.setItem(learnedCountStorageKey(), String(state.learnedCount));
-      scheduleCloudSync();
+    function librarySentenceRef(item) {
+      const normalized = normalizeSentenceItem(item);
+      const libraryId = state.library.manifest?.id;
+      if (normalized.id && libraryId && normalized.libraryId === libraryId && state.library.fingerprint && librarySentenceById(normalized.id)) {
+        return { lib: libraryId, id: normalized.id, lf: state.library.fingerprint };
+      }
+      return null;
     }
 
-    function incrementLearnedCount() {
-      state.learnedCount += 1;
-      saveLearnedCount();
-      renderLearnedCount();
+    function resolveLibrarySentence(ref) {
+      if (!ref?.lib || ref.lib !== state.library.manifest?.id || ref.lf !== state.library.fingerprint) return null;
+      const item = librarySentenceById(ref.id);
+      return item ? normalizeSentenceItem(item) : null;
     }
 
-    function saveUserHistory() {
-      if (!hasActiveIdentity()) return;
-      localStorage.setItem(userStorageKey(), JSON.stringify(state.history));
+    // One compact practice event per answered sentence (USER_DATA.md section 8.2), for sentence review
+    // (SENTENCE_REVIEW.md; not built yet, so nothing calls this for now):
+    // [mode, libraryId, sentenceId, libraryFingerprint, text (only outside built-in libraries), accuracy, fluency,
+    //  errorCount, wpm, time in seconds, mistakes as [[position, typed], ...]].
+    function recordPracticeEvent(mode, item, metrics) {
+      const normalized = normalizeSentenceItem(item);
+      const ref = librarySentenceRef(normalized);
+      userData.append("practiceEvent", [
+        mode,
+        ref?.lib || "",
+        ref?.id || "",
+        ref?.lf || "",
+        ref ? "" : normalized.text,
+        metrics.accuracy,
+        metrics.fluency,
+        metrics.errors.length,
+        metrics.wpm,
+        Math.floor(Date.now() / 1000),
+        metrics.errors.map((error) => [error.pos, error.actual])
+      ], languageScope());
       scheduleCloudSync();
     }
 
@@ -501,67 +531,20 @@ const fallbackSentences = [
       if (signedIn) $("userBadge").textContent = `用户：${cloudDisplayName()}`;
     }
 
+    // The cloud row carries the same personal data document as a backup export.
     function collectCloudPayload() {
-      const customLibrary = state.currentLibraryLabel === "常用句库"
-        ? null
-        : {
-            label: state.currentLibraryLabel,
-            index: state.index,
-            sentences: normalizeSentenceList(state.sentences).map(sentenceWithCachedGrammar)
-          };
-      return {
-        schemaVersion: 1,
-        savedAt: new Date().toISOString(),
-        settings: {
-          theme: state.theme,
-          shortcuts: state.shortcuts,
-          speech: state.speechSettings,
-          fonts: state.fontSettings,
-          grammarColors: state.grammarColors
-        },
-        history: state.history.slice(0, 500),
-        learnedCount: state.learnedCount,
-        customLibrary
-      };
+      return userData.exportDocument({ identity: userDataIdentityMeta() });
     }
 
     function applyCloudPayload(payload) {
-      if (!payload || Number(payload.schemaVersion) !== 1) return;
-      const settings = payload.settings || {};
+      if (!userData.isDocument(payload)) return;
       state.cloudSyncing = true;
       try {
-        if (settings.theme) applyTheme(settings.theme);
-        if (settings.shortcuts && typeof settings.shortcuts === "object") {
-          state.shortcuts = { ...defaultShortcuts, ...settings.shortcuts };
-          saveShortcuts();
-          renderShortcutSettings();
-        }
-        if (settings.speech && typeof settings.speech === "object") {
-          state.speechSettings = settings.speech;
-          localStorage.setItem("langLSRWSpeechSettings", JSON.stringify(state.speechSettings));
-          loadSpeechSettings();
-        }
-        if (settings.fonts && typeof settings.fonts === "object") {
-          state.fontSettings = { ...fontDefaults(), ...settings.fonts };
-          applyFontSettings(state.fontSettings);
-        }
-        if (settings.grammarColors && typeof settings.grammarColors === "object") {
-          state.grammarColors = normalizeGrammarColors(settings.grammarColors);
-          applyGrammarColors(state.grammarColors);
-        }
-        state.history = Array.isArray(payload.history) ? payload.history.slice(0, 500) : [];
-        localStorage.setItem(userStorageKey(), JSON.stringify(state.history));
-        state.learnedCount = Math.max(0, Math.floor(Number(payload.learnedCount) || 0));
-        localStorage.setItem(learnedCountStorageKey(), String(state.learnedCount));
-        if (payload.customLibrary?.sentences?.length) {
-          state.sentences = normalizeSentenceList(payload.customLibrary.sentences);
-          state.index = Math.min(Math.max(0, Number(payload.customLibrary.index) || 0), state.sentences.length - 1);
-          setCurrentLibrary(payload.customLibrary.label || "自定义句库", `当前句库：云端同步（${state.sentences.length}句）`);
-        }
+        userData.importDocument(payload);
       } finally {
         state.cloudSyncing = false;
       }
-      resetCurrent();
+      refreshAfterUserDataChange();
     }
 
     async function pushCloudState() {
@@ -585,26 +568,14 @@ const fallbackSentences = [
       cloudSyncTimer = setTimeout(pushCloudState, 1200);
     }
 
-    async function resetWorkspaceForCloudIdentity() {
-      await loadCommonLibrary();
-      if (!state.library.items.length || !state.library.manifest) return;
-      state.sentences = normalizeSentenceList(state.library.items);
-      state.index = 0;
-      state.currentLibraryLabel = "常用句库";
-      syncCurrentLibrarySelect(state.currentLibraryLabel);
-      $("sourceStatus").textContent = `当前句库：${state.library.manifest.name}（${state.sentences.length.toLocaleString()}句）`;
-    }
-
     function completeCloudSignOut(message = "已退出 Google") {
       state.cloudUser = null;
       state.cloudLastSyncedAt = "";
       state.currentUser = "";
-      state.history = [];
-      state.learnedCount = 0;
       localStorage.removeItem("langLSRWCurrentUser");
       $("userBadge").textContent = "未登录";
       renderCloudAuthState(message);
-      render();
+      openUserData().then(() => tryLoadDefaultLibrary()).then(render);
       showLogin();
     }
 
@@ -613,16 +584,15 @@ const fallbackSentences = [
       state.cloudUser = user;
       state.currentUser = "";
       localStorage.removeItem("langLSRWCurrentUser");
-      loadUserHistory();
-      loadLearnedCount();
+      await openUserData();
       renderCloudAuthState("正在读取云端数据...");
       try {
-        await resetWorkspaceForCloudIdentity();
         const remote = await window.langLSRWCloudAuth.loadState(user.id);
         if (remote?.payload) {
-          state.cloudLastSyncedAt = remote.updated_at || remote.payload.savedAt || "";
+          state.cloudLastSyncedAt = remote.updated_at || "";
           applyCloudPayload(remote.payload);
         }
+        await tryLoadDefaultLibrary();
         hideLogin();
         render();
       } catch (error) {
@@ -701,15 +671,16 @@ const fallbackSentences = [
       return normalizeSentenceItem(item).grammarRaw;
     }
 
-    const grammarCacheStorageKey = "langLSRWGrammarCache";
-
+    // AI grammar analyses are personal records of the current learning language (grammarResult).
     function loadGrammarCache() {
-      try {
-        const cached = JSON.parse(localStorage.getItem(grammarCacheStorageKey) || "[]");
-        return Array.isArray(cached) ? cached : [];
-      } catch {
-        return [];
-      }
+      return userData.entries("grammarResult", languageScope()).map(({ key, value }) => ({
+        key,
+        sentence: value?.sentence || "",
+        framework: value?.framework || "traditional",
+        grammar: value?.grammar || "",
+        grammarRaw: value?.grammarRaw || value?.grammar || "",
+        savedAt: value?.savedAt || ""
+      }));
     }
 
     function grammarCacheSentenceKey(sentence) {
@@ -761,29 +732,15 @@ const fallbackSentences = [
 
     function saveGrammarCache(sentence, grammar, grammarRaw = grammar) {
       const key = grammarCacheSentenceKey(sentence);
-      const records = loadGrammarCache().filter((item) => (
-        item && !(
-          grammarCacheSentenceKey(item.key || item.sentence) === key
-          && (item.framework || grammarFrameworkFromContent(item.grammar)) === "traditional"
-        )
-      ));
-      records.unshift({
-        key,
+      if (!key) return;
+      userData.put("grammarResult", key, {
         sentence,
         framework: "traditional",
         grammar,
-        grammarRaw,
+        ...(grammarRaw && grammarRaw !== grammar ? { grammarRaw } : {}),
         savedAt: new Date().toISOString()
-      });
-      let retained = records.slice(0, 500);
-      while (retained.length) {
-        try {
-          localStorage.setItem(grammarCacheStorageKey, JSON.stringify(retained));
-          return;
-        } catch {
-          retained = retained.slice(0, Math.floor(retained.length / 2));
-        }
-      }
+      }, languageScope());
+      scheduleCloudSync();
     }
 
     function sentenceWithCachedGrammar(item) {
@@ -811,37 +768,8 @@ const fallbackSentences = [
         .filter((item) => item.text);
     }
 
-    function collectBackupData() {
-      const users = getKnownUsers();
-      const histories = {};
-      const learnedCounts = {};
-      users.forEach((user) => {
-        histories[user] = JSON.parse(localStorage.getItem(userStorageKey(user)) || "[]");
-        learnedCounts[user] = Math.max(0, Math.floor(Number(localStorage.getItem(learnedCountStorageKey(user))) || 0));
-      });
-      if (state.currentUser && !users.includes(state.currentUser)) {
-        histories[state.currentUser] = state.history;
-        learnedCounts[state.currentUser] = state.learnedCount;
-      }
-
-      return {
-        app: "langLSRW",
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        currentUser: state.currentUser,
-        knownUsers: state.currentUser && !users.includes(state.currentUser)
-          ? [state.currentUser, ...users]
-          : users,
-        currentIndex: state.index,
-        currentLibraryLabel: state.currentLibraryLabel,
-        sentences: normalizeSentenceList(state.sentences).map(sentenceWithCachedGrammar),
-        histories,
-        learnedCounts
-      };
-    }
-
-    function downloadJson(filename, data) {
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    function downloadJson(filename, data, { compact = false } = {}) {
+      const blob = new Blob([compact ? JSON.stringify(data) : JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -852,55 +780,35 @@ const fallbackSentences = [
       URL.revokeObjectURL(url);
     }
 
-    function exportData() {
+    // Export = every record of the current identity, whatever page or library is open (USER_DATA.md section 8.4).
+    async function exportData() {
+      await userData.flush();
       const date = new Date().toISOString().slice(0, 10);
-      const username = state.currentUser || "guest";
-      const safeName = username.replace(/[^a-z0-9_-]+/gi, "_");
-      downloadJson(`langlsrw-${safeName}-${date}.json`, collectBackupData());
+      const label = state.cloudUser ? cloudDisplayName() : (state.currentUser || "guest");
+      const safeName = label.replace(/[^a-z0-9_-]+/gi, "_");
+      downloadJson(`langlsrw-${safeName}-${date}.json`, userData.exportDocument({ identity: userDataIdentityMeta() }), { compact: true });
     }
 
-    function restoreBackupData(data) {
-      if (!data || !Array.isArray(data.sentences) || !data.histories || typeof data.histories !== "object") {
-        alert("这个 JSON 文件不是有效的练习备份。");
+    // Import merges record by record into the current identity; the newer copy of a record wins.
+    async function restoreBackupData(data) {
+      if (!userData.isDocument(data)) {
+        alert("这不是新版个人数据文件。旧版备份已不再支持导入。");
         return;
       }
-
-      const users = Array.isArray(data.knownUsers)
-        ? data.knownUsers.map(normalizeUsername).filter(Boolean)
-        : Object.keys(data.histories).map(normalizeUsername).filter(Boolean);
-      const uniqueUsers = [...new Set(users)].slice(0, 8);
-      const currentUser = normalizeUsername(data.currentUser || uniqueUsers[0] || state.currentUser);
-
-      uniqueUsers.forEach((user) => {
-        const history = Array.isArray(data.histories[user]) ? data.histories[user] : [];
-        localStorage.setItem(userStorageKey(user), JSON.stringify(history.slice(0, 500)));
-        const learnedCount = Math.max(0, Math.floor(Number(data.learnedCounts?.[user]) || 0));
-        localStorage.setItem(learnedCountStorageKey(user), String(learnedCount));
-      });
-
-      localStorage.setItem("langLSRWKnownUsers", JSON.stringify(uniqueUsers));
-      if (currentUser) {
-        state.currentUser = currentUser;
-        localStorage.setItem("langLSRWCurrentUser", currentUser);
+      if (!state.cloudUser && !state.currentUser && data.identity?.type === "local" && data.identity.name) {
+        await loginAs(data.identity.name);
       }
-
-      state.sentences = normalizeSentenceList(data.sentences);
-      if (!state.sentences.length) state.sentences = normalizeSentenceList(fallbackSentences);
-      setCurrentLibrary(
-        typeof data.currentLibraryLabel === "string" ? data.currentLibraryLabel : "备份句库",
-        `当前句库：备份数据（${state.sentences.length}句）`
-      );
-      state.sentences.forEach((item) => {
-        if (item.grammar) saveGrammarCache(item.text, item.grammar, item.grammarRaw || item.grammar);
-      });
-      state.index = Number.isInteger(data.currentIndex)
-        ? Math.min(Math.max(0, data.currentIndex), state.sentences.length - 1)
-        : 0;
-      loadUserHistory();
-      loadLearnedCount();
-      $("userBadge").textContent = state.currentUser ? `用户：${state.currentUser}` : "未登录";
-      renderCloudAuthState();
-      resetCurrent();
+      const counts = userData.importDocument(data, { dryRun: true });
+      if (!counts.added && !counts.updated) {
+        alert("没有需要导入的内容：文件中的记录在本机都已是最新。");
+        return;
+      }
+      const target = state.cloudUser ? cloudDisplayName() : (state.currentUser || "未登录");
+      if (!confirm(`导入到“${target}”：新增 ${counts.added} 条、更新 ${counts.updated} 条记录（同一条记录保留较新的一份）。继续吗？`)) return;
+      userData.importDocument(data);
+      await userData.flush();
+      refreshAfterUserDataChange();
+      await tryLoadDefaultLibrary();
       hideLogin();
       alert("数据已导入。");
     }
@@ -943,37 +851,32 @@ const fallbackSentences = [
         state.cloudLastSyncedAt = "";
         state.cloudSwitchingToLocal = false;
       }
-      const isNewUser = !getKnownUsers().includes(username);
-      if (isNewUser) resetSettingsToDefault();
       state.currentUser = username;
       localStorage.setItem("langLSRWCurrentUser", username);
       saveKnownUser(username);
-      loadUserHistory();
-      loadLearnedCount();
+      await openUserData();
+      await tryLoadDefaultLibrary();
       resetCurrent();
       $("userBadge").textContent = `用户：${username}`;
       renderCloudAuthState();
       hideLogin();
     }
 
-    function clearCurrentUser() {
+    async function clearCurrentUser() {
       const username = state.currentUser;
       if (!username) {
         showLogin();
         return;
       }
-      const confirmed = confirm(`确定清除用户「${username}」吗？这个用户的本机练习记录会被删除。`);
+      const confirmed = confirm(`确定清除用户「${username}」吗？这个用户在本机的全部数据（收藏、背词记录、练习记录、设置等）都会被删除。`);
       if (!confirmed) return;
 
-      localStorage.removeItem(userStorageKey(username));
-      localStorage.removeItem(learnedCountStorageKey(username));
+      await userData.deleteIdentity(`local:${username}`);
       const users = getKnownUsers().filter((user) => user !== username);
       localStorage.setItem("langLSRWKnownUsers", JSON.stringify(users));
       localStorage.removeItem("langLSRWCurrentUser");
       state.currentUser = "";
-      state.history = [];
-      state.learnedCount = 0;
-      resetSettingsToDefault();
+      await openUserData();
       $("userBadge").textContent = "未登录";
       renderCloudAuthState();
       closeTopMenus();
@@ -1055,6 +958,7 @@ const fallbackSentences = [
     function resetCommonLibraryState() {
       state.library.manifest = null;
       state.library.items = [];
+      state.library.fingerprint = "";
       state.library.filteredItems = [];
       state.library.query = "";
       state.library.page = 0;
@@ -1171,6 +1075,7 @@ const fallbackSentences = [
         if (state.learningLanguageId !== languageId) return;
         state.library.manifest = result.manifest;
         state.library.items = result.items;
+        state.library.fingerprint = textFingerprint(result.items.map((item) => `${item.id}\t${item.text}`).join("\n"));
         state.library.filteredItems = result.items;
         $("libraryName").textContent = result.manifest.name;
         $("libraryMeta").textContent = `${result.items.length.toLocaleString()} 条 · ${currentLearningLanguage().commonLibraryContent} · v${result.manifest.version}`;
@@ -2010,6 +1915,7 @@ const fallbackSentences = [
 
     async function tryLoadDefaultLibrary() {
       const lastPosition = loadLastPosition();
+      await loadCommonLibrary();
       if (lastPosition && lastPosition.libraryLabel === "用户收藏" && currentLearningLanguage().sentenceFavoritesEnabled) {
         const favorites = loadUserSentences();
         if (favorites.length) {
@@ -2027,7 +1933,6 @@ const fallbackSentences = [
           return;
         }
       }
-      await loadCommonLibrary();
       if (!state.library.items.length || !state.library.manifest) return;
       state.sentences = normalizeSentenceList(state.library.items);
       state.index = (lastPosition && lastPosition.libraryLabel === "常用句库"
@@ -2466,6 +2371,64 @@ const fallbackSentences = [
       return `当前句库：${name}（${sentences.length}句，${translated}句有翻译）`;
     }
 
+    // Settings belong to the identity (settings records). localStorage keeps a device copy so the page opens with
+    // the last used look before the identity's records have loaded.
+    const SETTING_STORAGE_KEYS = {
+      theme: "langLSRWTheme",
+      shortcuts: "langLSRWShortcuts",
+      speech: "langLSRWSpeechSettings",
+      fonts: "langLSRWFontSettings",
+      grammarColors: "langLSRWGrammarColors",
+      dictionaryAutoSpeak: "langLSRWDictionaryAutoSpeak"
+    };
+
+    function mirrorSetting(name, value) {
+      try {
+        localStorage.setItem(SETTING_STORAGE_KEYS[name], typeof value === "string" ? value : JSON.stringify(value));
+      } catch {
+        /* ignore storage errors */
+      }
+    }
+
+    function persistSetting(name, value) {
+      mirrorSetting(name, value);
+      if (!userData.identity) return;
+      userData.put("settings", name, value, "global");
+      scheduleCloudSync();
+    }
+
+    function currentSettingValue(name) {
+      return {
+        theme: state.theme,
+        shortcuts: state.shortcuts,
+        speech: state.speechSettings,
+        fonts: state.fontSettings,
+        grammarColors: state.grammarColors,
+        dictionaryAutoSpeak: dictionaryAutoSpeakEnabled() ? "1" : "0"
+      }[name];
+    }
+
+    // Applies the open identity's settings. An identity without saved settings starts from what is on screen.
+    function applyIdentitySettings() {
+      const saved = (name) => userData.get("settings", name, "global");
+      Object.keys(SETTING_STORAGE_KEYS).forEach((name) => {
+        if (saved(name) === undefined) userData.put("settings", name, currentSettingValue(name), "global");
+      });
+      applyTheme(saved("theme"), { persist: false });
+      state.shortcuts = { ...defaultShortcuts, ...(saved("shortcuts") || {}) };
+      state.speechSettings = { ...(saved("speech") || {}) };
+      applyFontSettings(saved("fonts"), { persist: false });
+      applyGrammarColors(saved("grammarColors"), { persist: false });
+      Object.keys(SETTING_STORAGE_KEYS).forEach((name) => mirrorSetting(name, saved(name)));
+      document.querySelectorAll("[data-dictionary-auto-speak]").forEach((checkbox) => {
+        checkbox.checked = dictionaryAutoSpeakEnabled();
+      });
+      loadSpeechSettings();
+      populateVoices();
+      renderShortcutSettings();
+      updateSpeechRateIndicator();
+    }
+
     function saveSpeechSettings() {
       const languageId = state.learningLanguageId || "en";
       const voiceKey = voiceSettingKey();
@@ -2481,13 +2444,11 @@ const fallbackSentences = [
         showTranslation: $("showTranslationToggle").checked
       };
       state.speechSettings = settings;
-      localStorage.setItem("langLSRWSpeechSettings", JSON.stringify(settings));
-      scheduleCloudSync();
+      persistSetting("speech", settings);
     }
 
     function saveShortcuts() {
-      localStorage.setItem("langLSRWShortcuts", JSON.stringify(state.shortcuts));
-      scheduleCloudSync();
+      persistSetting("shortcuts", state.shortcuts);
     }
 
     function aiDefaults() {
@@ -2777,7 +2738,7 @@ const fallbackSentences = [
       }
     }
 
-    function applyTheme(theme) {
+    function applyTheme(theme, { persist = true } = {}) {
       const themeMap = { dark: "black" };
       const nextTheme = themeMap[theme] || theme;
       state.theme = themes.some((item) => item.id === nextTheme) ? nextTheme : "eye";
@@ -2785,8 +2746,7 @@ const fallbackSentences = [
       const current = themes.find((item) => item.id === state.theme);
       $("themeToggleBtn").textContent = current.label;
       $("themeToggleBtn").title = `背景：${current.label}`;
-      localStorage.setItem("langLSRWTheme", state.theme);
-      scheduleCloudSync();
+      if (persist) persistSetting("theme", state.theme);
     }
 
     function toggleTheme() {
@@ -2807,10 +2767,7 @@ const fallbackSentences = [
       document.documentElement.style.setProperty("--font-translation", chineseFontPresets[chinese]);
       $("englishFontSelect").value = english;
       $("chineseFontSelect").value = chinese;
-      if (persist) {
-        localStorage.setItem("langLSRWFontSettings", JSON.stringify(state.fontSettings));
-        scheduleCloudSync();
-      }
+      if (persist) persistSetting("fonts", state.fontSettings);
     }
 
     function saveFontSettings() {
@@ -2821,8 +2778,7 @@ const fallbackSentences = [
     }
 
     function resetFontSettings() {
-      localStorage.removeItem("langLSRWFontSettings");
-      applyFontSettings(fontDefaults(), { persist: false });
+      applyFontSettings(fontDefaults());
     }
 
     const grammarColorLabels = {
@@ -2874,28 +2830,22 @@ const fallbackSentences = [
           hexInput.classList.remove("is-invalid");
         }
       });
-      if (persist) {
-        localStorage.setItem("langLSRWGrammarColors", JSON.stringify(state.grammarColors));
-        scheduleCloudSync();
-      }
+      if (persist) persistSetting("grammarColors", state.grammarColors);
     }
 
     function resetGrammarColors() {
-      localStorage.removeItem("langLSRWGrammarColors");
-      applyGrammarColors(grammarColorDefaults(), { persist: false });
+      applyGrammarColors(grammarColorDefaults());
     }
 
+    // Resets the current identity's settings (other users keep theirs).
     function resetSettingsToDefault() {
-      localStorage.removeItem("langLSRWTheme");
-      localStorage.removeItem("langLSRWShortcuts");
-      localStorage.removeItem("langLSRWSpeechSettings");
-      localStorage.removeItem("langLSRWFontSettings");
-      localStorage.removeItem("langLSRWGrammarColors");
       state.shortcuts = { ...defaultShortcuts };
+      saveShortcuts();
       state.speechSettings = {};
+      persistSetting("speech", state.speechSettings);
       applyTheme("black");
-      applyFontSettings(fontDefaults(), { persist: false });
-      applyGrammarColors(grammarColorDefaults(), { persist: false });
+      applyFontSettings(fontDefaults());
+      applyGrammarColors(grammarColorDefaults());
       loadSpeechSettings();
       populateVoices();
       renderShortcutSettings();
@@ -3026,10 +2976,7 @@ ${orderNote}`;
     function runSpeakingShortcut(actionId) {
       const actions = {
         previousSentence: () => switchSpeakingSentence(pickSentenceIndex(-1)),
-        nextSentence: () => {
-          incrementLearnedCount();
-          switchSpeakingSentence(pickSentenceIndex(1));
-        },
+        nextSentence: () => switchSpeakingSentence(pickSentenceIndex(1)),
         speakModel: () => speakSentence(1),
         togglePractice: () => {
           if (state.speaking.isRecognizing || state.speaking.isRecording) {
@@ -3687,7 +3634,7 @@ ${orderNote}`;
         // Manually mastered modes hide the underlying schedule; every field shows "—".
         record: marks[mode.id] ? null : wordRecord[mode.id] || null
       }));
-      return `<div class="dictionary-mastery"><div class="dictionary-section-label">当前单词掌握程度</div><div class="dictionary-mastery-items">${modes.map((mode) => `<div class="dictionary-mastery-item is-${mode.state.key}"><div class="dictionary-mastery-head"><b>${mode.label}</b><span>${mode.state.label}</span></div><div class="dictionary-mastery-meta"><span>复习间隔：${wordReviewIntervalLabel(mode.record)}</span><span>下次复习：${wordReviewDueLabel(mode.record)}</span><span>间隔系数：${wordReviewRecordStarted(mode.record) ? (Number(mode.record.ease) || 2.5).toFixed(2) : "—"}</span><span>连续答对：${wordReviewRecordStarted(mode.record) ? `${Number(mode.record.reps) || 0} 次` : "—"}</span></div></div>`).join("")}</div></div>`;
+      return `<div class="dictionary-mastery"><div class="dictionary-section-label">当前单词掌握程度</div><div class="dictionary-mastery-items">${modes.map((mode) => `<div class="dictionary-mastery-item is-${mode.state.key}"><div class="dictionary-mastery-head"><b>${mode.label}</b><span>${mode.state.label}</span></div><div class="dictionary-mastery-meta"><span>复习间隔：${wordReviewIntervalLabel(mode.record)}</span><span>下次复习：${wordReviewDueLabel(mode.record)}</span><span>间隔系数：${wordReviewRecordStarted(mode.record) ? (wordReviewEase(mode.record) / 100).toFixed(2) : "—"}</span><span>连续答对：${wordReviewRecordStarted(mode.record) ? `${Number(mode.record.reps) || 0} 次` : "—"}</span></div></div>`).join("")}</div></div>`;
     }
 
     async function openDictionaryFormDetail(button) {
@@ -3911,11 +3858,6 @@ ${orderNote}`;
     }
 
     // languageId lets the English reference popover save into English favorites while another language is active.
-    function userWordsStorageKey(languageId = state.learningLanguageId) {
-      if (state.cloudUser?.id) return `langLSRWUserWords:cloud:${state.cloudUser.id}${learningLanguageStorageSuffix(languageId)}`;
-      return `langLSRWUserWords:${state.currentUser}${learningLanguageStorageSuffix(languageId)}`;
-    }
-
     async function renderDictionaryLibrary() {
       const list = $("dictionaryLibraryList");
       list.innerHTML = '<div class="user-phrases-empty">正在读取词库...</div>';
@@ -4233,13 +4175,58 @@ ${orderNote}`;
       dictionaryLibraryResizeTimer = setTimeout(() => updateDictionaryLibraryPageSize(), 100);
     }
 
+    // Word favorites (favoriteWord) keep the learner's choices plus a few dictionary fields used to filter and sort
+    // (f); meanings and forms are looked up in the dictionary when shown. The source sentence is a library reference
+    // (s), or its text (st / sx) for sentences outside a built-in library.
+    let userWordsMemo = { key: "", lists: new Map() };
+
+    function favoriteWordItem(key, value) {
+      const facets = value?.f || {};
+      const source = resolveLibrarySentence(value?.s);
+      return {
+        word: String(value?.w || key),
+        rating: Math.max(1, Math.min(5, Number(value?.r) || 1)),
+        savedAt: new Date((Number(value?.t) || 0) * 1000).toISOString(),
+        tag: String(facets.tag || ""),
+        oxford: Number(facets.oxford) || 0,
+        collins: Number(facets.collins) || 0,
+        bnc: Number(facets.bnc) || 0,
+        frq: Number(facets.frq) || 0,
+        sourceSentence: source?.text || String(value?.st || ""),
+        sourceTranslation: source?.translation || String(value?.sx || "")
+      };
+    }
+
     function loadUserWords(languageId = state.learningLanguageId) {
-      try {
-        const words = JSON.parse(localStorage.getItem(userWordsStorageKey(languageId)) || "[]");
-        return Array.isArray(words) ? words : [];
-      } catch {
-        return [];
+      const memoKey = `${userData.version}|${state.library.fingerprint}`;
+      if (userWordsMemo.key !== memoKey) userWordsMemo = { key: memoKey, lists: new Map() };
+      const scope = languageScope(languageId);
+      if (!userWordsMemo.lists.has(scope)) {
+        userWordsMemo.lists.set(scope, userData.entries("favoriteWord", scope)
+          .map(({ key, value }) => favoriteWordItem(key, value))
+          .sort((left, right) => right.savedAt.localeCompare(left.savedAt)));
       }
+      return userWordsMemo.lists.get(scope);
+    }
+
+    function compactFacets(result) {
+      const facets = {
+        tag: String(result?.tag || ""),
+        oxford: Number(result?.oxford) || 0,
+        collins: Number(result?.collins) || 0,
+        bnc: Number(result?.bnc) || 0,
+        frq: Number(result?.frq) || 0
+      };
+      return Object.fromEntries(Object.entries(facets).filter(([, value]) => value));
+    }
+
+    // Where a word was saved from: the current practice sentence, as a library reference when possible.
+    function currentSentenceSourceFields() {
+      const item = state.sentences[state.index];
+      const ref = librarySentenceRef(item);
+      if (ref) return { s: ref };
+      const text = currentSentence();
+      return text ? { st: text, sx: currentTranslation() } : {};
     }
 
     function dictionaryFavoriteKey(word) {
@@ -4304,11 +4291,7 @@ ${orderNote}`;
     }
 
     function updateDictionaryAutoSpeak(control, word) {
-      try {
-        localStorage.setItem(DICTIONARY_AUTO_SPEAK_KEY, control.checked ? "1" : "0");
-      } catch {
-        /* ignore storage errors */
-      }
+      persistSetting("dictionaryAutoSpeak", control.checked ? "1" : "0");
       document.querySelectorAll("[data-dictionary-auto-speak]").forEach((checkbox) => {
         checkbox.checked = control.checked;
       });
@@ -4337,30 +4320,22 @@ ${orderNote}`;
       const level = Math.max(1, Math.min(5, Number(button.dataset.dictionaryFavoriteLevel) || 1));
       const existingRating = existingIndex >= 0 ? Math.max(1, Math.min(5, Number(words[existingIndex].rating) || 1)) : 0;
       const saved = existingIndex < 0 || level !== existingRating;
+      const scope = languageScope(languageId);
       if (existingIndex < 0) {
-        words.unshift({
-          word,
-          phonetic: String(result.phonetic || ""),
-          definition: String(result.definition || ""),
-          translation: String(result.translation || ""),
-          pos: String(result.pos || ""),
-          collins: Number(result.collins) || 0,
-          oxford: Number(result.oxford) || 0,
-          tag: String(result.tag || ""),
-          bnc: Number(result.bnc) || 0,
-          frq: Number(result.frq) || 0,
-          exchange: String(result.exchange || ""),
-          sourceSentence: $("dictionaryLibraryModal").hidden && !inEnglishReference ? currentSentence() : "",
-          sourceTranslation: $("dictionaryLibraryModal").hidden && !inEnglishReference ? currentTranslation() : "",
-          rating: level,
-          savedAt: new Date().toISOString()
-        });
+        const withSource = $("dictionaryLibraryModal").hidden && !inEnglishReference && languageId === state.learningLanguageId;
+        userData.put("favoriteWord", key, {
+          w: word,
+          r: level,
+          t: Math.floor(Date.now() / 1000),
+          f: compactFacets(result),
+          ...(withSource ? currentSentenceSourceFields() : {})
+        }, scope);
       } else if (saved) {
-        words[existingIndex].rating = level;
+        userData.put("favoriteWord", key, { ...(userData.get("favoriteWord", key, scope) || { w: word, t: Math.floor(Date.now() / 1000) }), r: level }, scope);
       } else {
-        words.splice(existingIndex, 1);
+        userData.remove("favoriteWord", key, scope);
       }
-      localStorage.setItem(userWordsStorageKey(languageId), JSON.stringify(words));
+      scheduleCloudSync();
       syncDictionaryFavoriteButtons(word, languageId, saved);
       if (!$("userPhrasesModal").hidden) {
         renderUserPhrases();
@@ -4478,9 +4453,21 @@ ${orderNote}`;
       }
     }
 
-    function renderUserWordDetail(item) {
+    // The saved favorite has no meanings of its own; they are looked up in the dictionary for display.
+    let userWordDetailToken = 0;
+
+    async function renderUserWordDetail(favorite) {
+      const token = ++userWordDetailToken;
+      $("userPhraseDetail").dataset.word = String(favorite.word || "");
+      let entry = null;
+      try {
+        entry = await window.langLSRWDictionary.query(favorite.word, currentDictionaryId());
+      } catch {
+        entry = null;
+      }
+      if (token !== userWordDetailToken) return;
+      const item = { ...(entry || {}), ...favorite, word: String(favorite.word || entry?.word || "") };
       state.dictionaryLookupEntry = item;
-      $("userPhraseDetail").dataset.word = String(item.word || "");
       const translations = dictionaryTextLines(item.translation);
       const definitions = dictionaryTextLines(item.definition);
       const collins = Math.max(0, Math.min(5, Number(item.collins) || 0));
@@ -4503,23 +4490,37 @@ ${orderNote}`;
         </div>` : ""}
         ${dictionaryFrequencyHtml(bnc, frq)}
         ${dictionaryExchangeHtml(exchanges)}
+        ${entry ? "" : `<div class="dictionary-lookup-empty">没有查到释义：${escapeHtml(currentLearningLanguage().dictionaryName)}未安装，或词典中没有这个词。</div>`}
         ${item.sourceSentence ? `<div class="user-phrase-source"><div>${escapeHtml(item.sourceSentence)}</div>${item.sourceTranslation ? `<div>${escapeHtml(item.sourceTranslation)}</div>` : ""}</div>` : ""}
         ${dictionaryWordStudyEnabled() ? dictionaryWordMasteryHtml(item.word) : ""}`;
       autoSpeakLookedUpWord(item.word);
     }
 
-    function userSentencesStorageKey() {
-      if (state.cloudUser?.id) return `langLSRWUserSentences:cloud:${state.cloudUser.id}${learningLanguageStorageSuffix()}`;
-      return `langLSRWUserSentences:${state.currentUser}${learningLanguageStorageSuffix()}`;
-    }
+    // Sentence favorites (favoriteSentence): a built-in library sentence is saved as a reference
+    // { lib, id, lf, fp: null }; other sentences keep their text. Invalid references are left out of the list.
+    let userSentencesMemo = { key: "", lists: new Map() };
 
     function loadUserSentences() {
-      try {
-        const sentences = JSON.parse(localStorage.getItem(userSentencesStorageKey()) || "[]");
-        return Array.isArray(sentences) ? sentences : [];
-      } catch {
-        return [];
+      const memoKey = `${userData.version}|${state.library.fingerprint}`;
+      if (userSentencesMemo.key !== memoKey) userSentencesMemo = { key: memoKey, lists: new Map() };
+      const scope = languageScope();
+      if (!userSentencesMemo.lists.has(scope)) {
+        const items = userData.entries("favoriteSentence", scope).map(({ key, value }) => {
+          const resolved = value?.lib ? resolveLibrarySentence(value) : null;
+          if (value?.lib && !resolved) return null;
+          return {
+            recordKey: key,
+            sentence: resolved ? resolved.text : String(value?.text || ""),
+            translation: resolved ? resolved.translation : String(value?.tr || ""),
+            sourceId: resolved ? String(value.id) : "",
+            libraryId: resolved ? String(value.lib) : "",
+            rating: Math.max(1, Math.min(5, Number(value?.r) || 1)),
+            savedAt: new Date((Number(value?.t) || 0) * 1000).toISOString()
+          };
+        }).filter((item) => item && item.sentence);
+        userSentencesMemo.lists.set(scope, items.sort((left, right) => right.savedAt.localeCompare(left.savedAt)));
       }
+      return userSentencesMemo.lists.get(scope);
     }
 
     function userSentenceItemHtml(item) {
@@ -4590,31 +4591,30 @@ ${orderNote}`;
       const key = sentenceFavoriteKey(sentence);
       if (!key) return;
       const sentences = loadUserSentences();
-      const existingIndex = sentences.findIndex((item) => sentenceFavoriteKey(item.sentence) === key);
+      const existing = sentences.find((item) => sentenceFavoriteKey(item.sentence) === key);
       const level = Math.max(1, Math.min(5, Number(button.dataset.sentenceFavoriteLevel) || 1));
-      const existingRating = existingIndex >= 0 ? Math.max(1, Math.min(5, Number(sentences[existingIndex].rating) || 1)) : 0;
-      const saved = existingIndex < 0 || level !== existingRating;
-      if (existingIndex < 0) {
+      const existingRating = existing ? Math.max(1, Math.min(5, Number(existing.rating) || 1)) : 0;
+      const saved = !existing || level !== existingRating;
+      const scope = languageScope();
+      if (!existing) {
         const current = normalizeSentenceItem(state.sentences[state.index]);
         const source = sentenceFavoriteKey(current.text) === key
           ? current
           : normalizeSentenceItem(state.sentences.find((item) => sentenceFavoriteKey(sentenceText(item)) === key));
-        const fromLibrary = sentenceFavoriteKey(source.text) === key;
-        sentences.unshift({
-          sentence,
-          translation: fromLibrary ? source.translation : "",
-          sourceId: fromLibrary ? source.id : "",
-          libraryId: fromLibrary ? source.libraryId : "",
-          libraryLabel: fromLibrary ? String(state.currentLibraryLabel || "") : "",
-          rating: level,
-          savedAt: new Date().toISOString()
-        });
+        const fromPractice = sentenceFavoriteKey(source.text) === key;
+        const ref = fromPractice ? librarySentenceRef(source) : null;
+        const savedAt = Math.floor(Date.now() / 1000);
+        if (ref) {
+          userData.put("favoriteSentence", `${ref.lib}#${ref.id}`, { ...ref, fp: null, r: level, t: savedAt }, scope);
+        } else {
+          userData.put("favoriteSentence", `t:${key}`, { text: sentence, tr: fromPractice ? source.translation : "", fp: null, r: level, t: savedAt }, scope);
+        }
       } else if (saved) {
-        sentences[existingIndex].rating = level;
+        userData.put("favoriteSentence", existing.recordKey, { ...(userData.get("favoriteSentence", existing.recordKey, scope) || {}), r: level }, scope);
       } else {
-        sentences.splice(existingIndex, 1);
+        userData.remove("favoriteSentence", existing.recordKey, scope);
       }
-      localStorage.setItem(userSentencesStorageKey(), JSON.stringify(sentences));
+      scheduleCloudSync();
       const ratingGroup = button.closest(".dictionary-rating");
       const inTarget = Boolean(button.closest("#target"));
       if (ratingGroup) ratingGroup.outerHTML = sentenceFavoriteButton(sentence, saved);
@@ -4658,8 +4658,22 @@ ${orderNote}`;
     }
 
     const WORD_REVIEW_NEW_LIMIT = 20;
-    const WORD_REVIEW_MAX_EASE = 2.5;
-    const WORD_REVIEW_EASE_RECOVERY = 0.05;
+    // The interval factor (间隔扩大系数) is stored in hundredths as the record field `e` (250 = 2.5), so every step is
+    // exact integer arithmetic and never drifts like 2.3 - 0.2 = 2.0999999999999996. It is divided by 100 only to
+    // compute an interval and to display it.
+    const WORD_REVIEW_START_EASE = 250;
+    const WORD_REVIEW_MIN_EASE = 130;
+    const WORD_REVIEW_MAX_EASE = 250;
+    const WORD_REVIEW_EASE_RECOVERY = 5;
+    const WORD_REVIEW_EASE_PENALTY = 20;
+
+    function wordReviewEase(record) {
+      return Number.isInteger(record?.e) ? record.e : WORD_REVIEW_START_EASE;
+    }
+
+    function easeText(hundredths) {
+      return String(hundredths / 100);
+    }
     const WORD_REVIEW_DAY_MS = 24 * 60 * 60 * 1000;
     const WORD_REVIEW_MASTERY_INTERVAL_DAYS = 21;
     const WORD_REVIEW_MASTERY_REPS = 3;
@@ -4700,72 +4714,44 @@ ${orderNote}`;
       } : {};
     }
 
-    function wordReviewsStorageKey() {
-      if (state.cloudUser?.id) return `langLSRWWordReviews:cloud:${state.cloudUser.id}${learningLanguageStorageSuffix()}`;
-      return `langLSRWWordReviews:${state.currentUser || "guest"}${learningLanguageStorageSuffix()}`;
-    }
-
+    // wordProgress: one record per word of the current learning language,
+    // { r: { mode: schedule }, m: { mode: manually-mastered time } }. Callers receive copies they may change freely.
     function loadWordReviewRecords() {
-      try {
-        const data = JSON.parse(localStorage.getItem(wordReviewsStorageKey()) || "{}");
-        return data?.words && typeof data.words === "object" ? data.words : {};
-      } catch {
-        return {};
-      }
-    }
-
-    function saveWordReviewRecords(records) {
-      localStorage.setItem(wordReviewsStorageKey(), JSON.stringify({ version: 1, words: records }));
-    }
-
-    // Manual mastery is a separate per-mode mark ({ word: { recognize: isoTime, ... } }). It never touches the
-    // spaced-repetition record: marked modes count as mastered, show 🟢, and are left out of normal rounds.
-    const migratedManualMasteryKeys = new Set();
-
-    function wordManualMasteryStorageKey() {
-      return wordReviewsStorageKey().replace("langLSRWWordReviews", "langLSRWWordManualMastery");
+      const records = {};
+      userData.entries("wordProgress", languageScope()).forEach(({ key, value }) => {
+        if (value?.r && Object.keys(value.r).length) records[key] = structuredClone(value.r);
+      });
+      return records;
     }
 
     function loadWordManualMastery() {
-      migrateLegacyManualMastery();
-      try {
-        const data = JSON.parse(localStorage.getItem(wordManualMasteryStorageKey()) || "{}");
-        return data?.words && typeof data.words === "object" ? data.words : {};
-      } catch {
-        return {};
-      }
+      const marks = {};
+      userData.entries("wordProgress", languageScope()).forEach(({ key, value }) => {
+        if (value?.m && Object.keys(value.m).length) marks[key] = structuredClone(value.m);
+      });
+      return marks;
+    }
+
+    // Writes only the words whose part actually changed.
+    function writeWordProgress(part, map) {
+      const scope = languageScope();
+      const keys = new Set([...Object.keys(map), ...userData.entries("wordProgress", scope).map((entry) => entry.key)]);
+      keys.forEach((key) => {
+        const current = userData.get("wordProgress", key, scope) || {};
+        const next = { r: current.r || {}, m: current.m || {}, [part]: map[key] || {} };
+        if (JSON.stringify(next) === JSON.stringify({ r: current.r || {}, m: current.m || {} })) return;
+        if (!Object.keys(next.r).length && !Object.keys(next.m).length) userData.remove("wordProgress", key, scope);
+        else userData.put("wordProgress", key, next, scope);
+      });
+      scheduleCloudSync();
+    }
+
+    function saveWordReviewRecords(records) {
+      writeWordProgress("r", records);
     }
 
     function saveWordManualMastery(marks) {
-      localStorage.setItem(wordManualMasteryStorageKey(), JSON.stringify({ version: 1, words: marks }));
-    }
-
-    // One earlier build wrote manual mastery into the review record itself; restore those records and keep the mark.
-    function migrateLegacyManualMastery() {
-      const storageKey = wordReviewsStorageKey();
-      if (migratedManualMasteryKeys.has(storageKey)) return;
-      migratedManualMasteryKeys.add(storageKey);
-      const records = loadWordReviewRecords();
-      let marks = null;
-      Object.entries(records).forEach(([key, wordRecord]) => {
-        Object.entries(wordRecord || {}).forEach(([mode, record]) => {
-          if (!record?.manual) return;
-          if (!marks) {
-            try {
-              marks = JSON.parse(localStorage.getItem(wordManualMasteryStorageKey()) || "{}").words || {};
-            } catch {
-              marks = {};
-            }
-          }
-          marks[key] = { ...(marks[key] || {}), [mode]: record.lastReviewedAt || new Date().toISOString() };
-          if (record.manualPrevious) wordRecord[mode] = record.manualPrevious;
-          else delete wordRecord[mode];
-        });
-        if (!Object.keys(wordRecord || {}).length) delete records[key];
-      });
-      if (!marks) return;
-      saveWordReviewRecords(records);
-      saveWordManualMastery(marks);
+      writeWordProgress("m", marks);
     }
 
     function wordModeMastered(key, mode, records, marks) {
@@ -4935,7 +4921,7 @@ ${orderNote}`;
       const now = Date.now();
       const next = {
         interval: Number(record?.interval) || 0,
-        ease: Number(record?.ease) || 2.5,
+        e: wordReviewEase(record),
         reps: Number(record?.reps) || 0,
         lapses: Number(record?.lapses) || 0
       };
@@ -4943,12 +4929,12 @@ ${orderNote}`;
         next.reps = 0;
         next.lapses += 1;
         next.interval = 0;
-        next.ease = Math.max(1.3, next.ease - 0.2);
+        next.e = Math.max(WORD_REVIEW_MIN_EASE, next.e - WORD_REVIEW_EASE_PENALTY);
         return { ...next, lastGrade: grade, due: now + 10 * 60 * 1000, lastReviewedAt: new Date(now).toISOString() };
       }
-      next.interval = next.reps === 0 ? 1 : next.reps === 1 ? 3 : Math.round(next.interval * next.ease);
-      // A clean recall slowly restores ease, so early lapses do not slow the word down forever.
-      next.ease = Math.min(WORD_REVIEW_MAX_EASE, Math.round((next.ease + WORD_REVIEW_EASE_RECOVERY) * 100) / 100);
+      next.interval = next.reps === 0 ? 1 : next.reps === 1 ? 3 : Math.round(next.interval * next.e / 100);
+      // A clean recall slowly restores the factor, so early lapses do not slow the word down forever.
+      next.e = Math.min(WORD_REVIEW_MAX_EASE, next.e + WORD_REVIEW_EASE_RECOVERY);
       next.reps += 1;
       return { ...next, lastGrade: grade, due: now + next.interval * WORD_REVIEW_DAY_MS, lastReviewedAt: new Date(now).toISOString() };
     }
@@ -5131,7 +5117,7 @@ ${orderNote}`;
             <li><b>答错</b>：间隔天数清零，10 分钟后本轮再考；之后重新从 1 天、3 天开始。</li>
             </ul>
             <p><b>间隔扩大系数</b></p><ul>
-            <li>起始＝2.5；答错 −0.2，答对 +${WORD_REVIEW_EASE_RECOVERY}；范围：1.3~${WORD_REVIEW_MAX_EASE}。</li>
+            <li>起始＝${easeText(WORD_REVIEW_START_EASE)}；答错 −${easeText(WORD_REVIEW_EASE_PENALTY)}，答对 +${easeText(WORD_REVIEW_EASE_RECOVERY)}；范围：${easeText(WORD_REVIEW_MIN_EASE)}~${easeText(WORD_REVIEW_MAX_EASE)}。</li>
             <li>最低 1.3，保证答对后，间隔天数至少增加 30%，不会永远卡在原地。</li>
             <li>越常答错的词间隔扩大系数越低、考得越勤；之后一直答对，间隔扩大系数会慢慢恢复。</li>
             </ul>
@@ -5486,7 +5472,16 @@ ${orderNote}`;
         }
         item = item || review.wordIndex.get(key) || { word: key };
       } else {
-        item = loadUserWords().find((word) => dictionaryFavoriteKey(word.word) === key) || null;
+        const favorite = loadUserWords().find((word) => dictionaryFavoriteKey(word.word) === key) || null;
+        if (favorite) {
+          let entry = null;
+          try {
+            entry = await window.langLSRWDictionary.query(favorite.word, currentDictionaryId());
+          } catch {
+            entry = null;
+          }
+          item = { ...(entry || {}), ...favorite, word: favorite.word };
+        }
       }
       if (state.wordReview !== review || review.loadToken !== loadToken) return;
       if (!item) {
@@ -5557,6 +5552,7 @@ ${orderNote}`;
       if (!review || !item) return;
       const key = dictionaryFavoriteKey(item.word);
       review.results[grade] += 1;
+      userData.append("reviewEvent", [key, review.mode, grade === "good" ? 1 : 0, review.hints ? 1 : 0, review.free ? 1 : 0, Math.floor(Date.now() / 1000)], languageScope());
       if (!review.free) saveWordReviewGrade(key, review.mode, grade);
       if (grade === "again") review.queue.push(key);
     }
@@ -7352,13 +7348,7 @@ ${orderNote}`;
       renderTarget();
       renderTypedPreview();
       renderErrors();
-      renderLearnedCount();
       renderSpeakingPage();
-    }
-
-    function renderLearnedCount() {
-      const learnedCount = $("learnedCount");
-      if (learnedCount) learnedCount.textContent = `已学习：${state.learnedCount}`;
     }
 
     function switchSpeakingSentence(nextIndex, shouldSpeak = false) {
@@ -7405,12 +7395,20 @@ ${orderNote}`;
       if (shouldSpeak) autoSpeakCurrentSentence();
     }
 
+    // Sentences with a mistake in any recorded practice event of the current language.
     function mistakeSentenceIndices() {
-      const mistakenSentences = new Set(state.history
-        .filter((item) => item.errorCount > 0)
-        .map((item) => item.sentence));
+      const refs = new Set();
+      const texts = new Set();
+      userData.entries("practiceEvent", languageScope()).forEach(({ value }) => {
+        if (!Array.isArray(value) || !(Number(value[7]) > 0)) return;
+        if (value[1]) refs.add(`${value[1]}#${value[2]}`);
+        else if (value[4]) texts.add(value[4]);
+      });
       return state.sentences
-        .map((item, index) => mistakenSentences.has(sentenceText(item)) ? index : -1)
+        .map((item, index) => {
+          const normalized = normalizeSentenceItem(item);
+          return refs.has(`${normalized.libraryId}#${normalized.id}`) || texts.has(normalized.text) ? index : -1;
+        })
         .filter((index) => index >= 0);
     }
 
@@ -7471,7 +7469,6 @@ ${orderNote}`;
     }
 
     function goNextSentence() {
-      incrementLearnedCount();
       state.index = pickNextIndex();
       resetCurrent(true);
     }
@@ -7482,11 +7479,10 @@ ${orderNote}`;
     }
 
     // Up / Down keys: the neighbouring sentence in library order, whatever the practice mode, so random practice can
-    // still step through the text around the current sentence. Moving forward counts as learned, like goNextSentence.
+    // still step through the text around the current sentence.
     function goSentenceInOrder(direction) {
       const total = state.sentences.length;
       if (!total) return;
-      if (direction > 0) incrementLearnedCount();
       state.index = (state.index + direction + total) % total;
       resetCurrent(true);
     }
@@ -7508,18 +7504,7 @@ ${orderNote}`;
       state.finished = true;
       const metrics = calculateMetrics();
       renderMetrics(metrics);
-      const record = {
-        sentence: currentSentence(),
-        accuracy: metrics.accuracy,
-        fluency: metrics.fluency,
-        errorCount: metrics.errors.length,
-        wpm: metrics.wpm,
-        at: new Date().toISOString()
-      };
-      state.history.unshift(record);
-      state.history = state.history.slice(0, 80);
-      saveUserHistory();
-      incrementLearnedCount();
+      // The home-page dictation is not recorded (it will be removed); practice events come from sentence review.
       state.index = pickNextIndex();
       resetCurrent(true);
     }
@@ -7982,7 +7967,6 @@ ${orderNote}`;
       event.currentTarget.blur();
     });
     $("nextUnifiedBtn").addEventListener("click", (event) => {
-      incrementLearnedCount();
       switchSpeakingSentence(pickSentenceIndex(1), true);
       event.currentTarget.blur();
     });
@@ -8322,7 +8306,7 @@ ${orderNote}`;
       if (!file) return;
       try {
         const data = JSON.parse(await file.text());
-        restoreBackupData(data);
+        await restoreBackupData(data);
       } catch {
         alert("导入失败，请确认选择的是导出的 JSON 文件。");
       } finally {
@@ -8434,7 +8418,7 @@ ${orderNote}`;
     window.addEventListener("keydown", handleGlobalShortcut, { capture: true });
     window.addEventListener("keyup", handleGlobalShortcutKeyup, { capture: true });
 
-    applyTheme(state.theme);
+    applyTheme(state.theme, { persist: false });
     applyFontSettings(state.fontSettings, { persist: false });
     applyGrammarColors(state.grammarColors, { persist: false });
     setActivePage(state.activePage);
@@ -8450,8 +8434,6 @@ ${orderNote}`;
     }
 
     if (state.currentUser) {
-      loadUserHistory();
-      loadLearnedCount();
       $("userBadge").textContent = `用户：${state.currentUser}`;
       $("loginScreen").classList.remove("active");
     } else {
@@ -8459,6 +8441,10 @@ ${orderNote}`;
       showLogin();
     }
 
-    tryLoadDefaultLibrary();
     render();
-    initializeCloudAuth();
+    (async () => {
+      await openUserData();
+      await tryLoadDefaultLibrary();
+      render();
+      initializeCloudAuth();
+    })();
