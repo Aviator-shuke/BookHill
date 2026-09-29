@@ -4814,6 +4814,11 @@
       padding: 8px 20px 12px;
     }
 
+    /* 单词练习 shows the meanings under the masked word. */
+    .word-review-pattern-row ~ .word-review-pos {
+      margin-top: 8px;
+    }
+
     .word-review-pos {
       color: var(--muted);
       font-size: 13px;
@@ -4851,9 +4856,9 @@
     }
 
     .word-review-pattern {
-      display: inline-flex;
-      flex-wrap: wrap;
-      gap: 0;
+      /* Plain inline letters (not flex items), so a copied word stays on one line. */
+      display: block;
+      overflow-wrap: anywhere;
       font-family: var(--font-english-content), "Segoe UI", sans-serif;
       font-size: 20px;
       letter-spacing: 0.02em;
@@ -4870,6 +4875,8 @@
       color: var(--ink);
       background: transparent;
       font-weight: 600;
+      /* Uncovered letters can be selected and copied; covered ones stay unselectable so the word cannot be copied early. */
+      user-select: text;
     }
 
     /* After answering, letters that differ from what was typed. */
@@ -5144,6 +5151,72 @@
     /* 听写 only needs the masked word, the input, and one short row of hints and two buttons. */
     #wordListenReviewModal .word-review-stage {
       width: min(520px, 100%);
+    }
+
+    /* 单词练习 (one looked-up word) lists the meanings under the mask: the dialog grows with the longest meaning line
+       (never below the normal 520px, never above 760px), and the meaning text is smaller. */
+    #wordListenReviewModal.is-single-word .word-review-stage {
+      width: fit-content;
+      min-width: min(520px, 100%);
+      max-width: min(760px, 100%);
+    }
+
+    .is-single-word .word-review-meanings {
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .is-single-word .word-review-pos {
+      font-size: 12px;
+    }
+
+    /* 单词练习: 按住说话 + 识别结果 under the meanings. */
+    .word-review-speak {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      min-height: 28px;
+      font-size: 13px;
+    }
+
+    .word-review-speak > strong {
+      font-size: 14px;
+    }
+
+    .word-speak-button {
+      flex: 0 0 auto;
+    }
+
+    .word-speak-result {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .word-speak-hint {
+      color: var(--muted);
+    }
+
+    .word-speak-text {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .word-speak-mark {
+      font-size: 13px;
+      animation: settings-panel-in 160ms ease;
+    }
+
+    .word-speak-text.is-correct,
+    .word-speak-mark.is-correct {
+      color: #16a34a;
+    }
+
+    .word-speak-text.is-wrong,
+    .word-speak-mark.is-wrong {
+      color: #dc2626;
     }
 
     .word-review-result-panel {
@@ -5468,11 +5541,35 @@
       cursor: pointer;
     }
 
+    /* 练习 beside a word's stars: a small framed button whose text is the same size as 自动发音 (13px), on one line. */
+    /* Must beat `.dictionary-lookup-header button` (26px wide, 18px text), which is meant for the × close button. */
+    .dictionary-lookup-header .dictionary-practice-button {
+      width: auto;
+      /* Same 1.5px lift as the 自动发音 text, so both texts sit on one line. */
+      position: relative;
+      top: -1.5px;
+      min-width: 0;
+      min-height: 20px;
+      margin-right: 0;
+      /* The box is centred, but Chinese glyphs sit low and left in it: nudge the text 1px up and 1px right. */
+      padding: 0 2px 2px 4px;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1;
+      white-space: nowrap;
+      transition: background 120ms ease, transform 100ms ease;
+    }
+
+    .dictionary-lookup-header .dictionary-practice-button:hover {
+      transform: translateY(-1px);
+    }
+
     .dictionary-auto-speak {
       display: inline-flex;
       /* Text sits 1.5px above the shared centre line; the checkbox is moved back down 1.5px to stay on it. */
       position: relative;
       top: -1.5px;
+      left: 3px;
       align-items: center;
       gap: 3px;
       margin-right: 4px;

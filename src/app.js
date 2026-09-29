@@ -2983,8 +2983,8 @@ ${orderNote}`;
     // 朗读当前词/句 works wherever something can be spoken: the word in an open lookup popover, review card, or
     // 收藏 / 词库 detail; otherwise the current sentence on the 听 and 说 pages. Returns true when it spoke.
     function speakCurrentWordOrSentence() {
-      if (!$("englishLookupPopover").hidden && $("englishLookupPopover").dataset.word) {
-        speakText($("englishLookupPopover").dataset.word, englishReferenceSpeechOptions());
+      if (englishLookupTop()?.dataset.word) {
+        speakText(englishLookupTop().dataset.word, englishReferenceSpeechOptions());
         return true;
       }
       if (!$("dictionaryLookupPopover").hidden && $("dictionaryLookupPopover").dataset.word) {
@@ -3035,9 +3035,9 @@ ${orderNote}`;
       if (event.isComposing) return;
       if (event.target && event.target.closest && event.target.closest("[data-shortcut]")) return;
       if (document.activeElement === counterIndexInput || event.target === counterIndexInput) return;
-      if (event.key === "Escape" && !$("englishLookupPopover").hidden) {
+      if (event.key === "Escape" && englishLookupTop()) {
         event.preventDefault();
-        closeEnglishLookup();
+        closeEnglishLookup(englishLookupTop());
         return;
       }
       if (event.key === "Escape" && !$("dictionaryLookupPopover").hidden) {
@@ -3063,6 +3063,13 @@ ${orderNote}`;
       if (event.key === "Escape" && !$("settingsModal").hidden) {
         event.preventDefault();
         closeSettings();
+        return;
+      }
+      // 单词练习: the 按住说话 shortcut holds the same recognition as the button (keydown starts, keyup stops).
+      if (state.wordReview?.source === "single" && !document.querySelector("#wordListenReviewModal")?.hidden
+        && normalizeShortcutEvent(event) === state.shortcuts.holdSpeaking) {
+        event.preventDefault();
+        if (!event.repeat && !wordSpeakRecognition) startWordSpeak();
         return;
       }
       const speakShortcut = normalizeShortcutEvent(event);
@@ -3151,6 +3158,11 @@ ${orderNote}`;
       if (event.isComposing) return;
       if (event.target && event.target.closest && event.target.closest("[data-shortcut]")) return;
       if (document.activeElement === counterIndexInput || event.target === counterIndexInput) return;
+      if (wordSpeakRecognition && normalizeShortcutEvent(event) === state.shortcuts.holdSpeaking) {
+        event.preventDefault();
+        stopWordSpeak();
+        return;
+      }
       if (isTopMenuOpen()) {
         if (state.speaking.holdActive) scheduleStopSpeakingPractice();
         clearPeekedWord();
@@ -3727,7 +3739,7 @@ ${orderNote}`;
       popover.innerHTML = `
         <div class="dictionary-lookup-header">
           ${dictionaryLookupHeadwordHtml(word, result.phonetic)}
-          <div class="dictionary-lookup-actions">${dictionaryAutoSpeakToggle()}${collectionControl}<button type="button" data-dictionary-close aria-label="关闭">×</button></div>
+          <div class="dictionary-lookup-actions">${dictionaryAutoSpeakToggle()}${dictionaryPracticeButtons(word)}${collectionControl}<button type="button" data-dictionary-close aria-label="关闭">×</button></div>
         </div>
         ${dictionaryLookupBodyHtml(result)}
         ${masteryHtml}`;
@@ -3773,38 +3785,64 @@ ${orderNote}`;
     }
 
     function englishReferenceSource(target) {
-      if (currentLearningLanguage().id === "en" && !target.closest("#englishLookupPopover")) return null;
+      if (currentLearningLanguage().id === "en" && !target.closest(".english-lookup-popover")) return null;
       // The practice area's English translation of the current (or a long-text) sentence, while it is shown.
       const translation = target.closest(".translation-prompt:not(.is-hidden):not(.translation-editor) > span");
       if (translation) return translation;
       const container = target.closest(".dictionary-meanings, .dictionary-definitions");
-      if (!container?.closest("#dictionaryLookupPopover, #userPhraseDetail, #dictionaryLibraryDetail, #englishLookupPopover")) return null;
+      if (!container?.closest("#dictionaryLookupPopover, #userPhraseDetail, #dictionaryLibraryDetail, .english-lookup-popover")) return null;
       return container;
     }
 
-    function renderEnglishLookupMessage(word, message) {
-      $("englishLookupPopover").innerHTML = `<div class="dictionary-lookup-header"><strong>${escapeHtml(word)}</strong><div class="dictionary-lookup-actions"><span class="english-lookup-label">英语词典</span><button type="button" data-dictionary-close aria-label="关闭" title="关闭英语词典查询">×</button></div></div><div class="dictionary-lookup-empty">${message}</div>`;
+    // English lookups stack: a lookup started inside an English popover opens a new popover above it and keeps it;
+    // any other lookup starts over from the base popover. Each popover keeps its own word, entry, and anchor.
+    const englishLookupStack = [];
+
+    function englishLookupTop() {
+      return englishLookupStack[englishLookupStack.length - 1] || null;
     }
 
-    async function lookupEnglishReference(word, anchor) {
-      const popover = $("englishLookupPopover");
-      state.englishLookupAnchor = anchor;
+    function englishLookupPopoverFor(fromPopover) {
+      const index = fromPopover ? englishLookupStack.indexOf(fromPopover) : -1;
+      if (index < 0) {
+        closeEnglishLookup();
+        englishLookupStack.push($("englishLookupPopover"));
+        return $("englishLookupPopover");
+      }
+      if (englishLookupStack[index + 1]) closeEnglishLookup(englishLookupStack[index + 1]);
+      const popover = document.createElement("div");
+      popover.className = "dictionary-lookup-popover english-lookup-popover";
+      popover.setAttribute("role", "dialog");
+      popover.setAttribute("aria-label", "英语词典查询");
+      document.body.append(popover);
+      englishLookupStack.push(popover);
+      return popover;
+    }
+
+    function renderEnglishLookupMessage(word, message, popover = $("englishLookupPopover")) {
+      popover.innerHTML = `<div class="dictionary-lookup-header"><strong>${escapeHtml(word)}</strong><div class="dictionary-lookup-actions"><span class="english-lookup-label">英语词典</span><button type="button" data-dictionary-close aria-label="关闭" title="关闭英语词典查询">×</button></div></div><div class="dictionary-lookup-empty">${message}</div>`;
+    }
+
+    // `popover` re-uses an open popover (switching to a word form); `fromPopover` stacks a new one above it.
+    async function lookupEnglishReference(word, anchor, { popover = null, fromPopover = null } = {}) {
+      popover ||= englishLookupPopoverFor(fromPopover);
+      popover.lookupAnchor = anchor;
       popover.dataset.word = word;
       popover.hidden = false;
-      renderEnglishLookupMessage(word, `正在查询 ${escapeHtml(word)}...`);
+      renderEnglishLookupMessage(word, `正在查询 ${escapeHtml(word)}...`, popover);
       placeLookupPopover(popover, anchor);
       try {
         const result = await window.langLSRWDictionary.query(word, "ecdict");
         if (popover.dataset.word !== word) return;
         if (!result) {
-          renderEnglishLookupMessage(word, "英语词典中未找到该词。");
+          renderEnglishLookupMessage(word, "英语词典中未找到该词。", popover);
         } else {
           const headword = String(result.word || word).trim();
-          state.englishLookupEntry = result;
+          popover.lookupEntry = result;
           popover.innerHTML = `
             <div class="dictionary-lookup-header">
               ${dictionaryLookupHeadwordHtml(headword, result.phonetic)}
-              <div class="dictionary-lookup-actions"><span class="english-lookup-label" title="英语词典（ECDICT）的释义；点星收藏会存入英语收藏，切到“英”后在收藏页查看">英语词典</span>${dictionaryFavoriteButton(headword, false, "en")}<button type="button" data-dictionary-close aria-label="关闭" title="关闭英语词典查询">×</button></div>
+              <div class="dictionary-lookup-actions">${currentLearningLanguage().id === "en" ? dictionaryPracticeButtons(headword) : ""}${dictionaryFavoriteButton(headword, false, "en")}<button type="button" data-dictionary-close aria-label="关闭" title="关闭英语词典查询">×</button></div>
             </div>
             ${dictionaryLookupBodyHtml(result, window.langLSRWLanguages.en.dictionary)}`;
           if (dictionaryAutoSpeakEnabled()) speakText(headword, englishReferenceSpeechOptions());
@@ -3812,7 +3850,7 @@ ${orderNote}`;
       } catch (error) {
         if (popover.dataset.word !== word) return;
         const unavailable = String(error?.message || error).includes("尚未安装");
-        renderEnglishLookupMessage(word, unavailable ? "英语词典（ECDICT）尚未安装，请先在设置中安装。" : `查询失败：${escapeHtml(error?.message || String(error))}`);
+        renderEnglishLookupMessage(word, unavailable ? "英语词典（ECDICT）尚未安装，请先在设置中安装。" : `查询失败：${escapeHtml(error?.message || String(error))}`, popover);
       }
       placeLookupPopover(popover, anchor);
     }
@@ -3837,10 +3875,18 @@ ${orderNote}`;
       }
     }
 
-    function closeEnglishLookup() {
-      const popover = $("englishLookupPopover");
-      popover.hidden = true;
-      popover.dataset.word = "";
+    // Closes `from` and every popover stacked above it; without `from`, closes them all.
+    function closeEnglishLookup(from = null) {
+      const index = from ? englishLookupStack.indexOf(from) : 0;
+      if (index < 0) return;
+      englishLookupStack.splice(index).forEach((popover) => {
+        if (popover.id) {
+          popover.hidden = true;
+          popover.dataset.word = "";
+        } else {
+          popover.remove();
+        }
+      });
     }
 
     // One-line frequency ranks of an entry, labelled by the learning language's dictionary rules.
@@ -4010,7 +4056,7 @@ ${orderNote}`;
       const collectionControl = dictionaryCollectionEnabled() ? dictionaryFavoriteButton(item.word) : dictionaryDisabledNote("收藏");
       const masteryHtml = dictionaryWordStudyEnabled() ? dictionaryWordMasteryHtml(item.word) : "";
       $("dictionaryLibraryDetail").innerHTML = `
-        <div class="dictionary-lookup-header"><div class="dictionary-headword"><strong>${escapeHtml(item.word)}</strong>${item.phonetic ? `<button class="dictionary-phonetic" type="button" data-dictionary-pronounce="${escapeHtml(item.word)}" title="点击朗读" aria-label="朗读 ${escapeHtml(item.word)}">[${escapeHtml(item.phonetic)}]</button>` : ""}${dictionaryPronunciationButton(item.word)}</div><div class="dictionary-lookup-actions">${dictionaryAutoSpeakToggle()}${collectionControl}</div></div>
+        <div class="dictionary-lookup-header"><div class="dictionary-headword"><strong>${escapeHtml(item.word)}</strong>${item.phonetic ? `<button class="dictionary-phonetic" type="button" data-dictionary-pronounce="${escapeHtml(item.word)}" title="点击朗读" aria-label="朗读 ${escapeHtml(item.word)}">[${escapeHtml(item.phonetic)}]</button>` : ""}${dictionaryPronunciationButton(item.word)}</div><div class="dictionary-lookup-actions">${dictionaryAutoSpeakToggle()}${dictionaryPracticeButtons(item.word)}${collectionControl}</div></div>
         ${item.pos ? `<div class="dictionary-pos">${escapeHtml(item.pos)}</div>` : ""}
         ${translations.length ? `<div class="dictionary-meanings">${translations.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
         ${definitions.length ? `<div class="dictionary-definitions">${definitions.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
@@ -4336,6 +4382,13 @@ ${orderNote}`;
       return `<div class="dictionary-rating is-collins-rating" aria-label="柯林斯 ${rating} 星">${Array.from({ length: rating }, () => `<span class="dictionary-favorite-button is-saved">${starIcon}</span>`).join("")}</div>`;
     }
 
+    // One button beside a word's stars: 听写 practice of just this word (meanings shown), repeated until closed and never counted.
+    function dictionaryPracticeButtons(word) {
+      const safeWord = escapeHtml(String(word || "").trim());
+      if (!safeWord) return "";
+      return `<button class="dictionary-practice-button" type="button" data-dictionary-practice="listen" data-practice-word="${safeWord}" title="练习这个单词：听发音，结合释义写出单词；「下一个」会重新练这个词，不计入学习记录">练习</button>`;
+    }
+
     function dictionaryPronunciationButton(word) {
       const safeWord = escapeHtml(String(word || "").trim());
       return safeWord
@@ -4374,14 +4427,15 @@ ${orderNote}`;
       const inUserDetail = Boolean(button.closest("#userPhraseDetail"));
       const inUserList = Boolean(button.closest("#userPhrasesList"));
       // The English reference popover saves English words into English favorites, whatever the learning language.
-      const inEnglishReference = Boolean(button.closest("#englishLookupPopover"));
+      const englishPopover = button.closest(".english-lookup-popover");
+      const inEnglishReference = Boolean(englishPopover);
       const languageId = button.dataset.favoriteLanguage || state.learningLanguageId;
       const words = loadUserWords(languageId);
       const requestedWord = String(button.dataset.dictionaryWord || "").trim();
       const requestedIndex = requestedWord ? words.findIndex((item) => dictionaryFavoriteKey(item.word) === dictionaryFavoriteKey(requestedWord)) : -1;
-      const result = requestedIndex >= 0 ? words[requestedIndex] : entry || (inEnglishReference ? state.englishLookupEntry : state.dictionaryLookupEntry);
+      const result = requestedIndex >= 0 ? words[requestedIndex] : entry || (inEnglishReference ? englishPopover.lookupEntry : state.dictionaryLookupEntry);
       if (!result) return;
-      const word = String(requestedWord || result.word || $(inEnglishReference ? "englishLookupPopover" : "dictionaryLookupPopover").dataset.word || "").trim();
+      const word = String(requestedWord || result.word || (inEnglishReference ? englishPopover : $("dictionaryLookupPopover")).dataset.word || "").trim();
       const key = dictionaryFavoriteKey(word);
       const existingIndex = words.findIndex((item) => dictionaryFavoriteKey(item.word) === key);
       const level = Math.max(1, Math.min(5, Number(button.dataset.dictionaryFavoriteLevel) || 1));
@@ -4545,7 +4599,7 @@ ${orderNote}`;
       $("userPhraseDetail").innerHTML = `
         <div class="dictionary-lookup-header">
           <div class="dictionary-headword"><strong>${escapeHtml(item.word)}</strong>${item.phonetic ? `<button class="dictionary-phonetic" type="button" data-dictionary-pronounce="${escapeHtml(item.word)}" title="点击朗读" aria-label="朗读 ${escapeHtml(item.word)}">[${escapeHtml(item.phonetic)}]</button>` : ""}${dictionaryPronunciationButton(item.word)}</div>
-          <div class="dictionary-lookup-actions">${dictionaryAutoSpeakToggle()}${dictionaryFavoriteButton(item.word)}</div>
+          <div class="dictionary-lookup-actions">${dictionaryAutoSpeakToggle()}${dictionaryPracticeButtons(item.word)}${dictionaryFavoriteButton(item.word)}</div>
         </div>
         ${item.pos ? `<div class="dictionary-pos">${escapeHtml(item.pos)}</div>` : ""}
         ${translations.length ? `<div class="dictionary-meanings">${translations.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
@@ -4959,6 +5013,7 @@ ${orderNote}`;
 
     function wordReviewProgressText(review) {
       const position = review.index + 1;
+      if (review.source === "single") return `单词练习 · 「下一个」重新练这个词 · 不计入记忆`;
       if (review.free) return `自由练习 · 第 ${position} / ${review.queue.length} 个 · 不计入记忆`;
       const { due = 0, fresh = 0, group = 1 } = review.queueParts || {};
       if (review.index < due) return `到期复习 · 第 ${position} / ${due} 个`;
@@ -5285,6 +5340,11 @@ ${orderNote}`;
       if (pattern) pattern.innerHTML = wordReviewPatternHtml(String(item.word || ""), wordReviewRevealedLetters(review, item.word));
       const main = document.querySelector(".word-review-modal:not([hidden]) [data-word-review-main]");
       if (main) main.innerHTML = wordReviewMainButtonHtml(review, item);
+      // 听写: a fully correct spelling is answered at once, so the result panel shows the word without pressing Enter.
+      if (review.mode === "listen" && wordReviewInputCorrect(review, item)) {
+        answerWordReview();
+        return;
+      }
       // 默写: say the word as soon as it is spelled right, once per card, without waiting for Enter.
       if (review.mode === "spell" && review.spokenIndex !== review.index && wordReviewInputCorrect(review, item)) {
         review.spokenIndex = review.index;
@@ -5459,8 +5519,10 @@ ${orderNote}`;
           ${mode === "spell" ? wordReviewMeaningsHtml(item) : ""}
           <div class="word-review-pattern-row">
             <span class="word-review-pattern" data-word-review-pattern aria-hidden="true">${wordReviewPatternHtml(word, wordReviewRevealedLetters(review, word), answered ? review.input : null)}</span>
+            ${review.source === "single" && answered && item.phonetic ? `<button type="button" class="word-review-phonetic" data-word-review-action="speak" title="点击朗读">[${escapeHtml(item.phonetic)}]</button>` : ""}
             ${showSound ? '<button type="button" class="word-review-sound" data-word-review-action="speak" title="朗读">🔊</button>' : ""}
           </div>
+          ${mode === "listen" && review.source === "single" ? wordReviewMeaningsHtml(item) + wordSpeakHtml(review) : ""}
         </div>
         <input class="word-review-input${answered ? (correct ? " is-correct" : " is-wrong") : ""}" data-word-review-input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="拼写这个单词" value="${escapeHtml(review.input)}" ${answered ? "readonly" : ""}>
         <div class="word-review-footer">
@@ -5472,6 +5534,126 @@ ${orderNote}`;
         </div>`;
     }
 
+    // 单词练习: hold the button and say the word; the recognised word is shown with a right / wrong mark.
+    // Nothing is recorded, and it is independent of the 说 page's recording state.
+    function wordSpeakResultHtml(review) {
+      const speech = review.speech;
+      if (!speech) return '<span class="word-speak-hint">按住按钮，说出这个单词</span>';
+      if (speech.listening) return '<span class="word-speak-hint">正在听……</span>';
+      if (speech.error) return `<span class="word-speak-hint">${escapeHtml(speech.error)}</span>`;
+      if (!speech.text) return '<span class="word-speak-hint">没有听到，再按住说一次</span>';
+      return `<span class="word-speak-mark ${speech.correct ? "is-correct" : "is-wrong"}">${speech.correct ? "✓ 说对了" : "✗ 再试一次"}</span>`;
+    }
+
+    function wordSpeakHtml(review) {
+      const supported = Boolean(speechRecognitionCtor());
+      return `<div class="word-review-speak">
+        <button type="button" class="primary hold-speak-button word-speak-button" data-word-speak ${supported ? "" : "disabled"} title="${supported ? `按住说出这个单词（或按住快捷键 ${state.shortcuts.holdSpeaking || "未设置"}），松开后识别；识别到的词会写入下面的输入框（先清空原来的内容）；不计入学习记录` : "当前浏览器不支持语音识别"}">按住说话</button>
+        <strong>识别结果</strong>
+        <span class="word-speak-result" data-word-speak-result>${wordSpeakResultHtml(review)}</span>
+      </div>`;
+    }
+
+    function updateWordSpeakResult() {
+      const review = state.wordReview;
+      const target = document.querySelector("[data-word-speak-result]");
+      if (review && target) target.innerHTML = wordSpeakResultHtml(review);
+      document.querySelector("[data-word-speak]")?.classList.toggle("is-listening", Boolean(review?.speech?.listening));
+    }
+
+    let wordSpeakRecognition = null;
+    let wordSpeakStopTimer = 0;
+
+    function startWordSpeak() {
+      const review = state.wordReview;
+      const item = currentWordReviewItem();
+      const Recognition = speechRecognitionCtor();
+      if (!review || review.source !== "single" || !item || !Recognition) return;
+      window.speechSynthesis?.cancel();
+      abortWordSpeak();
+      // Pressing the button always starts a fresh attempt: an answered card is unlocked and its box, hints and result
+      // are cleared, then whatever is recognised is written into the box.
+      if (review.answered || review.input || review.hints) {
+        review.answered = false;
+        review.correct = null;
+        review.revealed = false;
+        review.hints = 0;
+        review.input = "";
+        renderWordReview();
+      }
+      const recognition = new Recognition();
+      wordSpeakRecognition = recognition;
+      recognition.lang = ttsAccent() || "en-GB";
+      recognition.interimResults = false;
+      recognition.continuous = false;
+      recognition.maxAlternatives = 5;
+      review.speech = { listening: true, text: "", correct: false, error: "" };
+      updateWordSpeakResult();
+      const target = normalizeReviewAnswer(item.word).replace(/[^\p{L}\p{N}' -]/gu, "");
+      recognition.onresult = (event) => {
+        const alternatives = [];
+        Array.from(event.results).forEach((result) => {
+          Array.from(result).forEach((alternative) => alternatives.push(String(alternative.transcript || "").trim()));
+        });
+        const clean = (text) => normalizeReviewAnswer(text).replace(/[^\p{L}\p{N}' -]/gu, "");
+        const match = alternatives.find((text) => clean(text) === target);
+        if (state.wordReview !== review || wordSpeakRecognition !== recognition) return;
+        // The recognizer adds capitals and punctuation ("Promptly."); only lower-case letters, digits, apostrophes, hyphens and spaces are kept.
+        const spoken = clean(alternatives[0] || "");
+        review.speech = { listening: false, text: match ? item.word.toLocaleLowerCase("en-US") : spoken, correct: Boolean(match), error: "" };
+        // The recognised word (right or wrong) goes into the spelling box below, as if typed; a correct word is answered at once.
+        const input = document.querySelector("#wordListenReviewCard [data-word-review-input]");
+        if (input && review.speech.text) {
+          input.value = review.speech.text;
+          updateWordReviewMask(input);
+        }
+      };
+      recognition.onerror = (event) => {
+        if (state.wordReview !== review || wordSpeakRecognition !== recognition) return;
+        review.speech = { listening: false, text: "", correct: false, error: event.error === "no-speech" ? "" : `识别失败：${event.error || "未知错误"}` };
+      };
+      recognition.onend = () => {
+        if (wordSpeakRecognition !== recognition) return;
+        wordSpeakRecognition = null;
+        if (state.wordReview !== review) return;
+        if (review.speech?.listening) review.speech = { listening: false, text: "", correct: false, error: "" };
+        updateWordSpeakResult();
+      };
+      try {
+        recognition.start();
+      } catch (error) {
+        wordSpeakRecognition = null;
+        review.speech = { listening: false, text: "", correct: false, error: `无法启动识别：${error.message || error}` };
+        updateWordSpeakResult();
+      }
+    }
+
+    // Stops shortly after release so the last syllable is not cut off.
+    function stopWordSpeak(delay = 300) {
+      clearTimeout(wordSpeakStopTimer);
+      wordSpeakStopTimer = setTimeout(() => {
+        try { wordSpeakRecognition?.stop(); } catch {}
+      }, delay);
+    }
+
+    function abortWordSpeak() {
+      clearTimeout(wordSpeakStopTimer);
+      try { wordSpeakRecognition?.abort(); } catch {}
+      wordSpeakRecognition = null;
+    }
+
+    document.addEventListener("pointerdown", (event) => {
+      const button = event.target.closest("[data-word-speak]");
+      if (!button || event.button !== 0 || button.disabled) return;
+      event.preventDefault();
+      startWordSpeak();
+    });
+    ["pointerup", "pointercancel"].forEach((type) => {
+      document.addEventListener(type, () => {
+        if (wordSpeakRecognition) stopWordSpeak();
+      });
+    });
+
     function wordReviewInputCorrect(review, item) {
       return normalizeReviewAnswer(review.input) === normalizeReviewAnswer(item?.word);
     }
@@ -5479,6 +5661,7 @@ ${orderNote}`;
     // The second button: 不会 (show the answer, counts as wrong) until the input spells the word correctly without
     // hints, then 下一个. After a hint it stays 不会 and turns red. Enter always does what this button shows.
     function wordReviewMainButtonHtml(review, item) {
+      if (review.answered && review.hints && !review.correct) return '<button type="button" class="is-hinted" data-word-review-action="next" title="用了提示，本题算答错；进入下一个（Enter）">下一个</button>';
       if (review.answered) return '<button type="button" class="primary" data-word-review-action="next" title="进入下一个（Enter）">下一个</button>';
       if (review.hints) return '<button type="button" class="is-hinted" data-word-review-action="reveal" title="已用提示，本题算答错；看答案（Enter）">不会</button>';
       if (wordReviewInputCorrect(review, item)) return '<button type="button" class="primary" data-word-review-action="accept" title="拼写正确，进入下一个（Enter）">下一个</button>';
@@ -5541,9 +5724,11 @@ ${orderNote}`;
         return;
       }
       elements.progress.textContent = wordReviewProgressText(review);
+      elements.modal.classList.toggle("is-single-word", review.source === "single");
       card.classList.toggle("is-recognize", review.mode === "recognize");
       card.innerHTML = review.mode === "recognize" ? renderRecognizeCard(item) : renderSpellingCard(item, review.mode);
-      if (panel && review.answered) {
+      // 单词练习 (opened from a word's 练习 button) shows no result panel: the unmasked word and the red letters are the feedback.
+      if (panel && review.answered && review.source !== "single") {
         panel.className = `word-review-result-panel ${review.correct ? "is-correct" : "is-wrong"}`;
         panel.innerHTML = renderWordReviewResultPanel(item, review.mode);
         panel.hidden = false;
@@ -5570,6 +5755,8 @@ ${orderNote}`;
       review.recognizeSelectedIndex = -1;
       review.recognizeFocusedIndex = -1;
       review.currentItem = null;
+      review.speech = null;
+      abortWordSpeak();
       if (review.index >= review.queue.length) {
         renderWordReview();
         return;
@@ -5579,7 +5766,15 @@ ${orderNote}`;
       review.loadToken = loadToken;
       renderWordReview();
       let item;
-      if (review.source === "wordList") {
+      if (review.source === "single") {
+        let entry = null;
+        try {
+          entry = await window.langLSRWDictionary.query(review.singleWord, currentDictionaryId());
+        } catch {
+          entry = null;
+        }
+        item = { ...(entry || {}), word: review.singleWord };
+      } else if (review.source === "wordList") {
         try {
           item = await window.langLSRWDictionary.query(review.wordIndex.get(key)?.word || key, currentDictionaryId());
         } catch {
@@ -5605,7 +5800,7 @@ ${orderNote}`;
         return;
       }
       review.currentItem = item;
-      state.dictionaryLookupEntry = item;
+      if (review.source !== "single") state.dictionaryLookupEntry = item;
       renderWordReview();
       if (review.mode === "recognize") prepareRecognizeChoices(review, item, loadToken);
       if (item && review.mode !== "spell") speakReviewWord(item.word);
@@ -5613,16 +5808,17 @@ ${orderNote}`;
 
     function switchWordReviewMode(mode, context = state.wordReview, free = false) {
       window.speechSynthesis?.cancel();
-      const source = context?.source === "wordList" ? "wordList" : "favorites";
+      const source = context?.source === "wordList" ? "wordList" : context?.source === "single" ? "single" : "favorites";
       state.wordReview = {
         source,
-        sourceLabel: source === "wordList" ? context.sourceLabel : "收藏",
+        singleWord: source === "single" ? context.word : "",
+        sourceLabel: source === "wordList" || source === "single" ? context.sourceLabel : "收藏",
         deckCategory: source === "wordList" ? context.deckCategory : "",
         words: source === "wordList" ? context.words : [],
         wordIndex: source === "wordList" ? context.wordIndex : new Map(),
         records: loadWordReviewRecords(),
         mode,
-        free,
+        free: free || source === "single",
         queue: [],
         index: 0,
         hints: 0,
@@ -5636,23 +5832,44 @@ ${orderNote}`;
         recognizeFocusedIndex: -1,
         results: { good: 0, again: 0 }
       };
-      state.wordReview.queue = free ? buildFreeWordReviewQueue(mode, state.wordReview) : buildWordReviewQueue(mode, state.wordReview);
+      state.wordReview.queue = source === "single"
+        ? [dictionaryFavoriteKey(context.word)]
+        : free ? buildFreeWordReviewQueue(mode, state.wordReview) : buildWordReviewQueue(mode, state.wordReview);
       startWordReviewCard();
     }
 
     function openWordReview(mode, context = null, free = false) {
       if (!WORD_REVIEW_INTERFACES[mode]) return;
-      const sourceContext = context?.source === "wordList" ? context : { source: "favorites", sourceLabel: "收藏" };
+      const sourceContext = context?.source === "wordList" || context?.source === "single" ? context : { source: "favorites", sourceLabel: "收藏" };
       document.querySelectorAll(".word-review-modal").forEach((modal) => { modal.hidden = true; });
       const elements = wordReviewElements(mode);
-      elements.title.textContent = sourceContext.source === "wordList"
+      elements.title.textContent = sourceContext.source === "single"
+        ? `${sourceContext.sourceLabel} · 练习`
+        : sourceContext.source === "wordList"
         ? `${sourceContext.sourceLabel} · ${wordReviewModeLabel(mode)}`
         : `收藏 · ${wordReviewModeLabel(mode)}`;
       elements.modal.hidden = false;
       switchWordReviewMode(mode, sourceContext, free);
     }
 
+    // 听写 / 默写 of one looked-up word, opened from the buttons beside a word's stars; nothing is saved.
+    function openSingleWordPractice(mode, word) {
+      const text = String(word || "").trim();
+      if (!text || !WORD_REVIEW_INTERFACES[mode]) return;
+      closeDictionaryLookup();
+      closeEnglishLookup();
+      openWordReview(mode, { source: "single", sourceLabel: "单词", word: text });
+    }
+
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-dictionary-practice]");
+      if (!button) return;
+      event.preventDefault();
+      openSingleWordPractice(button.dataset.dictionaryPractice, button.dataset.practiceWord);
+    });
+
     function closeWordReview() {
+      abortWordSpeak();
       document.querySelectorAll(".word-review-modal").forEach((modal) => { modal.hidden = true; });
       window.speechSynthesis?.cancel();
       state.wordReview = null;
@@ -5669,7 +5886,7 @@ ${orderNote}`;
       review.results[grade] += 1;
       userData.append("reviewEvent", [key, review.mode, grade === "good" ? 1 : 0, review.hints ? 1 : 0, review.free ? 1 : 0, Math.floor(Date.now() / 1000)], languageScope());
       if (!review.free) saveWordReviewGrade(key, review.mode, grade);
-      if (grade === "again") review.queue.push(key);
+      if (grade === "again" && review.source !== "single") review.queue.push(key);
     }
 
     function answerRecognizeChoice(index) {
@@ -5728,13 +5945,18 @@ ${orderNote}`;
       const input = wordReviewElements(review.mode).card?.querySelector("[data-word-review-input]");
       review.input = input ? input.value : review.input;
       review.hints = Math.min(wordReviewLetterCount(item.word), wordReviewRevealedLetters(review, item.word) + 1);
+      // 听写: once hints have revealed every letter, show the answer (counts as wrong).
+      if (review.mode === "listen" && review.hints >= wordReviewLetterCount(item.word)) {
+        answerWordReview(true);
+        return;
+      }
       renderWordReview();
     }
 
     function nextWordReview() {
       const review = state.wordReview;
       if (!review || !review.answered) return;
-      review.index += 1;
+      if (review.source !== "single") review.index += 1;
       startWordReviewCard();
     }
 
@@ -5869,6 +6091,12 @@ ${orderNote}`;
         clientX: anchor?.clientX ?? wordRect.left,
         avoidRect: sourceLineRect
       };
+      await lookupLearningWord(word, lookupAnchor);
+    }
+
+    // Looks a word up in the learning language's dictionary and shows it in the lookup popover.
+    async function lookupLearningWord(word, lookupAnchor) {
+      const popover = $("dictionaryLookupPopover");
       state.dictionaryLookupEntry = null;
       popover.hidden = false;
       popover.innerHTML = `<div class="dictionary-lookup-loading">正在查询 ${escapeHtml(word)}...</div>`;
@@ -8248,11 +8476,12 @@ ${orderNote}`;
       }
       if (event.target.closest("[data-dictionary-close]")) closeDictionaryLookup();
     });
-    $("englishLookupPopover").addEventListener("click", async (event) => {
-      const popover = $("englishLookupPopover");
+    document.addEventListener("click", async (event) => {
+      const popover = event.target.closest(".english-lookup-popover");
+      if (!popover) return;
       const formButton = event.target.closest("[data-dictionary-form]");
       if (formButton) {
-        lookupEnglishReference(String(formButton.dataset.dictionaryForm || "").trim(), state.englishLookupAnchor);
+        lookupEnglishReference(String(formButton.dataset.dictionaryForm || "").trim(), popover.lookupAnchor, { popover });
         return;
       }
       const pronunciationButton = event.target.closest("[data-dictionary-pronounce]");
@@ -8267,10 +8496,21 @@ ${orderNote}`;
       }
       const moreButton = event.target.closest("[data-dictionary-more]");
       if (moreButton) {
-        toggleDictionaryDefinitions(moreButton, popover, () => placeLookupPopover(popover, state.englishLookupAnchor));
+        toggleDictionaryDefinitions(moreButton, popover, () => placeLookupPopover(popover, popover.lookupAnchor));
         return;
       }
-      if (event.target.closest("[data-dictionary-close]")) closeEnglishLookup();
+      if (event.target.closest("[data-dictionary-close]")) closeEnglishLookup(popover);
+    });
+    // English learning: right-click an English word in a word detail's definitions (词库, 收藏, lookup popover)
+    // to look it up in a second popover, so the lookup popover or detail it came from stays open.
+    document.addEventListener("contextmenu", (event) => {
+      if (currentLearningLanguage().id !== "en") return;
+      const container = event.target.closest(".dictionary-meanings, .dictionary-definitions");
+      if (!container?.closest("#dictionaryLookupPopover, #userPhraseDetail, #dictionaryLibraryDetail")) return;
+      const hit = englishWordAtPoint(event, container);
+      if (!hit?.word) return;
+      event.preventDefault();
+      lookupEnglishReference(hit.word, { clientX: event.clientX, avoidRect: hit.rect });
     });
     document.addEventListener("contextmenu", (event) => {
       const source = englishReferenceSource(event.target);
@@ -8278,16 +8518,22 @@ ${orderNote}`;
       const hit = englishWordAtPoint(event, source);
       if (!hit?.word) return;
       event.preventDefault();
-      lookupEnglishReference(hit.word, { clientX: event.clientX, avoidRect: hit.rect });
+      lookupEnglishReference(hit.word, { clientX: event.clientX, avoidRect: hit.rect }, { fromPopover: event.target.closest(".english-lookup-popover") });
     });
     $("dictionaryLookupPopover").addEventListener("change", (event) => {
       if (!event.target.matches("[data-dictionary-auto-speak]")) return;
       updateDictionaryAutoSpeak(event.target, $("dictionaryLookupPopover").dataset.word || "");
     });
     document.addEventListener("pointerdown", (event) => {
-      if (!$("englishLookupPopover").hidden && !event.target.closest("#englishLookupPopover")) closeEnglishLookup();
+      // Clicking a popover closes the ones stacked above it; clicking outside every English popover closes them all.
+      if (englishLookupTop()) {
+        const clicked = event.target.closest(".english-lookup-popover");
+        const index = clicked ? englishLookupStack.indexOf(clicked) : -1;
+        if (index < 0) closeEnglishLookup();
+        else if (englishLookupStack[index + 1]) closeEnglishLookup(englishLookupStack[index + 1]);
+      }
       if ($("dictionaryLookupPopover").hidden) return;
-      if (event.target.closest("#dictionaryLookupPopover, #englishLookupPopover") || event.target.closest(".target-word")) return;
+      if (event.target.closest("#dictionaryLookupPopover, .english-lookup-popover") || event.target.closest(".target-word")) return;
       closeDictionaryLookup();
     });
 
