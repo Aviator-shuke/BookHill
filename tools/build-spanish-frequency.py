@@ -7,7 +7,7 @@ Output: assets/dictionaries/runtime/spanish-wiktionary/frequency.tsv (rank, word
 The browser dictionary Worker imports the TSV into a `langlsrw_frequency` table inside the installed Spanish
 dictionary database, so the 70 MB dictionary package itself never has to be rebuilt for frequency changes.
 
-Cleaning rules (see SPANISH.md, "词频表下载与分析"):
+Cleaning rules (see docs/SPANISH.md, "词频表下载与分析"):
 1. Drop NOUSAGE rows (unmatched word forms: English names and words, abbreviations), except the preposition "a".
 2. Drop proper nouns, single letters, and prefixes.
 3. Sum the counts of rows that share a lemma (DUPLICATE rows are other parts of speech).

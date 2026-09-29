@@ -341,7 +341,7 @@ const fallbackSentences = [
       return name.trim().replace(/\s+/g, " ").slice(0, 24);
     }
 
-    // ---- Personal data (src/user-data.js, USER_DATA.md section 8). Every record belongs to an identity (a local
+    // ---- Personal data (src/user-data.js, docs/USER_DATA.md section 8). Every record belongs to an identity (a local
     // user, a cloud account, or guest) and to "global" or one learning language.
     const userData = window.langLSRWUserData;
 
@@ -399,7 +399,7 @@ const fallbackSentences = [
     }
 
     // Built-in library references: sentences are stored as library id + sentence id + library fingerprint, never as
-    // text. A reference whose fingerprint no longer matches the loaded library is treated as invalid (SENTENCE_REVIEW.md
+    // text. A reference whose fingerprint no longer matches the loaded library is treated as invalid (docs/SENTENCE_REVIEW.md
     // section 8); the per-sentence fingerprint `fp` is reserved for later.
     function textFingerprint(text) {
       let h1 = 0xdeadbeef;
@@ -438,8 +438,8 @@ const fallbackSentences = [
       return item ? normalizeSentenceItem(item) : null;
     }
 
-    // One compact practice event per answered sentence (USER_DATA.md section 8.2), for sentence review
-    // (SENTENCE_REVIEW.md; not built yet, so nothing calls this for now):
+    // One compact practice event per answered sentence (docs/USER_DATA.md section 8.2), for sentence review
+    // (docs/SENTENCE_REVIEW.md; not built yet, so nothing calls this for now):
     // [mode, libraryId, sentenceId, libraryFingerprint, text (only outside built-in libraries), accuracy, fluency,
     //  errorCount, wpm, time in seconds, mistakes as [[position, typed], ...]].
     function recordPracticeEvent(mode, item, metrics) {
@@ -737,7 +737,7 @@ const fallbackSentences = [
       URL.revokeObjectURL(url);
     }
 
-    // Export = every record of the current identity, whatever page or library is open (USER_DATA.md section 8.4).
+    // Export = every record of the current identity, whatever page or library is open (docs/USER_DATA.md section 8.4).
     async function exportData() {
       await userData.flush();
       const date = new Date().toISOString().slice(0, 10);

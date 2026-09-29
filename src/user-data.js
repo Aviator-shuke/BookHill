@@ -1,4 +1,4 @@
-// Personal data store (see USER_DATA.md, section 8).
+// Personal data store (see docs/USER_DATA.md, section 8).
 // Every piece of a learner's data is a record { identity, id, scope, collection, key, value, updatedAt, deleted }.
 // `scope` is "global" (per identity) or a learning-language id ("en", "es"). Records live in IndexedDB and the
 // current identity's records are mirrored in memory, so the page reads synchronously; writes update memory at once
@@ -13,7 +13,7 @@
   // kind "state": the latest value per key; kind "event": append-only history.
   // enabled: false keeps a collection's code but hides it: nothing is written, loaded, exported, or imported.
   // exportable: false keeps a collection on this device only: never exported, imported, or synced.
-  // The answer records (practiceEvent, reviewEvent) are hidden until a feature uses them (USER_DATA.md 8.2).
+  // The answer records (practiceEvent, reviewEvent) are hidden until a feature uses them (docs/USER_DATA.md 8.2).
   const COLLECTIONS = {
     settings: { scope: "global", kind: "state" },
     localSecrets: { scope: "global", kind: "state", exportable: false },
