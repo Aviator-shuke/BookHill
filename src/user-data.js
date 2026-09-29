@@ -21,6 +21,7 @@
     favoriteWord: { scope: "language", kind: "state" },
     favoriteSentence: { scope: "language", kind: "state" },
     wordProgress: { scope: "language", kind: "state" },
+    newWordBatch: { scope: "language", kind: "state" },
     sentenceProgress: { scope: "language", kind: "state" },
     practiceEvent: { scope: "language", kind: "event", enabled: false },
     reviewEvent: { scope: "language", kind: "event", enabled: false },

@@ -4989,6 +4989,107 @@ ${orderNote}`;
       return review?.records?.[dictionaryFavoriteKey(item?.word)]?.[mode] || null;
     }
 
+    // 本组 (the group): the n words drawn for one mode and scope (n = 单词练习每组), remembered so the next normal round
+    // and 新词预习 use the same words. Inside the group a word is 待学新词 (no record yet) or 已学新词 (has a record);
+    // 待学单词 are the never-practised words of the scope that are not in the group. The group stays fixed, learned words
+    // included, until every word of it is learned; only then is a new group drawn from the 待学单词. The record is
+    // rewritten in place, so it never grows beyond one group. Returns the 待学新词 items.
+    function wordReviewGroupRecordKey(mode, review) {
+      return `${mode}|${review?.source === "wordList" ? `list:${review.deckCategory}` : "favorites"}`;
+    }
+
+    function wordReviewNewBatch(mode, review, words) {
+      const size = practiceGroupSize("wordGroupSize");
+      const inScope = new Map(words.map((item) => [dictionaryFavoriteKey(item.word), item]));
+      const isPending = (key) => !wordReviewRecord(inScope.get(key), mode, review);
+      const recordKey = wordReviewGroupRecordKey(mode, review);
+      const saved = userData.get("newWordBatch", recordKey, languageScope());
+      let group = (Array.isArray(saved) ? saved : []).filter((key) => inScope.has(key)).slice(0, size);
+      if (!group.some(isPending)) {
+        group = shuffledWordReviewItems([...inScope.keys()].filter(isPending)).slice(0, size);
+      }
+      if (group.length !== (saved?.length || 0) || group.some((key, index) => key !== saved?.[index])) {
+        userData.put("newWordBatch", recordKey, group, languageScope());
+      }
+      // The group's words are fixed, but every round and every 新词预习 shows them in a fresh random order.
+      return shuffledWordReviewItems(group.filter(isPending).map((key) => inScope.get(key)));
+    }
+
+    // Right-click actions on the 背单词 launchers. 重置本组记录: the group's learned words go back to 待学新词 (same group).
+    // 切换本组新词: the group's learned words are cleared too, then the whole group returns to the 待学单词 and a new group
+    // is drawn from them.
+    async function resetOrSwitchWordGroup(kind, mode, source) {
+      const label = wordReviewModeLabel(mode);
+      if (!label) return;
+      let items;
+      let review;
+      if (source === "wordList") {
+        const category = $("dictionaryCategorySelect").value;
+        if (state.dictionaryLibraryType !== "words" || category === "all") return;
+        try {
+          items = await loadDictionaryStudyWords(category, $("dictionarySortSelect").value);
+        } catch (error) {
+          alert(`无法读取词表：${error.message || error}`);
+          return;
+        }
+        review = { source: "wordList", deckCategory: category };
+      } else {
+        items = filteredAndSortedUserWords(loadUserWords()).filter((item) => wordReviewEligible(item, mode));
+        review = { source: "favorites" };
+      }
+      review.records = loadWordReviewRecords();
+      const marks = loadWordManualMastery();
+      const inScope = new Map(items
+        .filter((item) => !marks[dictionaryFavoriteKey(item.word)]?.[mode])
+        .map((item) => [dictionaryFavoriteKey(item.word), item]));
+      const recordKey = wordReviewGroupRecordKey(mode, review);
+      // No group yet (this practice was never opened here): draw it now, exactly as opening the practice would.
+      if (!(userData.get("newWordBatch", recordKey, languageScope()) || []).length) wordReviewNewBatch(mode, review, [...inScope.values()]);
+      const saved = userData.get("newWordBatch", recordKey, languageScope());
+      const group = Array.isArray(saved) ? saved : [];
+      const learned = group.filter((key) => review.records[key]?.[mode] || marks[key]?.[mode]);
+      if (!group.length) {
+        alert("这个范围里没有可学的单词。");
+        return;
+      }
+      let nextGroup = null;
+      if (kind === "switch") {
+        const inOldGroup = new Set(group);
+        const pool = [...inScope.keys()].filter((key) => !inOldGroup.has(key) && !review.records[key]?.[mode]);
+        if (!pool.length) {
+          alert("没有其他待学单词可以换了。");
+          return;
+        }
+        nextGroup = shuffledWordReviewItems(pool).slice(0, practiceGroupSize("wordGroupSize"));
+      } else if (!learned.length) {
+        alert("本组的单词都还没有学过，不需要重置。");
+        return;
+      }
+      const message = kind === "switch"
+        ? `清除本组已学过的 ${learned.length} 个单词的“${label}”记录，并换一组新的待学新词？原来这组词会回到待学单词，以后可能再被抽到。已清除的记录无法撤销。`
+        : `清除本组已学过的 ${learned.length} 个单词的“${label}”记录，让它们回到待学新词？无法撤销。`;
+      // Nothing is cleared when no word of the group was learned, so there is nothing to confirm.
+      if (learned.length && !confirm(message)) return;
+      const records = loadWordReviewRecords();
+      const manual = loadWordManualMastery();
+      learned.forEach((key) => {
+        if (records[key]) {
+          delete records[key][mode];
+          if (!Object.keys(records[key]).length) delete records[key];
+        }
+        if (manual[key]) {
+          delete manual[key][mode];
+          if (!Object.keys(manual[key]).length) delete manual[key];
+        }
+      });
+      saveWordReviewRecords(records);
+      saveWordManualMastery(manual);
+      if (nextGroup) userData.put("newWordBatch", recordKey, nextGroup, languageScope());
+      updateFavoriteReviewLaunchers();
+      updateDictionaryStudyButton();
+      refreshWordReviewStatusIcons();
+    }
+
     function buildWordReviewQueue(mode, review = state.wordReview) {
       const now = Date.now();
       const marks = loadWordManualMastery();
@@ -4999,8 +5100,8 @@ ${orderNote}`;
       const dueReviewed = words
         .filter((item) => wordReviewRecord(item, mode, review) && Number(wordReviewRecord(item, mode, review).due) <= now)
         .sort((a, b) => Number(wordReviewRecord(a, mode, review).due) - Number(wordReviewRecord(b, mode, review).due));
-      // New words are drawn at random from all not-yet-practised words in scope, not taken in list order.
-      const fresh = shuffledWordReviewItems(words.filter((item) => !wordReviewRecord(item, mode, review))).slice(0, practiceGroupSize("wordGroupSize"));
+      // The new words are the remembered batch for this mode and scope (see wordReviewNewBatch), so 新词预习 shows the same words.
+      const fresh = wordReviewNewBatch(mode, review, words);
       // New words form groups of the 单词练习每组 setting; the group number counts what this scope has already learned.
       const learned = words.filter((item) => wordReviewRecord(item, mode, review)).length;
       if (review) review.queueParts = { due: dueReviewed.length, fresh: fresh.length, group: Math.floor(learned / practiceGroupSize("wordGroupSize")) + 1 };
@@ -5014,16 +5115,22 @@ ${orderNote}`;
     function wordReviewProgressText(review) {
       const position = review.index + 1;
       if (review.source === "single") return `单词练习 · 「下一个」重新练这个词 · 不计入记忆`;
-      if (review.free) return `自由练习 · 第 ${position} / ${review.queue.length} 个 · 不计入记忆`;
+      if (review.free) return `${review.freeKind === "new" ? "新词预习" : "自由练习"} · 第 ${position} / ${review.queue.length} 个 · 不计入记忆`;
       const { due = 0, fresh = 0, group = 1 } = review.queueParts || {};
       if (review.index < due) return `到期复习 · 第 ${position} / ${due} 个`;
-      if (review.index < due + fresh) return `新词学习 · 第 ${group} 组 · 第 ${review.index - due + 1} / ${fresh} 个`;
+      if (review.index < due + fresh) return `新词初测 · 第 ${group} 组 · 第 ${review.index - due + 1} / ${fresh} 个`;
       return `忘了再练 · 第 ${review.index - due - fresh + 1} / ${review.queue.length - due - fresh} 个`;
     }
 
     // Free practice: already-learned words of this mode in the active scope, regardless of due time.
     // Results are never saved, so it cannot change the spaced-repetition schedule.
+    // `review.freeKind === "new"` (新词预习) does the opposite: only words with no record in this mode yet.
     function buildFreeWordReviewQueue(mode, review = state.wordReview) {
+      if (review.freeKind === "new") {
+        const marks = loadWordManualMastery();
+        const words = wordReviewSourceItems(review).filter((item) => !marks[dictionaryFavoriteKey(item.word)]?.[mode]);
+        return wordReviewNewBatch(mode, review, words).map((item) => dictionaryFavoriteKey(item.word));
+      }
       const learned = wordReviewSourceItems(review).filter((item) => wordReviewRecord(item, mode, review));
       return shuffledWordReviewItems(learned).slice(0, practiceGroupSize("wordGroupSize")).map((item) => dictionaryFavoriteKey(item.word));
     }
@@ -5113,20 +5220,47 @@ ${orderNote}`;
       refreshWordReviewStatusIcons();
     }
 
-    function openWordReviewLauncherMenu(event, mode, source) {
+    // The launcher menu opens on hover, right below the 识义 / 听写 / 默写 button, and stays while the pointer is on
+    // the button or the menu; leaving both closes it after a short delay.
+    let launcherMenuShowTimer = 0;
+    let launcherMenuHideTimer = 0;
+
+    function scheduleWordReviewLauncherMenu(button, mode, source) {
+      clearTimeout(launcherMenuHideTimer);
+      clearTimeout(launcherMenuShowTimer);
+      const menu = $("wordReviewLauncherMenu");
+      const open = () => openWordReviewLauncherMenu(button, mode, source);
+      if (!menu.hidden) open();
+      else launcherMenuShowTimer = setTimeout(open, 200);
+    }
+
+    function scheduleHideWordReviewLauncherMenu() {
+      clearTimeout(launcherMenuShowTimer);
+      clearTimeout(launcherMenuHideTimer);
+      launcherMenuHideTimer = setTimeout(closeWordReviewLauncherMenu, 250);
+    }
+
+    function openWordReviewLauncherMenu(button, mode, source) {
       const label = wordReviewModeLabel(mode);
-      if (!label) return;
-      event.preventDefault();
+      if (!label || button.disabled) return;
       const menu = $("wordReviewLauncherMenu");
       menu.dataset.mode = mode;
       menu.dataset.source = source;
       $("wordReviewFreeBtn").textContent = `自由练习${label}（不计入记忆）`;
+      $("wordReviewNewBtn").textContent = `新词预习${label}（不计入记忆）`;
+      $("wordReviewResetGroupBtn").textContent = `重置本组${label}记录`;
+      $("wordReviewSwitchGroupBtn").textContent = `切换本组${label}新词`;
       $("wordReviewClearBtn").textContent = `清除${label}记忆`;
+      // The menu stays inside the word column (never over the detail pane on the right): it takes the column's width.
+      const column = button.closest(".user-phrases-collection")?.getBoundingClientRect();
+      menu.style.width = column ? `${Math.round(column.width - 8)}px` : "";
       menu.hidden = false;
       const rect = menu.getBoundingClientRect();
-      menu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - rect.width - 8))}px`;
-      menu.style.top = `${Math.max(8, Math.min(event.clientY, window.innerHeight - rect.height - 8))}px`;
-      $("wordReviewFreeBtn").focus();
+      const anchor = button.getBoundingClientRect();
+      const below = anchor.bottom + 2;
+      const left = column ? column.left + 4 : anchor.left;
+      menu.style.left = `${Math.max(8, Math.min(left, window.innerWidth - rect.width - 8))}px`;
+      menu.style.top = `${below + rect.height > window.innerHeight - 8 ? Math.max(8, anchor.top - rect.height - 2) : below}px`;
     }
 
     // Controls keep their explanation in `title`; the shared tooltip takes it over on first hover
@@ -5229,7 +5363,7 @@ ${orderNote}`;
           <section><div class="dictionary-section-label">2. 练习方式</div><ul><li>${method}</li></ul></section>
           <section><div class="dictionary-section-label">3. 练习组题</div><ul>
             <li><b>到期复习</b>：已到复习时间的词，最早到期的排最前，不限数量。</li>
-            <li><b>新词学习</b>：从没练过的词，每轮最多 ${practiceGroupSize("wordGroupSize")} 个；每 ${practiceGroupSize("wordGroupSize")} 个新词为一组，进度栏显示第几组。</li>
+            <li><b>新词初测</b>：从没练过的词，每轮最多 ${practiceGroupSize("wordGroupSize")} 个；每 ${practiceGroupSize("wordGroupSize")} 个新词为一组，进度栏显示第几组。</li>
             <li><b>忘了再练</b>：本轮答错的词追加到队尾，本轮再考一次。</li>
           </ul></section>
           <section><div class="dictionary-section-label">4. 复习时间怎么定</div>
@@ -5255,7 +5389,7 @@ ${orderNote}`;
           <section><div class="dictionary-section-label">6. 其他</div><ul>
             <li>识义、听写、默写的记录相互独立，互不影响。</li>
             <li>同一个单词在收藏和各个词表中共用一份记录，在任一处练习都会更新。</li>
-            <li>右键按钮：<b>自由练习</b>（练已学过的词，不影响复习安排）或<b>清除${label}记忆</b>。</li>
+            <li>鼠标停在按钮上会弹出菜单：<b>自由练习</b>、<b>新词预习</b>、<b>重置本组记录</b>、<b>切换本组新词</b>、<b>清除${label}记忆</b>。</li>
           </ul></section>
         </div>`;
     }
@@ -5287,6 +5421,8 @@ ${orderNote}`;
     }
 
     function closeWordReviewLauncherMenu() {
+      clearTimeout(launcherMenuShowTimer);
+      clearTimeout(launcherMenuHideTimer);
       $("wordReviewLauncherMenu").hidden = true;
     }
 
@@ -5679,13 +5815,16 @@ ${orderNote}`;
       if (review.index >= total) {
         const label = wordReviewModeLabel(review.mode);
         if (review.free) {
-          elements.progress.textContent = total ? `自由练习完成 ${total} 个` : "没有可自由练习的单词";
+          const isNew = review.freeKind === "new";
+          const name = isNew ? "新词预习" : "自由练习";
+          elements.progress.textContent = total ? `${name}完成 ${total} 个` : (isNew ? "没有新词可练" : "没有可自由练习的单词");
           card.innerHTML = `
             <div class="word-review-done">
-              <strong>${total ? "自由练习完成" : `还没有学过${label}的单词`}</strong>
+              <strong>${total ? `${name}完成` : (isNew ? `当前范围内的单词，${label}都已经学过了` : `还没有学过${label}的单词`)}</strong>
               ${total ? `<div>${wordReviewResultSummary(review)}</div>` : ""}
-              <div class="small-note">自由练习不计入练习记忆，不改变复习安排</div>
+              <div class="small-note">${name}不计入练习记忆，不改变复习安排</div>
               <div class="word-review-actions">
+                ${total && isNew ? '<button type="button" class="primary" data-word-review-action="start" title="预习完了，开始这组新词的初测">开始初测</button>' : ""}
                 ${total ? '<button type="button" data-word-review-action="free">再来一轮</button>' : ""}
                 <button type="button" data-word-review-action="close">完成</button>
               </div>
@@ -5818,7 +5957,8 @@ ${orderNote}`;
         wordIndex: source === "wordList" ? context.wordIndex : new Map(),
         records: loadWordReviewRecords(),
         mode,
-        free: free || source === "single",
+        free: Boolean(free) || source === "single",
+        freeKind: free === "new" ? "new" : "learned",
         queue: [],
         index: 0,
         hints: 0,
@@ -5835,12 +5975,71 @@ ${orderNote}`;
       state.wordReview.queue = source === "single"
         ? [dictionaryFavoriteKey(context.word)]
         : free ? buildFreeWordReviewQueue(mode, state.wordReview) : buildWordReviewQueue(mode, state.wordReview);
+      if (free === "new") previewAsked.add(wordReviewGroupSignature(mode, state.wordReview, state.wordReview.queue));
       startWordReviewCard();
     }
 
-    function openWordReview(mode, context = null, free = false) {
+    // Starting a normal round that has new words asks once per group whether to preview them first (新词预习).
+    // `previewAsked` remembers the groups already offered or previewed in this session, so it does not ask again.
+    const previewAsked = new Set();
+
+    function wordReviewGroupSignature(mode, review, pendingKeys) {
+      // Sorted, because the order of the words is random each time.
+      return `${wordReviewGroupRecordKey(mode, review)}|${[...pendingKeys].sort().join(",")}`;
+    }
+
+    function askPreviewNewWords(count) {
+      const modal = $("wordPreviewPrompt");
+      $("wordPreviewPromptText").textContent = `本组有 ${count} 个新词还没学过，要先预习一下吗？`;
+      modal.hidden = false;
+      $("wordPreviewYesBtn").focus();
+      return new Promise((resolve) => {
+        const finish = (choice) => {
+          modal.hidden = true;
+          modal.removeEventListener("click", onClick);
+          document.removeEventListener("keydown", onKey, true);
+          resolve(choice);
+        };
+        const onClick = (event) => {
+          if (event.target === modal) finish("cancel");
+          const button = event.target.closest("[data-preview-choice]");
+          if (button) finish(button.dataset.previewChoice);
+        };
+        const onKey = (event) => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          event.stopPropagation();
+          finish("cancel");
+        };
+        modal.addEventListener("click", onClick);
+        document.addEventListener("keydown", onKey, true);
+      });
+    }
+
+    async function openWordReview(mode, context = null, free = false) {
       if (!WORD_REVIEW_INTERFACES[mode]) return;
       const sourceContext = context?.source === "wordList" || context?.source === "single" ? context : { source: "favorites", sourceLabel: "收藏" };
+      if (!free && sourceContext.source !== "single") {
+        // Dry run of the queue to learn which new words the round would teach.
+        const source = sourceContext.source === "wordList" ? "wordList" : "favorites";
+        const dry = {
+          source, mode, records: loadWordReviewRecords(),
+          deckCategory: source === "wordList" ? sourceContext.deckCategory : "",
+          words: source === "wordList" ? sourceContext.words : []
+        };
+        const queue = buildWordReviewQueue(mode, dry);
+        const { due = 0, fresh = 0 } = dry.queueParts || {};
+        const signature = wordReviewGroupSignature(mode, dry, queue.slice(due, due + fresh));
+        if (fresh > 0 && !previewAsked.has(signature)) {
+          const choice = await askPreviewNewWords(fresh);
+          if (choice === "cancel") return;
+          previewAsked.add(signature);
+          if (choice === "preview") {
+            openWordReview(mode, context, "new");
+            return;
+          }
+        }
+      }
       document.querySelectorAll(".word-review-modal").forEach((modal) => { modal.hidden = true; });
       const elements = wordReviewElements(mode);
       elements.title.textContent = sourceContext.source === "single"
@@ -5968,7 +6167,12 @@ ${orderNote}`;
       else if (action === "next") nextWordReview();
       else if (action === "speak") speakReviewWord(currentWordReviewItem()?.word);
       else if (action === "close") closeWordReview();
-      else if (action === "free" && state.wordReview) switchWordReviewMode(state.wordReview.mode, state.wordReview, true);
+      else if (action === "start" && state.wordReview) {
+        const review = state.wordReview;
+        openWordReview(review.mode, review.source === "wordList"
+          ? { source: "wordList", sourceLabel: review.sourceLabel, deckCategory: review.deckCategory, words: review.words, wordIndex: review.wordIndex }
+          : null, false);
+      } else if (action === "free" && state.wordReview) switchWordReviewMode(state.wordReview.mode, state.wordReview, state.wordReview.freeKind === "new" ? "new" : true);
     }
 
     function handleWordReviewKeydown(event) {
@@ -8121,16 +8325,31 @@ ${orderNote}`;
     document.querySelectorAll("[data-favorite-review-mode], [data-dictionary-study-mode]").forEach((button) => {
       button.addEventListener("pointerenter", () => showWordReviewHelp(button));
       button.addEventListener("pointerdown", hideWordReviewHelp);
-      button.addEventListener("contextmenu", (event) => {
-        const mode = button.dataset.favoriteReviewMode || button.dataset.dictionaryStudyMode;
-        openWordReviewLauncherMenu(event, mode, button.dataset.favoriteReviewMode ? "favorites" : "wordList");
-      });
+      const mode = button.dataset.favoriteReviewMode || button.dataset.dictionaryStudyMode;
+      const source = button.dataset.favoriteReviewMode ? "favorites" : "wordList";
+      button.addEventListener("pointerenter", () => scheduleWordReviewLauncherMenu(button, mode, source));
+      button.addEventListener("pointerleave", scheduleHideWordReviewLauncherMenu);
     });
+    $("wordReviewLauncherMenu").addEventListener("pointerenter", () => clearTimeout(launcherMenuHideTimer));
+    $("wordReviewLauncherMenu").addEventListener("pointerleave", scheduleHideWordReviewLauncherMenu);
     $("wordReviewFreeBtn").addEventListener("click", () => {
       const menu = $("wordReviewLauncherMenu");
       closeWordReviewLauncherMenu();
       if (menu.dataset.source === "wordList") openDictionaryWordStudy(menu.dataset.mode, true);
       else openWordReview(menu.dataset.mode, null, true);
+    });
+    $("wordReviewNewBtn").addEventListener("click", () => {
+      const menu = $("wordReviewLauncherMenu");
+      closeWordReviewLauncherMenu();
+      if (menu.dataset.source === "wordList") openDictionaryWordStudy(menu.dataset.mode, "new");
+      else openWordReview(menu.dataset.mode, null, "new");
+    });
+    [["wordReviewResetGroupBtn", "reset"], ["wordReviewSwitchGroupBtn", "switch"]].forEach(([id, kind]) => {
+      $(id).addEventListener("click", () => {
+        const menu = $("wordReviewLauncherMenu");
+        closeWordReviewLauncherMenu();
+        resetOrSwitchWordGroup(kind, menu.dataset.mode, menu.dataset.source);
+      });
     });
     $("wordReviewClearBtn").addEventListener("click", () => {
       const menu = $("wordReviewLauncherMenu");

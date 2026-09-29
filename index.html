@@ -6,7 +6,7 @@
   <title>langLSRW</title>
   <!-- Page content stays hidden until the user's own settings (theme, fonts) are applied, so the default look never flashes. -->
   <style>html.is-booting body > * { visibility: hidden; }</style>
-  <link rel="stylesheet" href="src/styles.css?v=20260928-246">
+  <link rel="stylesheet" href="src/styles.css?v=20260928-247">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -520,6 +520,16 @@
       </div>
     </div>
   </div>
+  <div id="wordPreviewPrompt" class="library-modal" hidden>
+    <div class="word-preview-prompt" role="dialog" aria-modal="true" aria-labelledby="wordPreviewPromptText">
+      <div id="wordPreviewPromptText" class="word-preview-prompt-text"></div>
+      <div class="word-preview-prompt-actions">
+        <button id="wordPreviewYesBtn" type="button" class="primary" data-preview-choice="preview" title="先看一遍这组新词，不计入学习记录，看完可以直接开始初测">先预习</button>
+        <button type="button" data-preview-choice="start" title="不预习，直接开始这组新词的初测">直接开始</button>
+        <button type="button" data-preview-choice="cancel" title="不开始练习（Esc）">取消</button>
+      </div>
+    </div>
+  </div>
   <div id="wordRecognizeReviewModal" class="library-modal word-review-modal" data-word-review-interface="recognize" hidden>
     <div class="word-review-stage" role="dialog" aria-modal="true" aria-labelledby="wordRecognizeReviewTitle">
     <div class="word-review-dialog">
@@ -673,6 +683,10 @@
   <div id="wordStatusMenu" class="grammar-context-menu" role="menu" hidden></div>
   <div id="wordReviewLauncherMenu" class="grammar-context-menu" role="menu" hidden>
     <button id="wordReviewFreeBtn" type="button" role="menuitem" title="练习已学过的词，不管是否到期；结果不计入练习记忆，不改变复习安排">自由练习</button>
+    <button id="wordReviewNewBtn" type="button" role="menuitem" title="预习接下来正式练习要学的那批新词；结果不计入练习记忆，不改变复习安排">新词预习</button>
+    <div class="grammar-context-separator"></div>
+    <button id="wordReviewResetGroupBtn" type="button" role="menuitem" title="把本组里已经学过的单词清除记录，变回待学的新词；本组还是这几个词，可以重新学一遍">重置本组记录</button>
+    <button id="wordReviewSwitchGroupBtn" type="button" role="menuitem" title="把本组里已经学过的单词清除记录，并换一组新的待学单词；原来这组词以后可能再被抽到">切换本组新词</button>
     <div class="grammar-context-separator"></div>
     <button id="wordReviewClearBtn" type="button" role="menuitem">清除记忆</button>
   </div>
@@ -688,7 +702,7 @@
   <script src="src/languages/es/text.js?v=20260928-2"></script>
   <script src="src/languages/en/dictionary.js?v=20260928-2"></script>
   <script src="src/languages/es/dictionary.js?v=20260928-2"></script>
-  <script src="src/user-data.js?v=20260928-4"></script>
-  <script src="src/app.js?v=20260928-269"></script>
+  <script src="src/user-data.js?v=20260928-5"></script>
+  <script src="src/app.js?v=20260928-281"></script>
 </body>
 </html>

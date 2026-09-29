@@ -50,6 +50,7 @@
 | 语言 | `favoriteWord` | 状态 | 单词（小写） | `{ w 单词, r 星级, t 收藏时间（秒）, f 筛选字段, s 来源句引用 或 st/sx 来源句原文和翻译 }`。`f` 只存非空的 `tag`、`oxford`、`collins`、`bnc`、`frq` |
 | 语言 | `favoriteSentence` | 状态 | 见“记录编号” | 内置句库句子：`{ lib, id, lf 句库指纹, fp: null, r, t }`；其他句子：`{ text, tr 翻译, fp: null, r, t }` |
 | 语言 | `wordProgress` | 状态 | 单词（小写） | `{ r: { 练习方式: 排期 }, m: { 练习方式: 手动掌握时间 } }`；排期字段见 `WORD_REVIEW.md` 第 6 节 |
+| 语言 | `newWordBatch` | 状态 | `练习方式\|范围`（如 `recognize\|favorites`、`listen\|list:oxford`） | 本组新词：该练习在该范围里随机抽出并记住的单词列表（最多 n 个，n 为设置里的单词练习每组个数）；机制见 `WORD_REVIEW.md` 的“本组新词” |
 | 语言 | `grammarResult` | 状态 | 统一格式的句子原文 | AI 语法分析结果 `{ sentence, framework, grammar, grammarRaw（与 grammar 不同时才存）, savedAt }`；结果内容自带分析规范和数据格式版本 |
 | 语言 | `sentenceProgress` | 状态 | — | 预留给背句子（`SENTENCE_REVIEW.md`），尚未使用 |
 | 语言 | `customLibrary` | 状态 | — | 预留给自定义句库，暂不实现 |
@@ -103,6 +104,7 @@
 | 最后位置（句库和句子序号） | `position` | 是 |
 | 单词收藏、句子收藏 | `favoriteWord`、`favoriteSentence` | 是 |
 | 背单词进度、手动掌握 | `wordProgress` | 是 |
+| 本组新词（每个练习、每个范围一条） | `newWordBatch` | 是 |
 | AI 语法分析结果 | `grammarResult` | 是 |
 
 **跟着浏览器走**（存在这个浏览器里，同一浏览器的所有身份共用；不导出、不同步；换浏览器或清除网站数据就没有）

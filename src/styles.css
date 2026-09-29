@@ -3172,6 +3172,35 @@
       line-height: 1.6;
     }
 
+    /* Asks whether to preview a group's new words before learning them. */
+    #wordPreviewPrompt {
+      z-index: 70;
+    }
+
+    .word-preview-prompt {
+      display: grid;
+      gap: 16px;
+      width: min(380px, 100%);
+      padding: 20px;
+      border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+      border-radius: 10px;
+      background: var(--panel);
+      color: var(--ink);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
+      animation: settings-panel-in 160ms ease;
+    }
+
+    .word-preview-prompt-text {
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .word-preview-prompt-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
     .dialog-header-actions {
       display: flex;
       align-items: center;
