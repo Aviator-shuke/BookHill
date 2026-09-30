@@ -337,7 +337,7 @@ async function list(payload = {}) {
   const dictionary = requireDatabase(payload);
   await ensureFrequency(payload, dictionary);
   const profile = listProfile(dictionary);
-  const { entryType = "words", category = "all", sort = "alphabetical", query = "", page = 1, pageSize = 100 } = payload.options || payload;
+  const { entryType = "words", category = "all", sort = "alphabetical", query = "", page = 1, pageSize = 100, excludeWords = [] } = payload.options || payload;
   const categoryWhere = profile.categories[category] || profile.categories.all;
   const letter = profile.firstLetter;
   const typeWhere = entryType === "suffixes"
@@ -350,9 +350,15 @@ async function list(payload = {}) {
   const normalizedQuery = String(query || "").trim();
   const escapedQuery = normalizedQuery.replace(/([%_\\])/g, "\\$1");
   const searchWhere = normalizedQuery ? "stardict.word LIKE ? ESCAPE '\\' COLLATE NOCASE" : "1=1";
-  const bindings = normalizedQuery ? [`%${escapedQuery}%`] : [];
+  const normalizedExcludeWords = [...new Set((Array.isArray(excludeWords) ? excludeWords : [])
+    .map((word) => String(word || "").trim().toLowerCase())
+    .filter(Boolean))];
+  const excludeWhere = normalizedExcludeWords.length
+    ? `lower(stardict.word) NOT IN (${normalizedExcludeWords.map(() => "?").join(",")})`
+    : "1=1";
+  const bindings = [...(normalizedQuery ? [`%${escapedQuery}%`] : []), ...normalizedExcludeWords];
   const source = listSource(dictionary, profile, profile.categories[category] ? category : "all", sort);
-  const where = `(${typeWhere}) AND (${categoryWhere}) AND (${searchWhere})`;
+  const where = `(${typeWhere}) AND (${categoryWhere}) AND (${searchWhere}) AND (${excludeWhere})`;
   const normalizedPageSize = Math.max(20, Math.min(Number(pageSize) || 100, 200));
   const countSql = `SELECT count(*) FROM ${source} WHERE ${where}`;
   const total = Number(bindings.length ? database.selectValue(countSql, bindings) : database.selectValue(countSql)) || 0;
@@ -369,12 +375,19 @@ async function studyList(payload = {}) {
   const dictionary = requireDatabase(payload);
   await ensureFrequency(payload, dictionary);
   const profile = listProfile(dictionary);
-  const { category = "all", sort = "alphabetical" } = payload.options || payload;
-  const categoryWhere = category !== "all" && profile.categories[category];
+  const { category = "all", sort = "alphabetical", excludeWords = [] } = payload.options || payload;
+  const categoryWhere = profile.categories[category];
   if (!categoryWhere) throw new Error("请选择具体词表");
+  const normalizedExcludeWords = [...new Set((Array.isArray(excludeWords) ? excludeWords : [])
+    .map((word) => String(word || "").trim().toLowerCase())
+    .filter(Boolean))];
+  const excludeWhere = normalizedExcludeWords.length
+    ? `AND lower(stardict.word) NOT IN (${normalizedExcludeWords.map(() => "?").join(",")})`
+    : "";
   const source = listSource(dictionary, profile, category, sort);
   return database.selectArrays(
-    `SELECT stardict.id, ${listWordColumn(source)}, collins FROM ${source} WHERE stardict.word GLOB '${profile.firstLetter}*' AND instr(trim(stardict.word), ' ') = 0 AND (${categoryWhere}) ORDER BY ${profile.orderBy[sort] || profile.orderBy.alphabetical}`
+    `SELECT stardict.id, ${listWordColumn(source)}, collins FROM ${source} WHERE stardict.word GLOB '${profile.firstLetter}*' AND instr(trim(stardict.word), ' ') = 0 AND (${categoryWhere}) ${excludeWhere} ORDER BY ${profile.orderBy[sort] || profile.orderBy.alphabetical}`,
+    normalizedExcludeWords
   ).map(([id, word, collins]) => ({ id, word, collins: Number(collins) || 0 }));
 }
 

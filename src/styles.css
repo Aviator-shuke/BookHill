@@ -3311,7 +3311,7 @@
 
     .user-words-controls {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.62fr) minmax(0, 0.96fr);
       gap: 4px;
       padding: 4px 6px;
       border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
@@ -3429,9 +3429,10 @@
       -webkit-appearance: none;
       width: 100%;
       min-width: 0;
+      max-width: 100%;
       min-height: 22px;
       height: 22px;
-      padding: 0 14px 0 5px;
+      padding: 0 12px 0 4px;
       border-color: color-mix(in srgb, var(--ink) 18%, transparent);
       border-radius: 7px;
       background-color: var(--panel);
@@ -3440,8 +3441,9 @@
       background-size: 4px 4px, 4px 4px;
       background-repeat: no-repeat;
       color: var(--ink);
-      font-size: 12px;
+      font-size: 11px;
       line-height: 20px;
+      text-overflow: ellipsis;
     }
 
     .user-words-list,
@@ -4920,6 +4922,12 @@
       line-height: 1.45;
     }
 
+    .word-review-spell-anchor {
+      margin-top: 4px;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
     .word-review-pattern-row {
       display: flex;
       align-items: center;
@@ -5471,13 +5479,12 @@
       background: color-mix(in srgb, var(--accent) 16%, transparent);
     }
 
-    /* Continuous divider after the status slots: drawn on each row across its full border-box height,
-       at row padding 8px + three 15px slots + two 1px gaps + 6px padding = 61px. */
+    /* Continuous divider after the shared status slot: row padding 8px + one 15px slot + 6px padding = 29px. */
     #dictionaryLibraryList .user-word-item,
     #userPhrasesList .user-word-item {
       background-image: linear-gradient(color-mix(in srgb, var(--ink) 22%, transparent), color-mix(in srgb, var(--ink) 22%, transparent));
       background-origin: border-box;
-      background-position: 61px 0;
+      background-position: 29px 0;
       background-repeat: no-repeat;
       background-size: 1px 100%;
     }
@@ -5675,9 +5682,9 @@
       top: 1.5px;
     }
 
-    /* The mastery cards keep their fixed 145px width in the lookup popover; a wider popover does not stretch them. */
+    /* The lookup popover uses the same full mastery card as the dictionary and favorites detail panes. */
     .dictionary-lookup-popover .dictionary-mastery-items {
-      grid-template-columns: repeat(3, 145px);
+      grid-template-columns: minmax(0, 1fr);
     }
 
     /* 🌈 (saved AI grammar analysis) sits left of 编辑 inside the star column. */

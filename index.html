@@ -559,15 +559,22 @@
               <option value="ky">考研</option><option value="ielts">IELTS</option>
               <option value="toefl">TOEFL</option><option value="gre">GRE</option><option value="all">全部</option>
             </select></label>
+            <label>学习<select id="dictionaryLearningSelect" title="按背单词学习状态筛选词库单词">
+              <option value="all">全部</option>
+              <option value="review-new">未学习</option>
+              <option value="review-learned">已学习</option>
+              <option value="review-due">已到期</option>
+              <option value="review-mastered">已掌握</option>
+            </select></label>
             <label>排序<select id="dictionarySortSelect">
-              <option value="alphabetical">字母 A-Z</option><option value="bnc">BNC 词频</option>
+              <option value="alphabetical">字母 A-Z</option><option value="favorites">用户收藏</option><option value="bnc">BNC 词频</option>
               <option value="frq">当代语料词频</option><option value="collins">柯林斯星级</option>
             </select></label>
             <div class="word-review-launchers" aria-label="词表学习方式">
               <span class="word-review-launchers-label">背单词：</span>
-              <button class="word-review-start" type="button" data-dictionary-study-mode="recognize" data-label="识义">识义 (0)</button>
-              <button class="word-review-start" type="button" data-dictionary-study-mode="listen" data-label="听写">听写 (0)</button>
-              <button class="word-review-start" type="button" data-dictionary-study-mode="spell" data-label="默写">默写 (0)</button>
+              <button class="word-review-start" type="button" data-dictionary-study-session="preview">预习 (0)</button>
+              <button class="word-review-start" type="button" data-dictionary-study-session="review">复习 (0)</button>
+              <button class="word-review-start" type="button" data-dictionary-study-session="test">测验 (0)</button>
             </div>
           </div>
           <div id="dictionaryLibraryCount" class="user-words-count">
@@ -602,7 +609,7 @@
     <div class="word-review-dialog">
       <div class="library-header">
         <div>
-          <h2 id="wordRecognizeReviewTitle">识义</h2>
+          <h2 id="wordRecognizeReviewTitle">预习</h2>
           <div id="wordRecognizeReviewProgress" class="small-note"></div>
         </div>
         <div class="dialog-header-actions">
@@ -619,7 +626,7 @@
     <div class="word-review-dialog">
       <div class="library-header">
         <div>
-          <h2 id="wordListenReviewTitle">听写</h2>
+          <h2 id="wordListenReviewTitle">复习</h2>
           <div id="wordListenReviewProgress" class="small-note"></div>
         </div>
         <div class="dialog-header-actions">
@@ -636,7 +643,7 @@
     <div class="word-review-dialog">
       <div class="library-header">
         <div>
-          <h2 id="wordSpellReviewTitle">默写</h2>
+          <h2 id="wordSpellReviewTitle">测验</h2>
           <div id="wordSpellReviewProgress" class="small-note"></div>
         </div>
         <div class="dialog-header-actions">
@@ -681,6 +688,15 @@
                 <option value="gre">GRE</option>
               </select>
             </label>
+            <label>学习
+              <select id="userWordsLearningSelect" title="按背单词学习状态筛选收藏单词">
+                <option value="all">全部</option>
+                <option value="review-new">未学习</option>
+                <option value="review-learned">已学习</option>
+                <option value="review-due">已到期</option>
+                <option value="review-mastered">已掌握</option>
+              </select>
+            </label>
             <label>排序
               <select id="userWordsSortSelect">
                 <option value="saved-desc">收藏时间</option>
@@ -693,9 +709,9 @@
             </label>
             <div class="word-review-launchers" aria-label="收藏单词学习方式">
               <span class="word-review-launchers-label">背单词：</span>
-              <button class="word-review-start" type="button" data-favorite-review-mode="recognize">识义 (0)</button>
-              <button class="word-review-start" type="button" data-favorite-review-mode="listen">听写 (0)</button>
-              <button class="word-review-start" type="button" data-favorite-review-mode="spell">默写 (0)</button>
+              <button class="word-review-start" type="button" data-favorite-review-session="preview">预习 (0)</button>
+              <button class="word-review-start" type="button" data-favorite-review-session="review">复习 (0)</button>
+              <button class="word-review-start" type="button" data-favorite-review-session="test">测验 (0)</button>
             </div>
           </div>
           <div id="userWordsCount" class="user-words-count">
@@ -759,13 +775,10 @@
   </div>
   <div id="wordStatusMenu" class="grammar-context-menu" role="menu" hidden></div>
   <div id="wordReviewLauncherMenu" class="grammar-context-menu" role="menu" hidden>
-    <button id="wordReviewFreeBtn" type="button" role="menuitem" title="练习已学过的词，不管是否到期；结果不计入练习记忆，不改变复习安排">自由练习</button>
-    <button id="wordReviewNewBtn" type="button" role="menuitem" title="预习接下来正式练习要学的那批新词；结果不计入练习记忆，不改变复习安排">新词预习</button>
-    <div class="grammar-context-separator"></div>
     <button id="wordReviewResetGroupBtn" type="button" role="menuitem" title="把本组里已经学过的单词清除记录，变回待学的新词；本组还是这几个词，可以重新学一遍">重置本组记录</button>
     <button id="wordReviewSwitchGroupBtn" type="button" role="menuitem" title="把本组里已经学过的单词清除记录，并换一组新的待学单词；原来这组词以后可能再被抽到">切换本组新词</button>
     <div class="grammar-context-separator"></div>
-    <button id="wordReviewClearBtn" type="button" role="menuitem">清除记忆</button>
+    <button id="wordReviewClearBtn" type="button" role="menuitem" title="清除当前范围内所有单词的背单词记录和手动掌握标记；收藏星级和词表分类不会被删除">清除记忆</button>
   </div>
   <div id="dictionaryLookupPopover" class="dictionary-lookup-popover" role="dialog" aria-label="单词查询" hidden></div>
   <div id="englishLookupPopover" class="dictionary-lookup-popover english-lookup-popover" role="dialog" aria-label="英语词典查询" hidden></div>

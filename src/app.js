@@ -2865,14 +2865,25 @@ const fallbackSentences = [
     // The category and sort selects of 词库 and 收藏 list the current learning language's options. English keeps the
     // options written in index.html; another language provides its own lists in src/languages/<id>/dictionary.js.
     const englishSelectOptions = {};
+    const WORD_LEARNING_CATEGORY_OPTIONS = [
+      ["all", "全部"],
+      ["review-new", "未学习"],
+      ["review-learned", "已学习"],
+      ["review-due", "已到期"],
+      ["review-mastered", "已掌握"]
+    ];
+
+    function isWordLearningFilter(value) {
+      return value !== "all" && WORD_LEARNING_CATEGORY_OPTIONS.some(([optionValue]) => optionValue === value);
+    }
 
     function applyLanguageSelectOptions(selectId, options) {
       const select = $(selectId);
       if (!(selectId in englishSelectOptions)) englishSelectOptions[selectId] = select.innerHTML;
       const previous = select.value;
       select.innerHTML = options
-        ? options.map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join("")
-        : englishSelectOptions[selectId];
+          ? options.map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join("")
+          : englishSelectOptions[selectId];
       if ([...select.options].some((option) => option.value === previous)) select.value = previous;
     }
 
@@ -3869,17 +3880,12 @@ ${orderNote}`;
       return `${date} ${time}`;
     }
 
-    function dictionaryWordMasteryHtml(word) {
-      const records = loadWordReviewRecords();
-      const marks = loadWordManualMastery()[dictionaryFavoriteKey(word)] || {};
-      const wordRecord = records[dictionaryFavoriteKey(word)] || {};
-      const modes = WORD_REVIEW_MODES.map((mode) => ({
-        label: mode.label,
-        state: wordMasteryState(wordRecord[mode.id], Boolean(marks[mode.id])),
-        // Manually mastered modes hide the underlying schedule; every field shows "—".
-        record: marks[mode.id] ? null : wordRecord[mode.id] || null
-      }));
-      return `<div class="dictionary-mastery"><div class="dictionary-section-label">当前单词掌握程度</div><div class="dictionary-mastery-items">${modes.map((mode) => `<div class="dictionary-mastery-item is-${mode.state.key}"><div class="dictionary-mastery-head"><b>${mode.label}</b><span>${mode.state.label}</span></div><div class="dictionary-mastery-meta"><span>复习间隔：${wordReviewIntervalLabel(mode.record)}</span><span>下次复习：${wordReviewDueLabel(mode.record)}</span><span>间隔系数：${wordReviewRecordStarted(mode.record) ? (wordReviewEase(mode.record) / 100).toFixed(2) : "—"}</span><span>连续答对：${wordReviewRecordStarted(mode.record) ? `${Number(mode.record.reps) || 0} 次` : "—"}</span></div></div>`).join("")}</div></div>`;
+    function dictionaryWordMasteryHtml(word, languageId = state.learningLanguageId) {
+      const records = loadWordReviewRecords(languageId);
+      const marks = loadWordManualMastery(languageId)[dictionaryFavoriteKey(word)] || {};
+      const record = marks.mastered ? null : records[dictionaryFavoriteKey(word)] || null;
+      const state = wordMasteryState(record, Boolean(marks.mastered));
+      return `<div class="dictionary-mastery"><div class="dictionary-section-label">当前单词掌握程度</div><div class="dictionary-mastery-items"><div class="dictionary-mastery-item is-${state.key}"><div class="dictionary-mastery-head"><b>背单词</b><span>${state.label}</span></div><div class="dictionary-mastery-meta"><span>复习间隔：${wordReviewIntervalLabel(record)}</span><span>下次复习：${wordReviewDueLabel(record)}</span><span>间隔系数：${wordReviewRecordStarted(record) ? (wordReviewEase(record) / 100).toFixed(2) : "—"}</span><span>连续答对：${wordReviewRecordStarted(record) ? `${Number(record.reps) || 0} 次` : "—"}</span></div></div></div></div>`;
     }
 
     async function openDictionaryFormDetail(button) {
@@ -4075,12 +4081,14 @@ ${orderNote}`;
         } else {
           const headword = String(result.word || word).trim();
           popover.lookupEntry = result;
+          const masteryHtml = dictionaryWordMasteryHtml(headword, "en");
           popover.innerHTML = `
             <div class="dictionary-lookup-header">
               ${dictionaryLookupHeadwordHtml(headword, result.phonetic)}
               <div class="dictionary-lookup-actions">${currentLearningLanguage().id === "en" ? dictionaryPracticeButtons(headword) : ""}${dictionaryFavoriteButton(headword, false, "en")}<button type="button" data-dictionary-close aria-label="关闭" title="关闭英语词典查询">×</button></div>
             </div>
-            ${dictionaryLookupBodyHtml(result, window.langLSRWLanguages.en.dictionary)}`;
+            ${dictionaryLookupBodyHtml(result, window.langLSRWLanguages.en.dictionary)}
+            ${masteryHtml}`;
           if (dictionaryAutoSpeakEnabled()) speakText(headword, englishReferenceSpeechOptions());
         }
       } catch (error) {
@@ -4177,9 +4185,14 @@ ${orderNote}`;
       list.innerHTML = '<div class="user-phrases-empty">正在读取词库...</div>';
       const language = currentLearningLanguage();
       const category = $("dictionaryCategorySelect").value;
+      const learning = $("dictionaryLearningSelect").value;
       const sort = $("dictionarySortSelect").value;
       try {
-        const result = await window.langLSRWDictionary.list({
+        const result = sort === "favorites" && state.dictionaryLibraryType === "words"
+          ? await loadDictionaryFavoriteSortedPage(category, learning, $("dictionaryLibrarySearchInput").value, state.dictionaryLibraryPage, state.dictionaryLibraryPageSize)
+          : isWordLearningFilter(learning) && state.dictionaryLibraryType === "words"
+          ? await loadDictionaryLearningFilterPage(category, learning, sort, $("dictionaryLibrarySearchInput").value, state.dictionaryLibraryPage, state.dictionaryLibraryPageSize)
+          : await window.langLSRWDictionary.list({
           entryType: state.dictionaryLibraryType,
           category,
           sort,
@@ -4414,30 +4427,30 @@ ${orderNote}`;
 
     let dictionaryStudyCountToken = 0;
     async function updateDictionaryStudyButton() {
-      const buttons = [...document.querySelectorAll("[data-dictionary-study-mode]")];
+      const buttons = [...document.querySelectorAll("[data-dictionary-study-session]")];
       if (!buttons.length) return;
       const token = ++dictionaryStudyCountToken;
       const category = $("dictionaryCategorySelect").value;
       const hasStudyDeck = dictionaryStudyDeckEnabled() && state.dictionaryLibraryType === "words" && category !== "all";
       const available = hasStudyDeck && !state.dictionaryStudyLoading;
       buttons.forEach((button) => {
-        const modeLabel = button.dataset.label || wordReviewModeLabel(button.dataset.dictionaryStudyMode);
+        const sessionLabel = wordReviewSessionLabel(button.dataset.dictionaryStudySession);
         button.disabled = !available;
-        button.textContent = `${modeLabel} (${hasStudyDeck ? "…" : 0})`;
+        button.textContent = `${sessionLabel} (${hasStudyDeck ? "…" : 0})`;
       });
       if (!hasStudyDeck) return;
       try {
         const words = await loadDictionaryStudyWords(category, $("dictionarySortSelect").value);
         if (token !== dictionaryStudyCountToken || category !== $("dictionaryCategorySelect").value) return;
         buttons.forEach((button) => {
-          const modeLabel = button.dataset.label || wordReviewModeLabel(button.dataset.dictionaryStudyMode);
-          button.textContent = `${modeLabel} (${wordListReviewModeCount(words, button.dataset.dictionaryStudyMode)})`;
+          const sessionLabel = wordReviewSessionLabel(button.dataset.dictionaryStudySession);
+          button.textContent = `${sessionLabel} (${wordListReviewSessionCount(words, button.dataset.dictionaryStudySession, { source: "wordList", deckCategory: category })})`;
         });
       } catch {
         if (token !== dictionaryStudyCountToken) return;
         buttons.forEach((button) => {
-          const modeLabel = button.dataset.label || wordReviewModeLabel(button.dataset.dictionaryStudyMode);
-          button.textContent = `${modeLabel} (0)`;
+          const sessionLabel = wordReviewSessionLabel(button.dataset.dictionaryStudySession);
+          button.textContent = `${sessionLabel} (0)`;
         });
       }
     }
@@ -4451,10 +4464,174 @@ ${orderNote}`;
       return [...keys].filter((key) => wordModeMastered(key, mode, records, marks)).length;
     }
 
+    function wordListReviewSessionCount(words, session, context = {}) {
+      const records = loadWordReviewRecords();
+      const marks = loadWordManualMastery();
+      const available = words.filter((item) => !marks[dictionaryFavoriteKey(item.word)]?.mastered);
+      if (session === "preview") {
+        const dry = { source: context.source || "favorites", deckCategory: context.deckCategory || "", records };
+        return wordReviewNewBatch("recognize", dry, available).length;
+      }
+      if (session === "review") return available.filter((item) => records[dictionaryFavoriteKey(item.word)]).length;
+      return wordListReviewModeCount(words, "recognize");
+    }
+
+    function wordLearningKnownKeys(records = loadWordReviewRecords(), marks = loadWordManualMastery()) {
+      return [...new Set([...Object.keys(records), ...Object.keys(marks).filter((key) => marks[key]?.mastered)])];
+    }
+
+    function wordLearningFilterKeys(learning, records = loadWordReviewRecords(), marks = loadWordManualMastery()) {
+      if (learning === "review-new") return [];
+      return wordLearningKnownKeys(records, marks).filter((key) => userWordMatchesLearningFilter({ word: key }, learning, records, marks));
+    }
+
+    function dictionarySortValue(item, field) {
+      const value = Number(item?.[field]);
+      return Number.isFinite(value) && value > 0 ? value : Number.MAX_SAFE_INTEGER;
+    }
+
+    function sortDictionaryLearningItems(items, sort) {
+      const alphabetical = (left, right) => String(left.word).localeCompare(String(right.word), currentLearningLanguage().id, { sensitivity: "base" });
+      return [...items].sort((left, right) => {
+        if (sort === "favorites") return favoriteDictionarySort(left, right);
+        if (sort === "collins") return (Number(right.collins) || 0) - (Number(left.collins) || 0) || alphabetical(left, right);
+        if (sort === "bnc") return dictionarySortValue(left, "bnc") - dictionarySortValue(right, "bnc") || alphabetical(left, right);
+        if (sort === "frq") return dictionarySortValue(left, "frq") - dictionarySortValue(right, "frq") || alphabetical(left, right);
+        return alphabetical(left, right);
+      });
+    }
+
+    function favoriteRatingMap() {
+      return new Map(loadUserWords().map((item) => [dictionaryFavoriteKey(item.word), Number(item.rating) || 1]));
+    }
+
+    function favoriteDictionarySort(left, right) {
+      const ratings = favoriteRatingMap();
+      const leftRating = ratings.get(dictionaryFavoriteKey(left.word)) || 0;
+      const rightRating = ratings.get(dictionaryFavoriteKey(right.word)) || 0;
+      const alphabetical = String(left.word).localeCompare(String(right.word), currentLearningLanguage().id, { sensitivity: "base" });
+      if (leftRating || rightRating) return rightRating - leftRating || alphabetical;
+      return alphabetical;
+    }
+
+    function dictionaryFavoriteWordsForCategory(category, learning = "all", query = "") {
+      const normalizedQuery = String(query || "").trim().toLocaleLowerCase("en-US");
+      const records = isWordLearningFilter(learning) ? loadWordReviewRecords() : null;
+      const marks = isWordLearningFilter(learning) ? loadWordManualMastery() : null;
+      return loadUserWords()
+        .filter((item) => languageDictionary().matchesCategory(item, category))
+        .filter((item) => !isWordLearningFilter(learning) || userWordMatchesLearningFilter(item, learning, records, marks))
+        .filter((item) => !normalizedQuery || String(item.word || "").toLocaleLowerCase("en-US").includes(normalizedQuery))
+        .sort((left, right) => (Number(right.rating) || 1) - (Number(left.rating) || 1)
+          || String(left.word).localeCompare(String(right.word), currentLearningLanguage().id, { sensitivity: "base" }));
+    }
+
+    async function loadDictionaryFavoriteSortedPage(category, learning, query, page, pageSize) {
+      const favoriteWords = dictionaryFavoriteWordsForCategory(category, learning, query);
+      const favoriteKeys = favoriteWords.map((item) => dictionaryFavoriteKey(item.word));
+      const normalizedPageSize = Math.max(20, Math.min(Number(pageSize) || 100, 200));
+      const baseOptions = {
+        entryType: "words",
+        category,
+        sort: "alphabetical",
+        query,
+        page,
+        pageSize: normalizedPageSize,
+        excludeWords: favoriteKeys
+      };
+      const rest = isWordLearningFilter(learning)
+        ? await loadDictionaryLearningFilterPage(category, learning, "alphabetical", query, page, normalizedPageSize, favoriteKeys)
+        : await window.langLSRWDictionary.list(baseOptions, currentDictionaryId());
+      const favoriteRows = sortDictionaryLearningItems((await window.langLSRWDictionary.queryMany(favoriteWords.map((item) => item.word), currentDictionaryId()))
+        .filter((item) => languageDictionary().matchesCategory(item, category)), "favorites");
+      const total = favoriteRows.length + rest.total;
+      const pageCount = Math.max(1, Math.ceil(total / normalizedPageSize));
+      const normalizedPage = Math.max(1, Math.min(Number(page) || 1, pageCount));
+      const start = (normalizedPage - 1) * normalizedPageSize;
+      const rows = start < favoriteRows.length
+        ? favoriteRows.slice(start, start + normalizedPageSize)
+        : [];
+      if (rows.length < normalizedPageSize) {
+        const restOffset = Math.max(0, start - favoriteRows.length);
+        const restPage = Math.floor(restOffset / normalizedPageSize) + 1;
+        const restStart = restOffset % normalizedPageSize;
+        const restPageResult = isWordLearningFilter(learning)
+          ? await loadDictionaryLearningFilterPage(category, learning, "alphabetical", query, restPage, normalizedPageSize, favoriteKeys)
+          : await window.langLSRWDictionary.list({ ...baseOptions, page: restPage }, currentDictionaryId());
+        rows.push(...restPageResult.rows.slice(restStart, restStart + normalizedPageSize - rows.length));
+      }
+      return { rows, total, page: normalizedPage, pageSize: normalizedPageSize, pageCount };
+    }
+
+    async function loadDictionaryFavoriteSortedWords(category, learning) {
+      const favoriteWords = dictionaryFavoriteWordsForCategory(category, learning);
+      const favoriteKeys = favoriteWords.map((item) => dictionaryFavoriteKey(item.word));
+      const favoriteRows = sortDictionaryLearningItems((await window.langLSRWDictionary.queryMany(favoriteWords.map((item) => item.word), currentDictionaryId()))
+        .filter((item) => languageDictionary().matchesCategory(item, category)), "favorites");
+      const rest = isWordLearningFilter(learning)
+        ? await loadDictionaryLearningFilterWords(category, learning, "alphabetical", favoriteKeys)
+        : await window.langLSRWDictionary.studyList({ category, sort: "alphabetical", excludeWords: favoriteKeys }, currentDictionaryId());
+      return [...favoriteRows, ...rest];
+    }
+
+    async function loadDictionaryLearningFilterWords(category, learning, sort, excludeWords = []) {
+      if (learning === "review-new") {
+        return window.langLSRWDictionary.studyList({
+          category,
+          sort: sort === "favorites" ? "alphabetical" : sort,
+          excludeWords: [...wordLearningKnownKeys(), ...excludeWords]
+        }, currentDictionaryId());
+      }
+      const keys = wordLearningFilterKeys(learning);
+      if (!keys.length) return [];
+      const excludeKeys = new Set(excludeWords.map((word) => dictionaryFavoriteKey(word)));
+      return sortDictionaryLearningItems((await window.langLSRWDictionary.queryMany(keys, currentDictionaryId()))
+        .filter((item) => !excludeKeys.has(dictionaryFavoriteKey(item.word)))
+        .filter((item) => languageDictionary().matchesCategory(item, category)), sort);
+    }
+
+    async function loadDictionaryLearningFilterPage(category, learning, sort, query, page, pageSize, excludeWords = []) {
+      if (learning === "review-new") {
+        return window.langLSRWDictionary.list({
+          entryType: "words",
+          category,
+          sort: sort === "favorites" ? "alphabetical" : sort,
+          query,
+          page,
+          pageSize,
+          excludeWords: [...wordLearningKnownKeys(), ...excludeWords]
+        }, currentDictionaryId());
+      }
+      const normalizedQuery = String(query || "").trim().toLocaleLowerCase("en-US");
+      const keys = wordLearningFilterKeys(learning)
+        .filter((key) => !normalizedQuery || key.toLocaleLowerCase("en-US").includes(normalizedQuery));
+      const excludeKeys = new Set(excludeWords.map((word) => dictionaryFavoriteKey(word)));
+      const rows = sortDictionaryLearningItems((await window.langLSRWDictionary.queryMany(keys, currentDictionaryId()))
+        .filter((item) => !excludeKeys.has(dictionaryFavoriteKey(item.word)))
+        .filter((item) => languageDictionary().matchesCategory(item, category)), sort);
+      const normalizedPageSize = Math.max(20, Math.min(Number(pageSize) || 100, 200));
+      const total = rows.length;
+      const pageCount = Math.max(1, Math.ceil(total / normalizedPageSize));
+      const normalizedPage = Math.max(1, Math.min(Number(page) || 1, pageCount));
+      return {
+        rows: rows.slice((normalizedPage - 1) * normalizedPageSize, normalizedPage * normalizedPageSize),
+        total,
+        page: normalizedPage,
+        pageSize: normalizedPageSize,
+        pageCount
+      };
+    }
+
     async function loadDictionaryStudyWords(category, sort) {
-      const cacheKey = `${currentDictionaryId()}:${category}:${sort}`;
+      const learning = $("dictionaryLearningSelect").value;
+      const cacheKey = `${currentDictionaryId()}:${category}:${learning}:${sort}`;
       if (!dictionaryStudyDeckCache.has(cacheKey)) {
-        dictionaryStudyDeckCache.set(cacheKey, window.langLSRWDictionary.studyList({ category, sort }, currentDictionaryId()).catch((error) => {
+        const loader = sort === "favorites"
+          ? loadDictionaryFavoriteSortedWords(category, learning)
+          : isWordLearningFilter(learning)
+          ? loadDictionaryLearningFilterWords(category, learning, sort)
+          : window.langLSRWDictionary.studyList({ category, sort }, currentDictionaryId());
+        dictionaryStudyDeckCache.set(cacheKey, Promise.resolve(loader).catch((error) => {
           dictionaryStudyDeckCache.delete(cacheKey);
           throw error;
         }));
@@ -4462,14 +4639,15 @@ ${orderNote}`;
       return dictionaryStudyDeckCache.get(cacheKey);
     }
 
-    async function openDictionaryWordStudy(mode, free = false) {
-      if (!WORD_REVIEW_MODES.some((item) => item.id === mode)) return;
+    async function openDictionaryWordStudy(session = "test", free = false) {
+      const directMode = WORD_REVIEW_INTERFACES[session] ? session : "";
+      if (!wordReviewSessionLabel(session) && !directMode) return;
       const category = $("dictionaryCategorySelect").value;
       if (!dictionaryStudyDeckEnabled() || state.dictionaryLibraryType !== "words" || category === "all" || state.dictionaryStudyLoading) return;
       const label = $("dictionaryCategorySelect").selectedOptions[0]?.textContent || category;
       const sort = $("dictionarySortSelect").value;
       state.dictionaryStudyLoading = true;
-      state.dictionaryStudyLoadingMode = mode;
+      state.dictionaryStudyLoadingMode = session;
       updateDictionaryStudyButton();
       try {
         const words = await loadDictionaryStudyWords(category, sort);
@@ -4477,13 +4655,15 @@ ${orderNote}`;
           alert(`${label}分类中没有可学习的单词。`);
           return;
         }
-        openWordReview(mode, {
+        const context = {
           source: "wordList",
           sourceLabel: label,
           deckCategory: category,
           words,
           wordIndex: new Map(words.map((item) => [dictionaryFavoriteKey(item.word), item]))
-        }, free);
+        };
+        if (directMode) openWordReview(directMode, context, free, free === "new" ? "preview" : "test");
+        else openWordReviewSession(session, context, free);
       } catch (error) {
         alert(`无法读取${label}词表：${error.message || error}`);
       } finally {
@@ -4706,17 +4886,34 @@ ${orderNote}`;
       }
     }
 
-    function userWordMatchesCategory(item, category) {
-      return languageDictionary().matchesCategory(item, category);
+    function userWordMatchesLearningFilter(item, learning, records = loadWordReviewRecords(), marks = loadWordManualMastery()) {
+      const key = dictionaryFavoriteKey(item?.word);
+      const record = records[key];
+      const manualMastered = Boolean(marks[key]?.mastered);
+      const started = wordReviewRecordStarted(record);
+      const mastered = manualMastered || wordReviewMastered(record);
+      if (learning === "review-new") return !started && !manualMastered;
+      if (learning === "review-due") return started && !manualMastered && Number(record?.due) <= Date.now();
+      if (learning === "review-mastered") return mastered;
+      if (learning === "review-learned") return started && !mastered;
+      return true;
+    }
+
+    function userWordMatchesFilters(item, category, learning = "all", records, marks) {
+      return languageDictionary().matchesCategory(item, category)
+        && (!isWordLearningFilter(learning) || userWordMatchesLearningFilter(item, learning, records, marks));
     }
 
     function filteredAndSortedUserWords(words) {
       const category = $("userWordsCategorySelect").value;
+      const learning = $("userWordsLearningSelect").value;
       const sort = $("userWordsSortSelect").value;
       const query = $("userWordsSearchInput").value.trim().toLocaleLowerCase("en-US");
+      const reviewRecords = isWordLearningFilter(learning) ? loadWordReviewRecords() : null;
+      const manualMastery = isWordLearningFilter(learning) ? loadWordManualMastery() : null;
       const filtered = words.filter((item) => {
         if (query && !String(item.word || "").toLocaleLowerCase("en-US").includes(query)) return false;
-        return userWordMatchesCategory(item, category);
+        return userWordMatchesFilters(item, category, learning, reviewRecords, manualMastery);
       });
       const rankedValue = (value) => {
         const rank = Number(value);
@@ -5027,9 +5224,14 @@ ${orderNote}`;
     }
     const WORD_REVIEW_DAY_MS = 24 * 60 * 60 * 1000;
     const WORD_REVIEW_MODES = [
-      { id: "recognize", label: "识义", minStars: 1, title: "看英文、听发音，回想意思（1 星及以上的收藏词）" },
-      { id: "listen", label: "听写", minStars: 2, title: "只听发音，拼出单词（2 星及以上的收藏词）" },
-      { id: "spell", label: "默写", minStars: 3, title: "只看中文，拼出单词（3 星及以上的收藏词）" }
+      { id: "recognize", label: "识义", minStars: 1, title: "看单词、听发音，回想意思" },
+      { id: "listen", label: "听写", minStars: 2, title: "听发音，拼出单词" },
+      { id: "spell", label: "默写", minStars: 3, title: "看释义，拼出目标词" }
+    ];
+    const WORD_REVIEW_SESSIONS = [
+      { id: "preview", label: "预习" },
+      { id: "review", label: "复习" },
+      { id: "test", label: "测验" }
     ];
     const WORD_REVIEW_INTERFACES = {
       recognize: {
@@ -5064,18 +5266,18 @@ ${orderNote}`;
     }
 
     // wordProgress: one record per word of the current learning language,
-    // { r: { mode: schedule }, m: { mode: manually-mastered time } }. Callers receive copies they may change freely.
-    function loadWordReviewRecords() {
+    // { r: schedule, m: { mastered: manually-mastered time } }. Callers receive copies they may change freely.
+    function loadWordReviewRecords(languageId = state.learningLanguageId) {
       const records = {};
-      userData.entries("wordProgress", languageScope()).forEach(({ key, value }) => {
-        if (value?.r && Object.keys(value.r).length) records[key] = structuredClone(value.r);
+      userData.entries("wordProgress", languageScope(languageId)).forEach(({ key, value }) => {
+        if (Number.isFinite(Number(value?.r?.due)) || Number.isFinite(Number(value?.r?.interval))) records[key] = structuredClone(value.r);
       });
       return records;
     }
 
-    function loadWordManualMastery() {
+    function loadWordManualMastery(languageId = state.learningLanguageId) {
       const marks = {};
-      userData.entries("wordProgress", languageScope()).forEach(({ key, value }) => {
+      userData.entries("wordProgress", languageScope(languageId)).forEach(({ key, value }) => {
         if (value?.m && Object.keys(value.m).length) marks[key] = structuredClone(value.m);
       });
       return marks;
@@ -5092,6 +5294,7 @@ ${orderNote}`;
         if (!Object.keys(next.r).length && !Object.keys(next.m).length) userData.remove("wordProgress", key, scope);
         else userData.put("wordProgress", key, next, scope);
       });
+      dictionaryStudyDeckCache.clear();
       scheduleCloudSync();
     }
 
@@ -5104,11 +5307,15 @@ ${orderNote}`;
     }
 
     function wordModeMastered(key, mode, records, marks) {
-      return Boolean(marks?.[key]?.[mode]) || wordReviewMastered(records?.[key]?.[mode]);
+      return Boolean(marks?.[key]?.mastered) || wordReviewMastered(records?.[key]);
     }
 
     function wordReviewModeLabel(mode) {
       return WORD_REVIEW_MODES.find((item) => item.id === mode)?.label || "";
+    }
+
+    function wordReviewSessionLabel(session) {
+      return WORD_REVIEW_SESSIONS.find((item) => item.id === session)?.label || "";
     }
 
     function wordReviewModeMinStars(mode) {
@@ -5117,26 +5324,26 @@ ${orderNote}`;
 
     function updateFavoriteReviewLaunchers() {
       const category = $("userWordsCategorySelect").value;
-      const words = loadUserWords().filter((item) => userWordMatchesCategory(item, category));
+      const learning = $("userWordsLearningSelect").value;
+      const reviewRecords = isWordLearningFilter(learning) ? loadWordReviewRecords() : null;
+      const manualMastery = isWordLearningFilter(learning) ? loadWordManualMastery() : null;
+      const words = loadUserWords().filter((item) => userWordMatchesFilters(item, category, learning, reviewRecords, manualMastery));
       const records = loadWordReviewRecords();
       const marks = loadWordManualMastery();
-      document.querySelectorAll("[data-favorite-review-mode]").forEach((button) => {
-        const mode = button.dataset.favoriteReviewMode;
-        const count = words.filter((item) => wordReviewEligible(item, mode) && wordModeMastered(dictionaryFavoriteKey(item.word), mode, records, marks)).length;
-        button.textContent = `${wordReviewModeLabel(mode)} (${count})`;
+      document.querySelectorAll("[data-favorite-review-session]").forEach((button) => {
+        const session = button.dataset.favoriteReviewSession;
+        const count = wordListReviewSessionCount(words, session, { source: "favorites" });
+        button.textContent = `${wordReviewSessionLabel(session)} (${count})`;
       });
     }
 
-    // Three fixed-width slots (识义 / 听写 / 默写) left of each list word: 🕗 due, 📕 learning, ✅ mastered, blank untouched.
+    // One shared status slot left of each list word: 🕗 due, 📕 learning, ✅ mastered, blank untouched.
     function wordReviewStatusIconsHtml(word, records = loadWordReviewRecords(), marks = loadWordManualMastery()) {
       const now = Date.now();
-      const modeRecords = records[dictionaryFavoriteKey(word)] || {};
-      const modeMarks = marks[dictionaryFavoriteKey(word)] || {};
-      return `<span class="word-review-status" role="button" data-word-status="${escapeHtml(word)}" title="点击可把识义、听写、默写标记为手动掌握🟢（例如很熟的词），或取消标记">${WORD_REVIEW_MODES.map(({ id }) => {
-        const record = modeRecords[id];
-        const icon = modeMarks[id] ? "🟢" : !record ? "" : Number(record.due) <= now ? "🕗" : wordReviewMastered(record) ? "✅" : "📕";
-        return `<span>${icon}</span>`;
-      }).join("")}</span>`;
+      const key = dictionaryFavoriteKey(word);
+      const record = records[key];
+      const icon = marks[key]?.mastered ? "🟢" : !record ? "" : Number(record.due) <= now ? "🕗" : wordReviewMastered(record) ? "✅" : "📕";
+      return `<span class="word-review-status" role="button" data-word-status="${escapeHtml(word)}" title="点击可把这个词标记为手动掌握🟢（例如很熟的词），或取消标记"><span>${icon}</span></span>`;
     }
 
     function setWordManualMastery(word, modes, mastered) {
@@ -5144,10 +5351,8 @@ ${orderNote}`;
       const key = dictionaryFavoriteKey(word);
       const wordMarks = { ...(marks[key] || {}) };
       const now = new Date().toISOString();
-      modes.forEach((mode) => {
-        if (mastered) wordMarks[mode] = wordMarks[mode] || now;
-        else delete wordMarks[mode];
-      });
+      if (mastered) wordMarks.mastered = wordMarks.mastered || now;
+      else delete wordMarks.mastered;
       if (Object.keys(wordMarks).length) marks[key] = wordMarks;
       else delete marks[key];
       saveWordManualMastery(marks);
@@ -5160,21 +5365,22 @@ ${orderNote}`;
         const headword = detail?.querySelector(".dictionary-headword strong")?.textContent;
         if (mastery && headword && dictionaryFavoriteKey(headword) === key) mastery.outerHTML = dictionaryWordMasteryHtml(word);
       });
+      englishLookupStack.forEach((popover) => {
+        const mastery = popover.querySelector(".dictionary-mastery");
+        const headword = popover.querySelector(".dictionary-headword strong")?.textContent;
+        if (mastery && headword && dictionaryFavoriteKey(headword) === key) mastery.outerHTML = dictionaryWordMasteryHtml(word, "en");
+      });
     }
 
     function openWordStatusMenu(event, word) {
       event.preventDefault();
       event.stopPropagation();
       const marks = loadWordManualMastery()[dictionaryFavoriteKey(word)] || {};
-      const items = WORD_REVIEW_MODES.map(({ id, label }) => marks[id]
-        ? `<button type="button" role="menuitem" data-word-status-action="undo" data-mode="${id}" title="取消手动掌握，恢复显示原来的学习状态，并重新参加${label}练习">${label}：取消手动掌握</button>`
-        : `<button type="button" role="menuitem" data-word-status-action="master" data-mode="${id}" title="把${label}标记为手动掌握🟢：统计为已掌握，不再出现在${label}练习中；原来的学习记录保留">${label}：标记为手动掌握🟢</button>`);
-      const allMarked = WORD_REVIEW_MODES.every(({ id }) => marks[id]);
       const menu = $("wordStatusMenu");
       menu.dataset.word = word;
-      menu.innerHTML = `${items.join("")}<div class="grammar-context-separator"></div>${allMarked
-        ? '<button type="button" role="menuitem" data-word-status-action="undo-all" title="识义、听写、默写全部取消手动掌握">三项全部取消手动掌握</button>'
-        : '<button type="button" role="menuitem" data-word-status-action="master-all" title="识义、听写、默写全部标记为手动掌握">三项全部标记为手动掌握🟢</button>'}`;
+      menu.innerHTML = marks.mastered
+        ? '<button type="button" role="menuitem" data-word-status-action="undo-all" title="取消手动掌握，恢复显示原来的学习状态，并重新参加背单词练习">取消手动掌握</button>'
+        : '<button type="button" role="menuitem" data-word-status-action="master-all" title="标记为手动掌握🟢：统计为已掌握，不再出现在背单词练习中；原来的学习记录保留">标记为手动掌握🟢</button>';
       menu.hidden = false;
       const rect = menu.getBoundingClientRect();
       menu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - rect.width - 8))}px`;
@@ -5202,8 +5408,7 @@ ${orderNote}`;
     }
 
     function wordReviewEligible(item, mode) {
-      const stars = Math.max(1, Math.min(5, Number(item?.rating) || 1));
-      return stars >= wordReviewModeMinStars(mode);
+      return Boolean(item?.word);
     }
 
     function normalizeReviewAnswer(value) {
@@ -5216,16 +5421,16 @@ ${orderNote}`;
     }
 
     function wordReviewRecord(item, mode, review = state.wordReview) {
-      return review?.records?.[dictionaryFavoriteKey(item?.word)]?.[mode] || null;
+      return review?.records?.[dictionaryFavoriteKey(item?.word)] || null;
     }
 
-    // 本组 (the group): the n words drawn for one mode and scope (n = 单词练习每组), remembered so the next normal round
+    // 本组 (the group): the n words drawn for one scope (n = 单词练习每组), remembered so the next normal round
     // and 新词预习 use the same words. Inside the group a word is 待学新词 (no record yet) or 已学新词 (has a record);
     // 待学单词 are the never-practised words of the scope that are not in the group. The group stays fixed, learned words
     // included, until every word of it is learned; only then is a new group drawn from the 待学单词. The record is
     // rewritten in place, so it never grows beyond one group. Returns the 待学新词 items.
     function wordReviewGroupRecordKey(mode, review) {
-      return `${mode}|${review?.source === "wordList" ? `list:${review.deckCategory}` : "favorites"}`;
+      return review?.source === "wordList" ? `list:${review.deckCategory}` : "favorites";
     }
 
     function wordReviewNewBatch(mode, review, words) {
@@ -5270,14 +5475,14 @@ ${orderNote}`;
       review.records = loadWordReviewRecords();
       const marks = loadWordManualMastery();
       const inScope = new Map(items
-        .filter((item) => !marks[dictionaryFavoriteKey(item.word)]?.[mode])
+        .filter((item) => !marks[dictionaryFavoriteKey(item.word)]?.mastered)
         .map((item) => [dictionaryFavoriteKey(item.word), item]));
       const recordKey = wordReviewGroupRecordKey(mode, review);
       // No group yet (this practice was never opened here): draw it now, exactly as opening the practice would.
       if (!(userData.get("newWordBatch", recordKey, languageScope()) || []).length) wordReviewNewBatch(mode, review, [...inScope.values()]);
       const saved = userData.get("newWordBatch", recordKey, languageScope());
       const group = Array.isArray(saved) ? saved : [];
-      const learned = group.filter((key) => review.records[key]?.[mode] || marks[key]?.[mode]);
+      const learned = group.filter((key) => review.records[key] || marks[key]?.mastered);
       if (!group.length) {
         alert("这个范围里没有可学的单词。");
         return;
@@ -5285,7 +5490,7 @@ ${orderNote}`;
       let nextGroup = null;
       if (kind === "switch") {
         const inOldGroup = new Set(group);
-        const pool = [...inScope.keys()].filter((key) => !inOldGroup.has(key) && !review.records[key]?.[mode]);
+        const pool = [...inScope.keys()].filter((key) => !inOldGroup.has(key) && !review.records[key]);
         if (!pool.length) {
           alert("没有其他待学单词可以换了。");
           return;
@@ -5296,21 +5501,15 @@ ${orderNote}`;
         return;
       }
       const message = kind === "switch"
-        ? `清除本组已学过的 ${learned.length} 个单词的“${label}”记录，并换一组新的待学新词？原来这组词会回到待学单词，以后可能再被抽到。已清除的记录无法撤销。`
-        : `清除本组已学过的 ${learned.length} 个单词的“${label}”记录，让它们回到待学新词？无法撤销。`;
+        ? `清除本组已学过的 ${learned.length} 个单词的学习记录，并换一组新的待学新词？原来这组词会回到待学单词，以后可能再被抽到。已清除的记录无法撤销。`
+        : `清除本组已学过的 ${learned.length} 个单词的学习记录，让它们回到待学新词？无法撤销。`;
       // Nothing is cleared when no word of the group was learned, so there is nothing to confirm.
       if (learned.length && !await showAppConfirm(message, { title: kind === "switch" ? "切换本组新词" : "重置本组记录" })) return;
       const records = loadWordReviewRecords();
       const manual = loadWordManualMastery();
       learned.forEach((key) => {
-        if (records[key]) {
-          delete records[key][mode];
-          if (!Object.keys(records[key]).length) delete records[key];
-        }
-        if (manual[key]) {
-          delete manual[key][mode];
-          if (!Object.keys(manual[key]).length) delete manual[key];
-        }
+        delete records[key];
+        delete manual[key];
       });
       saveWordReviewRecords(records);
       saveWordManualMastery(manual);
@@ -5326,7 +5525,7 @@ ${orderNote}`;
       const words = (review?.source === "wordList"
         ? wordReviewSourceItems(review)
         : filteredAndSortedUserWords(loadUserWords()).filter((item) => wordReviewEligible(item, mode)))
-        .filter((item) => !marks[dictionaryFavoriteKey(item.word)]?.[mode]);
+        .filter((item) => !marks[dictionaryFavoriteKey(item.word)]?.mastered);
       const dueReviewed = words
         .filter((item) => wordReviewRecord(item, mode, review) && Number(wordReviewRecord(item, mode, review).due) <= now)
         .sort((a, b) => Number(wordReviewRecord(a, mode, review).due) - Number(wordReviewRecord(b, mode, review).due));
@@ -5335,21 +5534,75 @@ ${orderNote}`;
       // New words form groups of the 单词练习每组 setting; the group number counts what this scope has already learned.
       const learned = words.filter((item) => wordReviewRecord(item, mode, review)).length;
       if (review) review.queueParts = { due: dueReviewed.length, fresh: fresh.length, group: Math.floor(learned / practiceGroupSize("wordGroupSize")) + 1 };
-      return [...dueReviewed, ...fresh].map((item) => dictionaryFavoriteKey(item.word));
+      return [
+        ...expandWordReviewQueue(dueReviewed.map((item) => dictionaryFavoriteKey(item.word)), "due"),
+        ...expandWordReviewQueue(fresh.map((item) => dictionaryFavoriteKey(item.word)), "fresh")
+      ];
     }
 
     function wordReviewResultSummary(review) {
       return `答对 ${review.results.good} · 答错 ${review.results.again}`;
     }
 
+    function wordReviewModeSequence() {
+      return WORD_REVIEW_MODES.map((item) => item.id);
+    }
+
+    function expandWordReviewQueue(keys, section = "review") {
+      const uniqueKeys = [...new Set(keys.filter(Boolean))];
+      if (uniqueKeys.length <= 1) {
+        return uniqueKeys.flatMap((key) => shuffledWordReviewItems(wordReviewModeSequence()).map((mode) => ({ key, mode, section })));
+      }
+      const pending = shuffledWordReviewItems(uniqueKeys.flatMap((key) => wordReviewModeSequence().map((mode) => ({ key, mode, section }))));
+      const queue = [];
+      const minGap = Math.min(3, uniqueKeys.length - 1);
+      while (pending.length) {
+        const recentKeys = queue.slice(-minGap).map((entry) => entry.key);
+        const recentModes = queue.slice(-2).map((entry) => entry.mode);
+        let index = pending.findIndex((entry) => !recentKeys.includes(entry.key) && !recentModes.every((mode) => mode === entry.mode));
+        if (index < 0) index = pending.findIndex((entry) => !recentKeys.includes(entry.key));
+        if (index < 0) index = Math.floor(Math.random() * pending.length);
+        queue.push(pending.splice(index, 1)[0]);
+      }
+      return queue;
+    }
+
+    function wordReviewQueueEntry(review = state.wordReview) {
+      const entry = review?.queue?.[review.index];
+      return typeof entry === "string" ? { key: entry, mode: review?.mode || "listen" } : entry || null;
+    }
+
+    function wordReviewQueueKey(review = state.wordReview) {
+      return wordReviewQueueEntry(review)?.key || "";
+    }
+
+    function wordReviewQueueMode(review = state.wordReview) {
+      return wordReviewQueueEntry(review)?.mode || review?.mode || "recognize";
+    }
+
+    function wordReviewQueueWordCount(review = state.wordReview) {
+      return new Set((review?.queue || []).map((entry) => typeof entry === "string" ? entry : entry.key)).size;
+    }
+
+    function wordReviewSectionStats(review, section) {
+      const entries = (review?.queue || []).filter((entry) => (typeof entry === "string" ? "review" : entry.section || "review") === section);
+      const keys = [...new Set(entries.map((entry) => typeof entry === "string" ? entry : entry.key))];
+      const currentKey = wordReviewQueueKey(review);
+      const position = Math.max(1, keys.indexOf(currentKey) + 1);
+      return { position, total: keys.length };
+    }
+
     function wordReviewProgressText(review) {
-      const position = review.index + 1;
+      const entry = wordReviewQueueEntry(review);
+      const modeLabel = wordReviewModeLabel(entry?.mode);
       if (review.source === "single") return `单词练习 · 「下一个」重新练这个词 · 不计入记忆`;
-      if (review.free) return `${review.freeKind === "new" ? "新词预习" : "自由练习"} · 第 ${position} / ${review.queue.length} 个 · 不计入记忆`;
+      const section = entry?.section || (review.free ? "free" : "review");
+      const { position, total } = wordReviewSectionStats(review, section);
+      if (review.free) return `${review.freeKind === "new" ? "新词预习" : "自由练习"} · ${modeLabel} · 第 ${position} / ${total} 个 (不计入记忆)`;
       const { due = 0, fresh = 0, group = 1 } = review.queueParts || {};
-      if (review.index < due) return `到期复习 · 第 ${position} / ${due} 个`;
-      if (review.index < due + fresh) return `新词初测 · 第 ${group} 组 · 第 ${review.index - due + 1} / ${fresh} 个`;
-      return `忘了再练 · 第 ${review.index - due - fresh + 1} / ${review.queue.length - due - fresh} 个`;
+      if (section === "due") return `到期复习 · 第 ${position} / ${due || total} 个 · ${modeLabel}`;
+      if (section === "fresh") return `新词初测 · 第 ${group} 组 · 第 ${position} / ${fresh || total} 个 · ${modeLabel}`;
+      return `忘了再练 · 第 ${position} / ${total} 个 · ${modeLabel}`;
     }
 
     // Free practice: already-learned words of this mode in the active scope, regardless of due time.
@@ -5358,11 +5611,11 @@ ${orderNote}`;
     function buildFreeWordReviewQueue(mode, review = state.wordReview) {
       if (review.freeKind === "new") {
         const marks = loadWordManualMastery();
-        const words = wordReviewSourceItems(review).filter((item) => !marks[dictionaryFavoriteKey(item.word)]?.[mode]);
-        return wordReviewNewBatch(mode, review, words).map((item) => dictionaryFavoriteKey(item.word));
+        const words = wordReviewSourceItems(review).filter((item) => !marks[dictionaryFavoriteKey(item.word)]?.mastered);
+        return expandWordReviewQueue(wordReviewNewBatch(mode, review, words).map((item) => dictionaryFavoriteKey(item.word)), "free");
       }
       const learned = wordReviewSourceItems(review).filter((item) => wordReviewRecord(item, mode, review));
-      return shuffledWordReviewItems(learned).slice(0, practiceGroupSize("wordGroupSize")).map((item) => dictionaryFavoriteKey(item.word));
+      return expandWordReviewQueue(shuffledWordReviewItems(learned).slice(0, practiceGroupSize("wordGroupSize")).map((item) => dictionaryFavoriteKey(item.word)), "free");
     }
 
     function nextWordReviewDue(mode, review = state.wordReview) {
@@ -5403,11 +5656,8 @@ ${orderNote}`;
     function saveWordReviewGrade(key, mode, grade) {
       const review = state.wordReview;
       if (!review) return;
-      const existing = review.records[key] && typeof review.records[key] === "object" ? review.records[key] : {};
-      review.records[key] = {
-        ...existing,
-        [mode]: scheduleWordReview(existing[mode], grade)
-      };
+      const existing = review.records[key] && typeof review.records[key] === "object" ? review.records[key] : null;
+      review.records[key] = scheduleWordReview(existing, grade);
       saveWordReviewRecords(review.records);
     }
 
@@ -5431,23 +5681,21 @@ ${orderNote}`;
         sourceLabel = "收藏";
       }
       if (!await showAppConfirm(
-        `清除“${sourceLabel}”范围内所有单词的“${label}”学习记录？这些单词在其他词表和收藏中的同一掌握记录也会被清除，无法撤销。`,
+        `清除“${sourceLabel}”范围内所有单词的学习记录？这些单词在其他词表和收藏中的同一掌握记录也会被清除，无法撤销。`,
         { title: "清除学习记录" }
       )) return;
       const records = loadWordReviewRecords();
       items.forEach((item) => {
         const key = dictionaryFavoriteKey(item.word);
         if (!records[key]) return;
-        delete records[key][mode];
-        if (!Object.keys(records[key]).length) delete records[key];
+        delete records[key];
       });
       saveWordReviewRecords(records);
       const marks = loadWordManualMastery();
       items.forEach((item) => {
         const key = dictionaryFavoriteKey(item.word);
         if (!marks[key]) return;
-        delete marks[key][mode];
-        if (!Object.keys(marks[key]).length) delete marks[key];
+        delete marks[key];
       });
       saveWordManualMastery(marks);
       updateFavoriteReviewLaunchers();
@@ -5455,7 +5703,7 @@ ${orderNote}`;
       refreshWordReviewStatusIcons();
     }
 
-    // The launcher menu opens on hover, right below the 识义 / 听写 / 默写 button, and stays while the pointer is on
+    // The launcher menu opens on hover, right below the 预习 / 复习 / 测验 button, and stays while the pointer is on
     // the button or the menu; leaving both closes it after a short delay.
     let launcherMenuShowTimer = 0;
     let launcherMenuHideTimer = 0;
@@ -5481,11 +5729,9 @@ ${orderNote}`;
       const menu = $("wordReviewLauncherMenu");
       menu.dataset.mode = mode;
       menu.dataset.source = source;
-      $("wordReviewFreeBtn").textContent = `自由练习${label}（不计入记忆）`;
-      $("wordReviewNewBtn").textContent = `新词预习${label}（不计入记忆）`;
-      $("wordReviewResetGroupBtn").textContent = `重置本组${label}记录`;
-      $("wordReviewSwitchGroupBtn").textContent = `切换本组${label}新词`;
-      $("wordReviewClearBtn").textContent = `清除${label}记忆`;
+      $("wordReviewResetGroupBtn").textContent = "重置本组记录";
+      $("wordReviewSwitchGroupBtn").textContent = "切换本组新词";
+      $("wordReviewClearBtn").textContent = "清除记忆";
       // The menu stays inside the word column (never over the detail pane on the right): it takes the column's width.
       const column = button.closest(".user-phrases-collection")?.getBoundingClientRect();
       menu.style.width = column ? `${Math.round(column.width - 8)}px` : "";
@@ -5550,7 +5796,10 @@ ${orderNote}`;
       let words;
       if (source === "favorites") {
         const category = $("userWordsCategorySelect").value;
-        words = loadUserWords().filter((item) => userWordMatchesCategory(item, category) && wordReviewEligible(item, mode));
+        const learning = $("userWordsLearningSelect").value;
+        const reviewRecords = isWordLearningFilter(learning) ? loadWordReviewRecords() : null;
+        const manualMastery = isWordLearningFilter(learning) ? loadWordManualMastery() : null;
+        words = loadUserWords().filter((item) => userWordMatchesFilters(item, category, learning, reviewRecords, manualMastery) && wordReviewEligible(item, mode));
       } else {
         const category = $("dictionaryCategorySelect").value;
         if (state.dictionaryLibraryType !== "words" || category === "all") return null;
@@ -5566,33 +5815,32 @@ ${orderNote}`;
       const stats = { fresh: 0, learning: 0, mastered: 0, due: 0 };
       words.forEach((item) => {
         const key = dictionaryFavoriteKey(item.word);
-        const record = records[key]?.[mode];
-        if (marks[key]?.[mode]) stats.mastered += 1;
+        const record = records[key];
+        if (marks[key]?.mastered) stats.mastered += 1;
         else if (!record) stats.fresh += 1;
         else if (wordReviewMastered(record)) stats.mastered += 1;
         else stats.learning += 1;
-        if (record && !marks[key]?.[mode] && Number(record.due) <= now) stats.due += 1;
+        if (record && !marks[key]?.mastered && Number(record.due) <= now) stats.due += 1;
       });
       return stats;
     }
 
-    function wordReviewHelpHtml(mode, source, stats) {
-      const label = wordReviewModeLabel(mode);
+    function wordReviewHelpHtml(mode, source, stats, session = "test") {
+      const label = wordReviewSessionLabel(session) || wordReviewModeLabel(mode);
       const scope = source === "favorites"
-        ? `收藏中 ${wordReviewModeMinStars(mode)} 星及以上的单词，按收藏页当前分类（${escapeHtml($("userWordsCategorySelect").selectedOptions[0]?.textContent || "全部")}）统计。`
+        ? `收藏页当前分类（${escapeHtml($("userWordsCategorySelect").selectedOptions[0]?.textContent || "全部")}）中的单词。`
         : `词表【${escapeHtml($("dictionaryCategorySelect").selectedOptions[0]?.textContent || "当前分类")}】中的全部单词。`;
       const statItems = [["未学习", "fresh", " is-new"], ["学习中📕", "learning", " is-learning"], ["已掌握✅", "mastered", " is-mastered"], ["已到期🕗", "due", " is-due"]];
       const statsHtml = stats
         ? `<div class="dictionary-mastery-items">${statItems.map(([name, key, cls]) => `<div class="dictionary-mastery-item${cls}"><div class="dictionary-mastery-head"><b>${name}</b><span>${stats[key].toLocaleString()}</span></div></div>`).join("")}</div>`
         : '<div class="small-note">正在统计…（词库请先选一个词表）</div>';
-      const { wordLabel, meaningLabel } = currentLearningLanguage();
       const ease = practiceEaseSettings();
       const mastery = practiceMasterySettings();
       const method = {
-        recognize: `看${wordLabel}单词和音标（自动朗读），从 5 个选项中选出正确的${meaningLabel}意思。`,
-        listen: `只听发音（自动朗读），看字母格和字母数，拼写出这个单词；答完后才显示${meaningLabel}释义。`,
-        spell: `只看${meaningLabel}释义和词性，拼写出这个单词；答完之前不朗读，避免发音泄露拼写。`
-      }[mode];
+        preview: "预习只练本组还没学过的新词，不计入记忆。每个词会穿插完成识义、听写、默写，避免同一个词连续出现。",
+        review: "复习就是之前的自由练习：练全部已学词，不管是否到期，也不计入记忆。每个词会穿插完成识义、听写、默写，适合额外巩固。",
+        test: "测验是正式新词学习：先做已到期旧词，再做本组新词，并写入记忆。每个词会穿插完成识义、听写、默写。"
+      }[session] || "每个词会穿插完成识义、听写、默写，三项全对才算本轮答对。";
       return `
         <div class="word-review-help">
           <div class="word-review-help-title"><strong>${label}</strong><span>记忆机制</span></div>
@@ -5605,9 +5853,9 @@ ${orderNote}`;
           </ul></section>
           <section><div class="dictionary-section-label">4. 复习时间怎么定</div>
             <ul>
-            <li>如果本次<b>答对</b>：<b>下次间隔天数 = 上次间隔天数 × 间隔扩大系数</b>（从答题那一刻算起）。</li>
+            <li>如果这个词的识义、听写、默写本轮都<b>答对</b>：<b>下次间隔天数 = 上次间隔天数 × 间隔扩大系数</b>（从答题那一刻算起）。</li>
             <li><b>前两次例外</b>：新词或答错后，第 1 次答对隔 1 天，第 2 次隔 3 天，第 3 次起用上面的公式。</li>
-            <li><b>答错</b>：间隔天数清零，10 分钟后本轮再考；之后重新从 1 天、3 天开始。</li>
+            <li>任一环节<b>答错</b>：这个词按答错处理，间隔天数清零，10 分钟后本轮再考；之后重新从 1 天、3 天开始。</li>
             </ul>
             <p><b>间隔扩大系数</b></p><ul>
             <li>起始＝${easeText(ease.wordEaseStart)}；答错 −${easeText(ease.wordEasePenalty)}，答对 +${easeText(ease.wordEaseRecovery)}；范围：${easeText(ease.wordEaseMin)}~${easeText(ease.wordEaseMax)}。</li>
@@ -5615,7 +5863,7 @@ ${orderNote}`;
             <li>越常答错的词间隔扩大系数越低、考得越勤；之后一直答对，间隔扩大系数会慢慢恢复。</li>
             </ul>
             <p><b>连续答对次数</b></p><ul>
-            <li>答对 +1，答错清零。不影响间隔天数，是判断是否达到掌握标准的条件之一。</li>
+            <li>一词三项全对 +1，任一项答错清零。不影响间隔天数，是判断是否达到掌握标准的条件之一。</li>
             </ul>
           </section>
           <section><div class="dictionary-section-label">5. 掌握</div><ul>
@@ -5624,26 +5872,27 @@ ${orderNote}`;
             <li>很熟的词可以点列表里的状态图标，标记为<b>手动掌握🟢</b>：算作已掌握，不再出现在${label}练习中；随时可以取消。</li>
           </ul></section>
           <section><div class="dictionary-section-label">6. 其他</div><ul>
-            <li>识义、听写、默写的记录相互独立，互不影响。</li>
+            <li>预习、复习、测验共用同一组单词和同一份掌握记录。</li>
             <li>同一个单词在收藏和各个词表中共用一份记录，在任一处练习都会更新。</li>
-            <li>鼠标停在按钮上会弹出菜单：<b>自由练习</b>、<b>新词预习</b>、<b>重置本组记录</b>、<b>切换本组新词</b>、<b>清除${label}记忆</b>。</li>
+            <li>鼠标停在按钮上会弹出菜单：<b>重置本组记录</b>、<b>切换本组新词</b>、<b>清除记忆</b>。</li>
           </ul></section>
         </div>`;
     }
 
     async function showWordReviewHelp(button) {
-      const mode = button.dataset.favoriteReviewMode || button.dataset.dictionaryStudyMode;
-      const source = button.dataset.favoriteReviewMode ? "favorites" : "wordList";
+      const session = button.dataset.favoriteReviewSession || button.dataset.dictionaryStudySession;
+      const mode = wordReviewSessionMode(session);
+      const source = button.dataset.favoriteReviewSession ? "favorites" : "wordList";
       const detail = $(source === "favorites" ? "userPhraseDetail" : "dictionaryLibraryDetail");
       if (!detail || !wordReviewModeLabel(mode)) return;
       if (!detail.querySelector(".word-review-help")) wordReviewHelpSaved = { detail, html: detail.innerHTML, entry: state.dictionaryLookupEntry, scrollTop: detail.scrollTop };
       const token = ++wordReviewHelpToken;
-      detail.innerHTML = wordReviewHelpHtml(mode, source, null);
+      detail.innerHTML = wordReviewHelpHtml(mode, source, null, session);
       detail.scrollTop = 0;
       const stats = await wordReviewHelpStats(mode, source);
       if (token !== wordReviewHelpToken || !stats || !detail.querySelector(".word-review-help")) return;
       const scrollTop = detail.scrollTop;
-      detail.innerHTML = wordReviewHelpHtml(mode, source, stats);
+      detail.innerHTML = wordReviewHelpHtml(mode, source, stats, session);
       detail.scrollTop = scrollTop;
     }
 
@@ -5697,6 +5946,10 @@ ${orderNote}`;
       return Array.from(String(word || "")).filter(languageText().isLetterChar).length;
     }
 
+    function wordReviewFirstLetter(word) {
+      return Array.from(String(word || "")).find((char) => languageText().isLetterChar(char)) || "";
+    }
+
     function wordReviewRevealedLetters(review, word) {
       if (review.answered) return wordReviewLetterCount(word);
       return Math.max(review.hints || 0, wordReviewTypedLetters(word, review.input));
@@ -5733,6 +5986,16 @@ ${orderNote}`;
       const meanings = dictionaryTextLines(item.translation).slice(0, 3);
       return `${item.pos ? `<div class="word-review-pos">${escapeHtml(item.pos)}</div>` : ""}
         <div class="word-review-meanings">${meanings.length ? meanings.map((line) => `<div>${escapeHtml(line)}</div>`).join("") : `<div>（该词条暂无${currentLearningLanguage().meaningLabel}释义）</div>`}</div>`;
+    }
+
+    function wordReviewSpellAnchorHtml(item) {
+      const word = String(item?.word || "");
+      const parts = [
+        item?.pos ? `词性：${escapeHtml(item.pos)}` : "",
+        wordReviewFirstLetter(word) ? `首字母：${escapeHtml(wordReviewFirstLetter(word))}` : "",
+        wordReviewLetterCount(word) ? `${wordReviewLetterCount(word)} 个字母` : ""
+      ].filter(Boolean);
+      return parts.length ? `<div class="small-note word-review-spell-anchor">${parts.join(" · ")}</div>` : "";
     }
 
     function wordReviewAnswerHtml(item) {
@@ -5890,6 +6153,7 @@ ${orderNote}`;
       return `
         <div class="word-review-prompt">
           ${mode === "spell" ? wordReviewMeaningsHtml(item) : ""}
+          ${mode === "spell" ? wordReviewSpellAnchorHtml(item) : ""}
           <div class="word-review-pattern-row">
             <span class="word-review-pattern" data-word-review-pattern aria-hidden="true">${wordReviewPatternHtml(word, wordReviewRevealedLetters(review, word), answered ? review.input : null)}</span>
             ${review.source === "single" && answered && item.phonetic ? `<button type="button" class="word-review-phonetic" data-word-review-action="speak" title="点击朗读">[${escapeHtml(item.phonetic)}]</button>` : ""}
@@ -6043,21 +6307,30 @@ ${orderNote}`;
 
     function renderWordReview() {
       const review = state.wordReview;
-      const elements = wordReviewElements(review?.mode);
+      const activeMode = wordReviewQueueMode(review);
+      const elements = wordReviewElements(activeMode);
       const card = elements.card;
       if (!review || !card) return;
+      document.querySelectorAll(".word-review-modal").forEach((modal) => {
+        modal.hidden = modal !== elements.modal;
+      });
+      if (elements.title) {
+        const sourceTitle = review.source === "wordList" ? review.sourceLabel : review.source === "single" ? review.sourceLabel : "收藏";
+        elements.title.textContent = `${sourceTitle} · ${review.source === "single" ? "练习" : wordReviewSessionLabel(review.sessionKind)}`;
+      }
       const panel = elements.panel;
       if (panel) panel.hidden = true;
       const total = review.queue.length;
       if (review.index >= total) {
-        const label = wordReviewModeLabel(review.mode);
+        const label = "背单词";
         if (review.free) {
           const isNew = review.freeKind === "new";
           const name = isNew ? "新词预习" : "自由练习";
-          elements.progress.textContent = total ? `${name}完成 ${total} 个` : (isNew ? "没有新词可练" : "没有可自由练习的单词");
+          const totalWords = wordReviewQueueWordCount(review);
+          elements.progress.textContent = total ? `${name}完成 ${totalWords} 个词` : (isNew ? "没有新词可练" : "没有可自由练习的单词");
           card.innerHTML = `
             <div class="word-review-done">
-              <strong>${total ? `${name}完成` : (isNew ? `当前范围内的单词，${label}都已经学过了` : `还没有学过${label}的单词`)}</strong>
+              <strong>${total ? `${name}完成` : (isNew ? `当前范围内的单词都已经学过了` : `还没有学过的单词`)}</strong>
               ${total ? `<div>${wordReviewResultSummary(review)}</div>` : ""}
               <div class="small-note">${name}不计入练习记忆，不改变复习安排</div>
               <div class="word-review-actions">
@@ -6073,7 +6346,7 @@ ${orderNote}`;
         const due = nextWordReviewDue(review.mode, review);
         const scopeNote = review.source === "wordList"
           ? `${review.sourceLabel}共 ${review.words.length.toLocaleString()} 个词；每轮最多加入 ${practiceGroupSize("wordGroupSize")} 个新词`
-          : `${label}只包含 ${wordReviewModeMinStars(review.mode)} 星及以上的收藏词`;
+          : "收藏中的单词会一起完成识义、听写、默写";
         const nextNote = due
           ? `下一个单词将在 ${new Date(due).toLocaleString()} 到期`
           : review.source === "wordList"
@@ -6081,7 +6354,7 @@ ${orderNote}`;
             : "收藏新单词后会自动加入复习";
         card.innerHTML = `
           <div class="word-review-done">
-            <strong>${total ? "本轮复习完成" : `今天没有需要${label}的单词`}</strong>
+            <strong>${total ? "本轮复习完成" : "今天没有需要复习的单词"}</strong>
             ${total ? `<div>${wordReviewResultSummary(review)}</div>` : ""}
             <div class="small-note">${nextNote}</div>
             <div class="small-note">${scopeNote}</div>
@@ -6101,12 +6374,12 @@ ${orderNote}`;
       }
       elements.progress.textContent = wordReviewProgressText(review);
       elements.modal.classList.toggle("is-single-word", review.source === "single");
-      card.classList.toggle("is-recognize", review.mode === "recognize");
-      card.innerHTML = review.mode === "recognize" ? renderRecognizeCard(item) : renderSpellingCard(item, review.mode);
+      card.classList.toggle("is-recognize", activeMode === "recognize");
+      card.innerHTML = activeMode === "recognize" ? renderRecognizeCard(item) : renderSpellingCard(item, activeMode);
       // 单词练习 (opened from a word's 练习 button) shows no result panel: the unmasked word and the red letters are the feedback.
       if (panel && review.answered && review.source !== "single") {
         panel.className = `word-review-result-panel ${review.correct ? "is-correct" : "is-wrong"}`;
-        panel.innerHTML = renderWordReviewResultPanel(item, review.mode);
+        panel.innerHTML = renderWordReviewResultPanel(item, activeMode);
         panel.hidden = false;
       }
       const input = card.querySelector("[data-word-review-input]");
@@ -6137,7 +6410,8 @@ ${orderNote}`;
         renderWordReview();
         return;
       }
-      const key = review.queue[review.index];
+      const key = wordReviewQueueKey(review);
+      review.mode = wordReviewQueueMode(review);
       const loadToken = (review.loadToken || 0) + 1;
       review.loadToken = loadToken;
       renderWordReview();
@@ -6182,7 +6456,7 @@ ${orderNote}`;
       if (item && review.mode !== "spell") speakReviewWord(item.word);
     }
 
-    function switchWordReviewMode(mode, context = state.wordReview, free = false) {
+    function switchWordReviewMode(mode, context = state.wordReview, free = false, sessionKind = context?.sessionKind || "test") {
       window.speechSynthesis?.cancel();
       const source = context?.source === "wordList" ? "wordList" : context?.source === "single" ? "single" : "favorites";
       state.wordReview = {
@@ -6194,6 +6468,7 @@ ${orderNote}`;
         wordIndex: source === "wordList" ? context.wordIndex : new Map(),
         records: loadWordReviewRecords(),
         mode,
+        sessionKind,
         free: Boolean(free) || source === "single",
         freeKind: free === "new" ? "new" : "learned",
         queue: [],
@@ -6207,12 +6482,13 @@ ${orderNote}`;
         recognizeCorrectIndex: -1,
         recognizeSelectedIndex: -1,
         recognizeFocusedIndex: -1,
+        wordGrades: {},
         results: { good: 0, again: 0 }
       };
       state.wordReview.queue = source === "single"
-        ? [dictionaryFavoriteKey(context.word)]
+        ? [{ key: dictionaryFavoriteKey(context.word), mode }]
         : free ? buildFreeWordReviewQueue(mode, state.wordReview) : buildWordReviewQueue(mode, state.wordReview);
-      if (free === "new") previewAsked.add(wordReviewGroupSignature(mode, state.wordReview, state.wordReview.queue));
+      if (free === "new") previewAsked.add(wordReviewGroupSignature(mode, state.wordReview, state.wordReview.queue.map((entry) => entry.key)));
       startWordReviewCard();
     }
 
@@ -6253,39 +6529,29 @@ ${orderNote}`;
       });
     }
 
-    async function openWordReview(mode, context = null, free = false) {
+    function wordReviewSessionMode(session) {
+      return session === "single" ? "listen" : "recognize";
+    }
+
+    function openWordReviewSession(session, context = null, free = false) {
+      const sessionKind = free === "new" ? "preview" : session;
+      const sessionFree = session === "preview" ? "new" : session === "review" ? true : free;
+      const mode = wordReviewSessionMode(sessionKind);
+      return openWordReview(mode, context, sessionFree, sessionKind);
+    }
+
+    async function openWordReview(mode, context = null, free = false, sessionKind = free === "new" ? "preview" : "test") {
       if (!WORD_REVIEW_INTERFACES[mode]) return;
       const sourceContext = context?.source === "wordList" || context?.source === "single" ? context : { source: "favorites", sourceLabel: "收藏" };
-      if (!free && sourceContext.source !== "single") {
-        // Dry run of the queue to learn which new words the round would teach.
-        const source = sourceContext.source === "wordList" ? "wordList" : "favorites";
-        const dry = {
-          source, mode, records: loadWordReviewRecords(),
-          deckCategory: source === "wordList" ? sourceContext.deckCategory : "",
-          words: source === "wordList" ? sourceContext.words : []
-        };
-        const queue = buildWordReviewQueue(mode, dry);
-        const { due = 0, fresh = 0 } = dry.queueParts || {};
-        const signature = wordReviewGroupSignature(mode, dry, queue.slice(due, due + fresh));
-        if (fresh > 0 && !previewAsked.has(signature)) {
-          const choice = await askPreviewNewWords(fresh);
-          if (choice === "cancel") return;
-          previewAsked.add(signature);
-          if (choice === "preview") {
-            openWordReview(mode, context, "new");
-            return;
-          }
-        }
-      }
       document.querySelectorAll(".word-review-modal").forEach((modal) => { modal.hidden = true; });
       const elements = wordReviewElements(mode);
       elements.title.textContent = sourceContext.source === "single"
         ? `${sourceContext.sourceLabel} · 练习`
         : sourceContext.source === "wordList"
-        ? `${sourceContext.sourceLabel} · ${wordReviewModeLabel(mode)}`
-        : `收藏 · ${wordReviewModeLabel(mode)}`;
+        ? `${sourceContext.sourceLabel} · ${wordReviewSessionLabel(sessionKind)}`
+        : `收藏 · ${wordReviewSessionLabel(sessionKind)}`;
       elements.modal.hidden = false;
-      switchWordReviewMode(mode, sourceContext, free);
+      switchWordReviewMode(mode, sourceContext, free, sessionKind);
     }
 
     // 听写 / 默写 of one looked-up word, opened from the buttons beside a word's stars; nothing is saved.
@@ -6321,8 +6587,16 @@ ${orderNote}`;
       const key = dictionaryFavoriteKey(item.word);
       review.results[grade] += 1;
       userData.append("reviewEvent", [key, review.mode, grade === "good" ? 1 : 0, review.hints ? 1 : 0, review.free ? 1 : 0, Math.floor(Date.now() / 1000)], languageScope());
-      if (!review.free) saveWordReviewGrade(key, review.mode, grade);
-      if (grade === "again" && review.source !== "single") review.queue.push(key);
+      const wordGrade = review.wordGrades[key] || { good: 0, again: 0, modes: {} };
+      wordGrade[grade] += 1;
+      wordGrade.modes[review.mode] = true;
+      review.wordGrades[key] = wordGrade;
+      const isWordFinished = review.source === "single" || wordReviewModeSequence().every((mode) => wordGrade.modes[mode]);
+      if (!isWordFinished) return;
+      const finalGrade = wordGrade.again > 0 ? "again" : "good";
+      if (!review.free) saveWordReviewGrade(key, review.mode, finalGrade);
+      delete review.wordGrades[key];
+      if (finalGrade === "again" && review.source !== "single") review.queue.push(...expandWordReviewQueue([key], "again"));
     }
 
     function answerRecognizeChoice(index) {
@@ -6406,7 +6680,7 @@ ${orderNote}`;
       else if (action === "close") closeWordReview();
       else if (action === "start" && state.wordReview) {
         const review = state.wordReview;
-        openWordReview(review.mode, review.source === "wordList"
+        openWordReviewSession("test", review.source === "wordList"
           ? { source: "wordList", sourceLabel: review.sourceLabel, deckCategory: review.deckCategory, words: review.words, wordIndex: review.wordIndex }
           : null, false);
       } else if (action === "free" && state.wordReview) switchWordReviewMode(state.wordReview.mode, state.wordReview, state.wordReview.freeKind === "new" ? "new" : true);
@@ -8416,6 +8690,11 @@ ${orderNote}`;
       updateDictionaryStudyButton();
       renderDictionaryLibrary();
     });
+    $("dictionaryLearningSelect").addEventListener("change", () => {
+      state.dictionaryLibraryPage = 1;
+      updateDictionaryStudyButton();
+      renderDictionaryLibrary();
+    });
     $("dictionarySortSelect").addEventListener("change", () => {
       state.dictionaryLibraryPage = 1;
       renderDictionaryLibrary();
@@ -8443,8 +8722,8 @@ ${orderNote}`;
       goToEnteredDictionaryPage();
       $("dictionaryPageInput").select();
     });
-    document.querySelectorAll("[data-dictionary-study-mode]").forEach((button) => {
-      button.addEventListener("click", () => openDictionaryWordStudy(button.dataset.dictionaryStudyMode));
+    document.querySelectorAll("[data-dictionary-study-session]").forEach((button) => {
+      button.addEventListener("click", () => openDictionaryWordStudy(button.dataset.dictionaryStudySession));
     });
     $("dictionaryLibraryDetail").addEventListener("click", (event) => {
       const formButton = event.target.closest("[data-dictionary-form]");
@@ -8494,6 +8773,10 @@ ${orderNote}`;
       renderUserPhrases();
     });
     $("userWordsCategorySelect").addEventListener("change", () => {
+      state.userWordsPage = 1;
+      renderUserPhrases();
+    });
+    $("userWordsLearningSelect").addEventListener("change", () => {
       state.userWordsPage = 1;
       renderUserPhrases();
     });
@@ -8567,31 +8850,20 @@ ${orderNote}`;
       const loadButton = event.target.closest("[data-load-sentence]");
       if (loadButton) loadFavoriteSentenceIntoPractice(loadButton.dataset.loadSentence);
     });
-    document.querySelectorAll("[data-favorite-review-mode]").forEach((button) => {
-      button.addEventListener("click", () => openWordReview(button.dataset.favoriteReviewMode));
+    document.querySelectorAll("[data-favorite-review-session]").forEach((button) => {
+      button.addEventListener("click", () => openWordReviewSession(button.dataset.favoriteReviewSession));
     });
-    document.querySelectorAll("[data-favorite-review-mode], [data-dictionary-study-mode]").forEach((button) => {
+    document.querySelectorAll("[data-favorite-review-session], [data-dictionary-study-session]").forEach((button) => {
       button.addEventListener("pointerenter", () => showWordReviewHelp(button));
       button.addEventListener("pointerdown", hideWordReviewHelp);
-      const mode = button.dataset.favoriteReviewMode || button.dataset.dictionaryStudyMode;
-      const source = button.dataset.favoriteReviewMode ? "favorites" : "wordList";
+      const session = button.dataset.favoriteReviewSession || button.dataset.dictionaryStudySession;
+      const source = button.dataset.favoriteReviewSession ? "favorites" : "wordList";
+      const mode = wordReviewSessionMode(session);
       button.addEventListener("pointerenter", () => scheduleWordReviewLauncherMenu(button, mode, source));
       button.addEventListener("pointerleave", scheduleHideWordReviewLauncherMenu);
     });
     $("wordReviewLauncherMenu").addEventListener("pointerenter", () => clearTimeout(launcherMenuHideTimer));
     $("wordReviewLauncherMenu").addEventListener("pointerleave", scheduleHideWordReviewLauncherMenu);
-    $("wordReviewFreeBtn").addEventListener("click", () => {
-      const menu = $("wordReviewLauncherMenu");
-      closeWordReviewLauncherMenu();
-      if (menu.dataset.source === "wordList") openDictionaryWordStudy(menu.dataset.mode, true);
-      else openWordReview(menu.dataset.mode, null, true);
-    });
-    $("wordReviewNewBtn").addEventListener("click", () => {
-      const menu = $("wordReviewLauncherMenu");
-      closeWordReviewLauncherMenu();
-      if (menu.dataset.source === "wordList") openDictionaryWordStudy(menu.dataset.mode, "new");
-      else openWordReview(menu.dataset.mode, null, "new");
-    });
     [["wordReviewResetGroupBtn", "reset"], ["wordReviewSwitchGroupBtn", "switch"]].forEach(([id, kind]) => {
       $(id).addEventListener("click", () => {
         const menu = $("wordReviewLauncherMenu");

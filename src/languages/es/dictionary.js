@@ -32,7 +32,7 @@
       ["top500", "常用 500"], ["top1000", "常用 1000"], ["top2000", "常用 2000"], ["top3000", "常用 3000"],
       ["top5000", "常用 5000"], ["top10000", "常用 10000"], ["all", "全部"]
     ],
-    librarySortOptions: [["alphabetical", "字母 A-Z"], ["frq", "字幕词频"]],
+    librarySortOptions: [["alphabetical", "字母 A-Z"], ["favorites", "用户收藏"], ["frq", "字幕词频"]],
     favoriteCategoryOptions: [
       ["all", "全部"], ["top500", "常用 500"], ["top1000", "常用 1000"], ["top2000", "常用 2000"],
       ["top3000", "常用 3000"], ["top5000", "常用 5000"], ["top10000", "常用 10000"]
