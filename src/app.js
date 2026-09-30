@@ -304,6 +304,61 @@ const fallbackSentences = [
       counterIndexInput.setSelectionRange(end, end);
     }
     const errorsEl = $("errors");
+    let appConfirmResolve = null;
+    let appConfirmHasCancel = true;
+
+    function closeAppConfirm(result) {
+      const modal = $("appConfirmModal");
+      if (!modal || modal.hidden) return;
+      modal.hidden = true;
+      document.removeEventListener("keydown", handleAppConfirmKeydown);
+      const resolve = appConfirmResolve;
+      appConfirmResolve = null;
+      if (resolve) resolve(result);
+    }
+
+    function handleAppConfirmKeydown(event) {
+      if ($("appConfirmModal")?.hidden) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeAppConfirm(appConfirmHasCancel ? false : true);
+      } else if (event.key === "Enter" && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        event.preventDefault();
+        closeAppConfirm(true);
+      }
+    }
+
+    function showAppConfirm(message, { title = "确认操作", okText = "确定", cancelText = "取消", showCancel = true } = {}) {
+      const modal = $("appConfirmModal");
+      if (!modal) return Promise.resolve(false);
+      if (appConfirmResolve) closeAppConfirm(false);
+      closeTopMenus();
+      appConfirmHasCancel = showCancel;
+      $("appConfirmTitle").textContent = title;
+      $("appConfirmMessage").textContent = message;
+      $("appConfirmOkBtn").textContent = okText;
+      $("appConfirmCancelBtn").textContent = cancelText;
+      $("appConfirmCancelBtn").hidden = !showCancel;
+      modal.hidden = false;
+      return new Promise((resolve) => {
+        appConfirmResolve = resolve;
+        document.addEventListener("keydown", handleAppConfirmKeydown);
+        $("appConfirmOkBtn").onclick = () => closeAppConfirm(true);
+        $("appConfirmCancelBtn").onclick = () => closeAppConfirm(false);
+        modal.onclick = (event) => {
+          if (event.target === modal) closeAppConfirm(showCancel ? false : true);
+        };
+        (showCancel ? $("appConfirmCancelBtn") : $("appConfirmOkBtn")).focus({ preventScroll: true });
+      });
+    }
+
+    function showAppAlert(message, { title = "提示", okText = "知道了" } = {}) {
+      return showAppConfirm(message, { title, okText, showCancel: false });
+    }
+
+    window.alert = (message) => {
+      showAppAlert(message);
+    };
 
     function syncCurrentLibrarySelect(label) {
       const select = $("currentLibrarySelect");
@@ -324,6 +379,29 @@ const fallbackSentences = [
         select.value = isCommon ? "common" : isAudio ? "audio" : "favorites";
       }
       select.title = `当前使用：${label}`;
+      updateCurrentLibrarySelectAvailability();
+    }
+
+    function updateCurrentLibrarySelectAvailability() {
+      const select = $("currentLibrarySelect");
+      const favoritesOption = select.querySelector('option[value="favorites"]');
+      const audioOption = select.querySelector('option[value="audio"]');
+      const favoriteCount = currentLearningLanguage().sentenceFavoritesEnabled ? loadUserSentences().length : 0;
+      if (favoritesOption) {
+        favoritesOption.hidden = !currentLearningLanguage().sentenceFavoritesEnabled;
+        favoritesOption.disabled = favoriteCount <= 0;
+        favoritesOption.classList.toggle("is-library-unavailable", favoritesOption.disabled);
+        favoritesOption.textContent = "用户收藏";
+        favoritesOption.title = favoriteCount > 0 ? "切换到用户收藏句库" : "当前语言还没有收藏句子，不能选择用户收藏句库";
+      }
+      if (audioOption) {
+        const hasAudioLibrary = currentAudioLibraryMaterials().length > 0 || (state.currentLibraryLabel === "音频字幕" && Boolean(state.audioMaterial));
+        audioOption.disabled = !hasAudioLibrary;
+        audioOption.classList.toggle("is-library-unavailable", audioOption.disabled);
+        audioOption.textContent = "音频字幕";
+        audioOption.title = hasAudioLibrary ? "加载音频字幕句库" : "当前没有可用的音频字幕句库";
+      }
+      select.classList.toggle("has-unavailable-libraries", [...select.options].some((option) => option.disabled && !option.hidden));
     }
 
     function setCurrentLibrary(label, statusText = "") {
@@ -374,6 +452,7 @@ const fallbackSentences = [
       if (!$("userPhrasesModal").hidden) renderUserPhrases();
       refreshWordReviewStatusIcons();
       updateFavoriteReviewLaunchers();
+      updateCurrentLibrarySelectAvailability();
     }
 
     function saveLastPosition() {
@@ -761,7 +840,10 @@ const fallbackSentences = [
         return;
       }
       const target = state.cloudUser ? cloudDisplayName() : (state.currentUser || "未登录");
-      if (!confirm(`导入到“${target}”：新增 ${counts.added} 条、更新 ${counts.updated} 条记录（同一条记录保留较新的一份）。继续吗？`)) return;
+      if (!await showAppConfirm(
+        `导入到“${target}”：新增 ${counts.added} 条、更新 ${counts.updated} 条记录（同一条记录保留较新的一份）。继续吗？`,
+        { title: "导入个人数据" }
+      )) return;
       userData.importDocument(data);
       await userData.flush();
       refreshAfterUserDataChange();
@@ -825,7 +907,10 @@ const fallbackSentences = [
         showLogin();
         return;
       }
-      const confirmed = confirm(`确定清除用户「${username}」吗？这个用户在本机的全部数据（收藏、背词记录、练习记录、设置等）都会被删除。`);
+      const confirmed = await showAppConfirm(
+        `确定清除用户「${username}」吗？这个用户在本机的全部数据（收藏、背词记录、练习记录、设置等）都会被删除。`,
+        { title: "清除本机用户" }
+      );
       if (!confirmed) return;
 
       await userData.deleteIdentity(`local:${username}`);
@@ -1183,6 +1268,7 @@ const fallbackSentences = [
       audio.preload = "auto";
       state.audioMaterial = { url, audio, name, playToken: 0, finishPlayback: null, audioContext: null, gainNode: null };
       setOriginalVoiceOption(true);
+      updateCurrentLibrarySelectAvailability();
     }
 
     function clearAudioMaterial() {
@@ -1194,6 +1280,7 @@ const fallbackSentences = [
       URL.revokeObjectURL(material.url);
       state.audioMaterial = null;
       setOriginalVoiceOption(false);
+      updateCurrentLibrarySelectAvailability();
     }
 
     // With an audio material loaded, the accent select gains 原声 and switches to it; 英音 / 美音 stay available and
@@ -1390,15 +1477,28 @@ const fallbackSentences = [
 
     // 音频字幕 panel: bundled audio + subtitle materials in assets/audio/. The audio is fetched whole into a Blob
     // because the local Python server does not answer HTTP Range requests, which seeking to each sentence needs.
-    const AUDIO_LIBRARY_DEFAULT_ID = "audio-example";
     const AUDIO_LIBRARY_MATERIALS = [
-      { id: "audio-example", title: "Audio_Example", audio: "assets/audio/Audio_Example.m4a", subtitles: "assets/audio/Audio_Example.lrc" }
+      { id: "audio-example", languageId: "en", title: "Audio_Example", audio: "assets/audio/Audio_Example.m4a", subtitles: "assets/audio/Audio_Example.lrc" }
     ];
+
+    function currentAudioLibraryMaterials() {
+      const languageId = state.learningLanguageId || "en";
+      return AUDIO_LIBRARY_MATERIALS.filter((item) => !item.languageId || item.languageId === languageId);
+    }
+
+    function defaultAudioLibraryId() {
+      return currentAudioLibraryMaterials()[0]?.id || "";
+    }
 
     function renderAudioLibrary(statusText = "") {
       const currentName = state.audioMaterial?.name || "";
       $("audioLibraryStatus").textContent = statusText || (currentName ? `正在使用：${currentName}` : "当前句库没有使用原声。");
-      $("audioLibraryList").innerHTML = AUDIO_LIBRARY_MATERIALS.map((item) => {
+      const materials = currentAudioLibraryMaterials();
+      if (!materials.length) {
+        $("audioLibraryList").innerHTML = '<div class="empty">当前语言还没有音频字幕材料。</div>';
+        return;
+      }
+      $("audioLibraryList").innerHTML = materials.map((item) => {
         const audioName = item.audio.split("/").pop();
         const subtitleName = item.subtitles.split("/").pop();
         const inUse = currentName === audioName;
@@ -1410,7 +1510,7 @@ const fallbackSentences = [
     }
 
     async function loadAudioLibraryMaterial(id, { navigate = true } = {}) {
-      const material = AUDIO_LIBRARY_MATERIALS.find((item) => item.id === id);
+      const material = currentAudioLibraryMaterials().find((item) => item.id === id);
       if (!material) return;
       renderAudioLibrary(`正在加载“${material.title}”…`);
       try {
@@ -1480,14 +1580,17 @@ const fallbackSentences = [
       return String(text || "").trim().replace(/\s+/g, " ").toLowerCase();
     }
 
-    function clearTranslationCache() {
+    async function clearTranslationCache() {
       const count = Object.keys(loadTranslationCache()).length;
       if (!count) {
         $("translationCacheStatus").textContent = "翻译缓存是空的。";
         return;
       }
-      if (!confirm(`清除本机保存的 ${count} 句翻译？
-不影响学习记录和收藏，也不影响已经写进字幕文件的翻译。已载入的句库仍显示原来的翻译，重新载入后生效。`)) return;
+      if (!await showAppConfirm(
+        `清除本机保存的 ${count} 句翻译？
+不影响学习记录和收藏，也不影响已经写进字幕文件的翻译。已载入的句库仍显示原来的翻译，重新载入后生效。`,
+        { title: "清除翻译缓存" }
+      )) return;
       localStorage.removeItem(TRANSLATION_CACHE_KEY);
       $("translationCacheStatus").textContent = `已清除 ${count} 句翻译缓存。`;
     }
@@ -2348,7 +2451,17 @@ const fallbackSentences = [
         fonts: fontDefaults(),
         grammarColors: grammarColorDefaults(),
         dictionaryAutoSpeak: "1",
-        practice: { wordGroupSize: 20, sentenceGroupSize: 20 }
+        practice: {
+          wordGroupSize: 20,
+          sentenceGroupSize: 20,
+          wordEaseStart: 250,
+          wordEaseMin: 130,
+          wordEaseMax: 250,
+          wordEasePenalty: 20,
+          wordEaseRecovery: 5,
+          wordMasteryIntervalDays: 21,
+          wordMasteryReps: 3
+        }
       }[name];
     }
 
@@ -2379,20 +2492,98 @@ const fallbackSentences = [
     }
 
     // 练习 settings: how many new words / sentences one practice round adds (also the size of a new-word group).
+    function practiceSettings() {
+      return { ...defaultSettingValue("practice"), ...(userData.get("settings", "practice", "global") || {}) };
+    }
+
     function practiceGroupSize(kind) {
-      const value = Number(userData.get("settings", "practice", "global")?.[kind]);
+      const value = Number(practiceSettings()[kind]);
       return Number.isInteger(value) && value >= 5 && value <= 100 ? value : 20;
     }
 
+    function clampInt(value, min, max, fallback) {
+      const number = Math.round(Number(value));
+      return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
+    }
+
+    function clampHundredths(value, min, max, fallback) {
+      return clampInt(Math.round(Number(value) * 100), min, max, fallback);
+    }
+
+    function normalizePracticeSettings(settings = practiceSettings()) {
+      const defaults = defaultSettingValue("practice");
+      const next = {
+        wordGroupSize: clampInt(settings.wordGroupSize, 5, 100, defaults.wordGroupSize),
+        sentenceGroupSize: clampInt(settings.sentenceGroupSize, 5, 100, defaults.sentenceGroupSize),
+        wordEaseStart: clampInt(settings.wordEaseStart, 130, 500, defaults.wordEaseStart),
+        wordEaseMin: clampInt(settings.wordEaseMin, 110, 500, defaults.wordEaseMin),
+        wordEaseMax: clampInt(settings.wordEaseMax, 130, 500, defaults.wordEaseMax),
+        wordEasePenalty: clampInt(settings.wordEasePenalty, 0, 100, defaults.wordEasePenalty),
+        wordEaseRecovery: clampInt(settings.wordEaseRecovery, 0, 100, defaults.wordEaseRecovery),
+        wordMasteryIntervalDays: clampInt(settings.wordMasteryIntervalDays, 1, 365, defaults.wordMasteryIntervalDays),
+        wordMasteryReps: clampInt(settings.wordMasteryReps, 1, 20, defaults.wordMasteryReps)
+      };
+      if (next.wordEaseMin > next.wordEaseMax) {
+        next.wordEaseMin = defaults.wordEaseMin;
+        next.wordEaseMax = defaults.wordEaseMax;
+      }
+      next.wordEaseStart = Math.max(next.wordEaseMin, Math.min(next.wordEaseMax, next.wordEaseStart));
+      return next;
+    }
+
+    function practiceEaseSettings() {
+      return normalizePracticeSettings();
+    }
+
+    function practiceMasterySettings() {
+      const settings = normalizePracticeSettings();
+      return {
+        intervalDays: settings.wordMasteryIntervalDays,
+        reps: settings.wordMasteryReps
+      };
+    }
+
     function loadPracticeSettings() {
-      $("wordGroupSizeInput").value = practiceGroupSize("wordGroupSize");
-      $("sentenceGroupSizeInput").value = practiceGroupSize("sentenceGroupSize");
+      const settings = normalizePracticeSettings();
+      $("wordGroupSizeInput").value = settings.wordGroupSize;
+      $("sentenceGroupSizeInput").value = settings.sentenceGroupSize;
+      $("wordEaseStartInput").value = easeText(settings.wordEaseStart);
+      $("wordEaseMinInput").value = easeText(settings.wordEaseMin);
+      $("wordEaseMaxInput").value = easeText(settings.wordEaseMax);
+      $("wordEasePenaltyInput").value = easeText(settings.wordEasePenalty);
+      $("wordEaseRecoveryInput").value = easeText(settings.wordEaseRecovery);
+      $("wordMasteryIntervalInput").value = settings.wordMasteryIntervalDays;
+      $("wordMasteryRepsInput").value = settings.wordMasteryReps;
     }
 
     function savePracticeSettings() {
-      const read = (id) => Math.max(5, Math.min(100, Math.round(Number($(id).value) || 20)));
-      persistSetting("practice", { wordGroupSize: read("wordGroupSizeInput"), sentenceGroupSize: read("sentenceGroupSizeInput") });
+      const settings = normalizePracticeSettings({
+        wordGroupSize: $("wordGroupSizeInput").value,
+        sentenceGroupSize: $("sentenceGroupSizeInput").value,
+        wordEaseStart: clampHundredths($("wordEaseStartInput").value, 130, 500, defaultSettingValue("practice").wordEaseStart),
+        wordEaseMin: clampHundredths($("wordEaseMinInput").value, 110, 500, defaultSettingValue("practice").wordEaseMin),
+        wordEaseMax: clampHundredths($("wordEaseMaxInput").value, 130, 500, defaultSettingValue("practice").wordEaseMax),
+        wordEasePenalty: clampHundredths($("wordEasePenaltyInput").value, 0, 100, defaultSettingValue("practice").wordEasePenalty),
+        wordEaseRecovery: clampHundredths($("wordEaseRecoveryInput").value, 0, 100, defaultSettingValue("practice").wordEaseRecovery),
+        wordMasteryIntervalDays: $("wordMasteryIntervalInput").value,
+        wordMasteryReps: $("wordMasteryRepsInput").value
+      });
+      persistSetting("practice", settings);
       loadPracticeSettings();
+      refreshPracticeSettingDependents();
+    }
+
+    function refreshPracticeSettingDependents() {
+      updateFavoriteReviewLaunchers();
+      updateDictionaryStudyButton();
+      refreshWordReviewStatusIcons();
+      if (state.wordReview && !wordReviewHelpSaved) renderWordReview();
+    }
+
+    function resetPracticeSettings() {
+      persistSetting("practice", defaultSettingValue("practice"));
+      loadPracticeSettings();
+      refreshPracticeSettingDependents();
     }
 
     function saveSpeechSettings() {
@@ -2636,6 +2827,9 @@ const fallbackSentences = [
       closeDictionaryLookup();
       state.learningLanguageId = language.id;
       if (persist) persistSetting("learningLanguage", language.id);
+      if (state.currentLibraryLabel === "音频字幕" && !currentAudioLibraryMaterials().length) {
+        clearAudioMaterial();
+      }
       window.langLSRWDictionary?.setActiveDictionary(language.dictionaryId);
       renderLearningLanguageTabs();
       dictionaryStudyDeckCache.clear();
@@ -2690,11 +2884,15 @@ const fallbackSentences = [
       applyLanguageSelectOptions("userWordsSortSelect", rules.favoriteSortOptions);
       $("userWordsControls").querySelector(".word-review-launchers").hidden = !dictionaryWordStudyEnabled();
       $("userPhrasesList").classList.toggle("is-without-review-status", !dictionaryWordStudyEnabled());
+      updateCurrentLibrarySelectAvailability();
     }
 
     async function removeDictionary(dictionaryId = "ecdict") {
       const pkg = window.langLSRWDictionary?.dictionary(dictionaryId);
-      if (!confirm(`删除当前浏览器中的${pkg?.label || ""}本地词典吗？以后可以重新安装。`)) return;
+      if (!await showAppConfirm(
+        `删除当前浏览器中的${pkg?.label || ""}本地词典吗？以后可以重新安装。`,
+        { title: "删除本地词典" }
+      )) return;
       try {
         dictionaryBusyId = dictionaryId;
         renderDictionarySettings();
@@ -2831,8 +3029,11 @@ const fallbackSentences = [
       updateSpeechRateIndicator();
     }
 
-    function resetGlobalSettings() {
-      const confirmed = confirm("确定恢复默认设置吗？主题、字体、句子成分颜色、快捷键、朗读设置会重置，用户记录和句库不会删除。");
+    async function resetGlobalSettings() {
+      const confirmed = await showAppConfirm(
+        "确定恢复默认设置吗？主题、字体、句子成分颜色、快捷键、朗读设置会重置，用户记录和句库不会删除。",
+        { title: "恢复默认设置" }
+      );
       if (!confirmed) return;
 
       resetSettingsToDefault();
@@ -3780,6 +3981,41 @@ ${orderNote}`;
         range.setEnd(node, end);
         const rect = range.getBoundingClientRect();
         return inRect(rect) ? { word: match[0].replace(/\.$/, ""), rect } : null;
+      }
+      return null;
+    }
+
+    function learningWordAtPoint(event, container) {
+      const inRect = (rect) => rect && event.clientX >= rect.left - 1 && event.clientX <= rect.right + 1
+        && event.clientY >= rect.top - 1 && event.clientY <= rect.bottom + 1;
+      const selection = window.getSelection();
+      const selected = selection && !selection.isCollapsed ? selection.toString().replace(/\s+/g, " ").trim() : "";
+      if (selected && selected.length <= 60 && container.contains(selection.anchorNode)) {
+        const rect = selection.getRangeAt(0).getBoundingClientRect();
+        if (inRect(rect)) return { word: selected, rect };
+      }
+      let node = null;
+      let offset = 0;
+      if (document.caretPositionFromPoint) {
+        const position = document.caretPositionFromPoint(event.clientX, event.clientY);
+        node = position?.offsetNode;
+        offset = position?.offset || 0;
+      } else if (document.caretRangeFromPoint) {
+        const range = document.caretRangeFromPoint(event.clientX, event.clientY);
+        node = range?.startContainer;
+        offset = range?.startOffset || 0;
+      }
+      if (!node || node.nodeType !== Node.TEXT_NODE || !container.contains(node)) return null;
+      const pattern = languageText().typedWordRegex();
+      let match;
+      while ((match = pattern.exec(node.textContent)) !== null) {
+        const end = match.index + match[0].length;
+        if (offset < match.index || offset > end) continue;
+        const range = document.createRange();
+        range.setStart(node, match.index);
+        range.setEnd(node, end);
+        const rect = range.getBoundingClientRect();
+        return inRect(rect) ? { word: match[0], rect } : null;
       }
       return null;
     }
@@ -4736,6 +4972,7 @@ ${orderNote}`;
         userData.remove("favoriteSentence", existing.recordKey, scope);
       }
       scheduleCloudSync();
+      updateCurrentLibrarySelectAvailability();
       const ratingGroup = button.closest(".dictionary-rating");
       const inTarget = Boolean(button.closest("#target"));
       if (ratingGroup) ratingGroup.outerHTML = sentenceFavoriteButton(sentence, saved);
@@ -4781,22 +5018,14 @@ ${orderNote}`;
     // The interval factor (间隔扩大系数) is stored in hundredths as the record field `e` (250 = 2.5), so every step is
     // exact integer arithmetic and never drifts like 2.3 - 0.2 = 2.0999999999999996. It is divided by 100 only to
     // compute an interval and to display it.
-    const WORD_REVIEW_START_EASE = 250;
-    const WORD_REVIEW_MIN_EASE = 130;
-    const WORD_REVIEW_MAX_EASE = 250;
-    const WORD_REVIEW_EASE_RECOVERY = 5;
-    const WORD_REVIEW_EASE_PENALTY = 20;
-
     function wordReviewEase(record) {
-      return Number.isInteger(record?.e) ? record.e : WORD_REVIEW_START_EASE;
+      return Number.isInteger(record?.e) ? record.e : practiceEaseSettings().wordEaseStart;
     }
 
     function easeText(hundredths) {
       return String(hundredths / 100);
     }
     const WORD_REVIEW_DAY_MS = 24 * 60 * 60 * 1000;
-    const WORD_REVIEW_MASTERY_INTERVAL_DAYS = 21;
-    const WORD_REVIEW_MASTERY_REPS = 3;
     const WORD_REVIEW_MODES = [
       { id: "recognize", label: "识义", minStars: 1, title: "看英文、听发音，回想意思（1 星及以上的收藏词）" },
       { id: "listen", label: "听写", minStars: 2, title: "只听发音，拼出单词（2 星及以上的收藏词）" },
@@ -4966,8 +5195,9 @@ ${orderNote}`;
     }
 
     function wordReviewMastered(record) {
-      return Number(record?.interval) >= WORD_REVIEW_MASTERY_INTERVAL_DAYS
-        && Number(record?.reps) >= WORD_REVIEW_MASTERY_REPS
+      const mastery = practiceMasterySettings();
+      return Number(record?.interval) >= mastery.intervalDays
+        && Number(record?.reps) >= mastery.reps
         && record?.lastGrade === "good";
     }
 
@@ -5069,7 +5299,7 @@ ${orderNote}`;
         ? `清除本组已学过的 ${learned.length} 个单词的“${label}”记录，并换一组新的待学新词？原来这组词会回到待学单词，以后可能再被抽到。已清除的记录无法撤销。`
         : `清除本组已学过的 ${learned.length} 个单词的“${label}”记录，让它们回到待学新词？无法撤销。`;
       // Nothing is cleared when no word of the group was learned, so there is nothing to confirm.
-      if (learned.length && !confirm(message)) return;
+      if (learned.length && !await showAppConfirm(message, { title: kind === "switch" ? "切换本组新词" : "重置本组记录" })) return;
       const records = loadWordReviewRecords();
       const manual = loadWordManualMastery();
       learned.forEach((key) => {
@@ -5158,12 +5388,14 @@ ${orderNote}`;
         next.reps = 0;
         next.lapses += 1;
         next.interval = 0;
-        next.e = Math.max(WORD_REVIEW_MIN_EASE, next.e - WORD_REVIEW_EASE_PENALTY);
+        const ease = practiceEaseSettings();
+        next.e = Math.max(ease.wordEaseMin, next.e - ease.wordEasePenalty);
         return { ...next, lastGrade: grade, due: now + 10 * 60 * 1000, lastReviewedAt: new Date(now).toISOString() };
       }
       next.interval = next.reps === 0 ? 1 : next.reps === 1 ? 3 : Math.round(next.interval * next.e / 100);
       // A clean recall slowly restores the factor, so early lapses do not slow the word down forever.
-      next.e = Math.min(WORD_REVIEW_MAX_EASE, next.e + WORD_REVIEW_EASE_RECOVERY);
+      const ease = practiceEaseSettings();
+      next.e = Math.min(ease.wordEaseMax, next.e + ease.wordEaseRecovery);
       next.reps += 1;
       return { ...next, lastGrade: grade, due: now + next.interval * WORD_REVIEW_DAY_MS, lastReviewedAt: new Date(now).toISOString() };
     }
@@ -5198,7 +5430,10 @@ ${orderNote}`;
         items = loadUserWords();
         sourceLabel = "收藏";
       }
-      if (!confirm(`清除“${sourceLabel}”范围内所有单词的“${label}”学习记录？这些单词在其他词表和收藏中的同一掌握记录也会被清除，无法撤销。`)) return;
+      if (!await showAppConfirm(
+        `清除“${sourceLabel}”范围内所有单词的“${label}”学习记录？这些单词在其他词表和收藏中的同一掌握记录也会被清除，无法撤销。`,
+        { title: "清除学习记录" }
+      )) return;
       const records = loadWordReviewRecords();
       items.forEach((item) => {
         const key = dictionaryFavoriteKey(item.word);
@@ -5351,6 +5586,8 @@ ${orderNote}`;
         ? `<div class="dictionary-mastery-items">${statItems.map(([name, key, cls]) => `<div class="dictionary-mastery-item${cls}"><div class="dictionary-mastery-head"><b>${name}</b><span>${stats[key].toLocaleString()}</span></div></div>`).join("")}</div>`
         : '<div class="small-note">正在统计…（词库请先选一个词表）</div>';
       const { wordLabel, meaningLabel } = currentLearningLanguage();
+      const ease = practiceEaseSettings();
+      const mastery = practiceMasterySettings();
       const method = {
         recognize: `看${wordLabel}单词和音标（自动朗读），从 5 个选项中选出正确的${meaningLabel}意思。`,
         listen: `只听发音（自动朗读），看字母格和字母数，拼写出这个单词；答完后才显示${meaningLabel}释义。`,
@@ -5373,7 +5610,7 @@ ${orderNote}`;
             <li><b>答错</b>：间隔天数清零，10 分钟后本轮再考；之后重新从 1 天、3 天开始。</li>
             </ul>
             <p><b>间隔扩大系数</b></p><ul>
-            <li>起始＝${easeText(WORD_REVIEW_START_EASE)}；答错 −${easeText(WORD_REVIEW_EASE_PENALTY)}，答对 +${easeText(WORD_REVIEW_EASE_RECOVERY)}；范围：${easeText(WORD_REVIEW_MIN_EASE)}~${easeText(WORD_REVIEW_MAX_EASE)}。</li>
+            <li>起始＝${easeText(ease.wordEaseStart)}；答错 −${easeText(ease.wordEasePenalty)}，答对 +${easeText(ease.wordEaseRecovery)}；范围：${easeText(ease.wordEaseMin)}~${easeText(ease.wordEaseMax)}。</li>
             <li>最低 1.3，保证答对后，间隔天数至少增加 30%，不会永远卡在原地。</li>
             <li>越常答错的词间隔扩大系数越低、考得越勤；之后一直答对，间隔扩大系数会慢慢恢复。</li>
             </ul>
@@ -5382,7 +5619,7 @@ ${orderNote}`;
             </ul>
           </section>
           <section><div class="dictionary-section-label">5. 掌握</div><ul>
-            <li>同时满足以下两条才算已掌握：复习间隔天数 ≥ ${WORD_REVIEW_MASTERY_INTERVAL_DAYS}；连续答对 ≥ ${WORD_REVIEW_MASTERY_REPS} 次。答错一次会立即取消掌握。</li>
+            <li>同时满足以下两条才算已掌握：复习间隔天数 ≥ ${mastery.intervalDays}；连续答对 ≥ ${mastery.reps} 次。答错一次会立即取消掌握。</li>
             <li>按钮“${label}”上的数字就是当前范围内已掌握的词数。</li>
             <li>很熟的词可以点列表里的状态图标，标记为<b>手动掌握🟢</b>：算作已掌握，不再出现在${label}练习中；随时可以取消。</li>
           </ul></section>
@@ -8139,7 +8376,18 @@ ${orderNote}`;
     document.addEventListener("input", (event) => {
       if (event.target.matches?.("[data-word-review-input]")) updateWordReviewMask(event.target);
     });
-    ["wordGroupSizeInput", "sentenceGroupSizeInput"].forEach((id) => $(id).addEventListener("change", savePracticeSettings));
+    [
+      "wordGroupSizeInput",
+      "sentenceGroupSizeInput",
+      "wordEaseStartInput",
+      "wordEaseMinInput",
+      "wordEaseMaxInput",
+      "wordEasePenaltyInput",
+      "wordEaseRecoveryInput",
+      "wordMasteryIntervalInput",
+      "wordMasteryRepsInput"
+    ].forEach((id) => $(id).addEventListener("change", savePracticeSettings));
+    $("resetPracticeSettingsBtn").addEventListener("click", resetPracticeSettings);
     $("googleLoginBtn").addEventListener("click", signInWithGoogle);
     $("syncCloudBtn").addEventListener("click", pushCloudState);
     $("cloudLogoutBtn").addEventListener("click", signOutCloudUser);
@@ -8360,6 +8608,20 @@ ${orderNote}`;
       if (!$("wordReviewLauncherMenu").contains(event.target)) closeWordReviewLauncherMenu();
     });
     document.querySelectorAll(".word-review-modal").forEach((modal) => {
+      modal.addEventListener("contextmenu", (event) => {
+        const review = state.wordReview;
+        if (!review || modal.hidden) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const hit = learningWordAtPoint(event, modal);
+        const word = String(hit?.word || currentWordReviewItem()?.word || "").trim();
+        if (!word) return;
+        lookupLearningWord(word, {
+          clientX: event.clientX,
+          avoidRect: hit?.rect || event.target.closest(".word-review-card, .word-review-result-panel, .word-review-dialog")?.getBoundingClientRect() || modal.getBoundingClientRect()
+        });
+      });
+
       modal.addEventListener("click", (event) => {
         const favoriteButton = event.target.closest("[data-dictionary-favorite]");
         if (favoriteButton) {
@@ -8445,15 +8707,21 @@ ${orderNote}`;
       if (loadButton) loadLibrarySentenceIntoPractice(loadButton.dataset.loadLibrarySentence);
     });
     $("currentLibrarySelect").addEventListener("change", async () => {
-      const value = $("currentLibrarySelect").value;
+      const select = $("currentLibrarySelect");
+      const value = select.value;
+      if (select.selectedOptions[0]?.disabled) {
+        syncCurrentLibrarySelect(state.currentLibraryLabel);
+        return;
+      }
       if (value === "common") {
         if (!state.library.items.length) await loadCommonLibrary();
         useCommonLibrary();
       } else if (value === "favorites") {
         useFavoritesLibrary();
       } else if (value === "audio") {
-        // Choosing 音频字幕 in the toolbar loads the default material (Audio_Example) and stays on the current page.
-        await loadAudioLibraryMaterial(AUDIO_LIBRARY_DEFAULT_ID, { navigate: false });
+        const audioId = defaultAudioLibraryId();
+        if (audioId) await loadAudioLibraryMaterial(audioId, { navigate: false });
+        else syncCurrentLibrarySelect(state.currentLibraryLabel);
       }
     });
     counterIndexInput.addEventListener("change", jumpToEnteredCounterIndex);

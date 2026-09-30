@@ -1367,6 +1367,26 @@
       padding: 0 14px 0 6px;
     }
 
+    #currentLibrarySelect.has-unavailable-libraries {
+      border-color: color-mix(in srgb, var(--warn) 45%, #d1d5db);
+      background: color-mix(in srgb, var(--warn) 8%, var(--panel));
+    }
+
+    #currentLibrarySelect option {
+      color: var(--ink);
+      background: var(--panel);
+      font-style: normal;
+      font-weight: 600;
+    }
+
+    #currentLibrarySelect option:disabled,
+    #currentLibrarySelect option.is-library-unavailable {
+      color: color-mix(in srgb, var(--muted) 65%, var(--panel));
+      background: color-mix(in srgb, var(--ink) 6%, var(--panel));
+      font-style: normal;
+      font-weight: 400;
+    }
+
     .counter {
       gap: 4px;
       height: 24px;
@@ -2971,6 +2991,44 @@
       display: none;
     }
 
+    .app-confirm-modal {
+      z-index: 90;
+    }
+
+    .app-confirm-dialog {
+      width: min(520px, calc(100vw - 36px));
+      max-height: calc(100vh - 36px);
+      display: grid;
+      grid-template-rows: auto minmax(0, auto) auto;
+      gap: 14px;
+      padding: 20px;
+      border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--ink);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
+    }
+
+    .app-confirm-dialog h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.35;
+    }
+
+    .app-confirm-dialog p {
+      margin: 0;
+      overflow-y: auto;
+      color: var(--ink);
+      line-height: 1.65;
+      white-space: pre-wrap;
+    }
+
+    .app-confirm-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
     .user-phrases-dialog {
       display: grid;
       grid-template-rows: auto minmax(0, 1fr);
@@ -4430,6 +4488,7 @@
     body[data-theme="gray"] .help-content,
     body[data-theme="gray"] .ai-text-dialog,
     body[data-theme="gray"] .library-dialog,
+    body[data-theme="gray"] .app-confirm-dialog,
     body[data-theme="gray"] .login-card,
     body[data-theme="gray"] .drop-card,
     body[data-theme="black"] .source-popover,
@@ -4439,6 +4498,7 @@
     body[data-theme="black"] .help-content,
     body[data-theme="black"] .ai-text-dialog,
     body[data-theme="black"] .library-dialog,
+    body[data-theme="black"] .app-confirm-dialog,
     body[data-theme="black"] .login-card,
     body[data-theme="black"] .drop-card {
       border-color: #3a3a3a;
