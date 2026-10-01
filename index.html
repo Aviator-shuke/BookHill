@@ -6,7 +6,7 @@
   <title>langLSRW</title>
   <!-- Page content stays hidden until the user's own settings (theme, fonts) are applied, so the default look never flashes. -->
   <style>html.is-booting body > * { visibility: hidden; }</style>
-  <link rel="stylesheet" href="src/styles.css?v=20260930-1">
+  <link rel="stylesheet" href="src/styles.css?v=20260930-6">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -559,10 +559,11 @@
               <option value="ky">考研</option><option value="ielts">IELTS</option>
               <option value="toefl">TOEFL</option><option value="gre">GRE</option><option value="all">全部</option>
             </select></label>
-            <label>学习<select id="dictionaryLearningSelect" title="按背单词学习状态筛选词库单词">
+            <label>测验<select id="dictionaryLearningSelect" title="按测验状态筛选词库单词">
               <option value="all">全部</option>
-              <option value="review-new">未学习</option>
-              <option value="review-learned">已学习</option>
+              <option value="review-new">未测验</option>
+              <option value="review-tested">已测验</option>
+              <option value="review-notdue">未到期</option>
               <option value="review-due">已到期</option>
               <option value="review-mastered">已掌握</option>
             </select></label>
@@ -598,7 +599,7 @@
     <div class="word-preview-prompt" role="dialog" aria-modal="true" aria-labelledby="wordPreviewPromptText">
       <div id="wordPreviewPromptText" class="word-preview-prompt-text"></div>
       <div class="word-preview-prompt-actions">
-        <button id="wordPreviewYesBtn" type="button" class="primary" data-preview-choice="preview" title="先看一遍这组新词，不计入学习记录，看完可以直接开始初测">先预习</button>
+        <button id="wordPreviewYesBtn" type="button" class="primary" data-preview-choice="preview" title="先看一遍这组新词，不计入测验记录，看完可以直接开始初测">先预习</button>
         <button type="button" data-preview-choice="start" title="不预习，直接开始这组新词的初测">直接开始</button>
         <button type="button" data-preview-choice="cancel" title="不开始练习（Esc）">取消</button>
       </div>
@@ -688,11 +689,12 @@
                 <option value="gre">GRE</option>
               </select>
             </label>
-            <label>学习
-              <select id="userWordsLearningSelect" title="按背单词学习状态筛选收藏单词">
+            <label>测验
+              <select id="userWordsLearningSelect" title="按测验状态筛选收藏单词">
                 <option value="all">全部</option>
-                <option value="review-new">未学习</option>
-                <option value="review-learned">已学习</option>
+                <option value="review-new">未测验</option>
+                <option value="review-tested">已测验</option>
+                <option value="review-notdue">未到期</option>
                 <option value="review-due">已到期</option>
                 <option value="review-mastered">已掌握</option>
               </select>
@@ -768,15 +770,15 @@
       <h2 id="appConfirmTitle">确认操作</h2>
       <p id="appConfirmMessage"></p>
       <div class="app-confirm-actions">
-        <button id="appConfirmCancelBtn" type="button" title="取消这次操作，不会修改学习记录">取消</button>
+        <button id="appConfirmCancelBtn" type="button" title="取消这次操作，不会修改测验记录">取消</button>
         <button id="appConfirmOkBtn" class="primary" type="button" title="确认执行这次操作">确定</button>
       </div>
     </div>
   </div>
   <div id="wordStatusMenu" class="grammar-context-menu" role="menu" hidden></div>
   <div id="wordReviewLauncherMenu" class="grammar-context-menu" role="menu" hidden>
-    <button id="wordReviewResetGroupBtn" type="button" role="menuitem" title="把本组里已经学过的单词清除记录，变回待学的新词；本组还是这几个词，可以重新学一遍">重置本组记录</button>
-    <button id="wordReviewSwitchGroupBtn" type="button" role="menuitem" title="把本组里已经学过的单词清除记录，并换一组新的待学单词；原来这组词以后可能再被抽到">切换本组新词</button>
+    <button id="wordReviewResetGroupBtn" type="button" role="menuitem" title="把本组里已经测验过的单词清除记录，变回待学的新词；本组还是这几个词，可以重新学一遍">重置本组记录</button>
+    <button id="wordReviewSwitchGroupBtn" type="button" role="menuitem" title="把本组里已经测验过的单词清除记录，并换一组新的待学单词；原来这组词以后可能再被抽到">切换本组新词</button>
     <div class="grammar-context-separator"></div>
     <button id="wordReviewClearBtn" type="button" role="menuitem" title="清除当前范围内所有单词的背单词记录和手动掌握标记；收藏星级和词表分类不会被删除">清除记忆</button>
   </div>
@@ -793,6 +795,6 @@
   <script src="src/languages/en/dictionary.js?v=20260928-2"></script>
   <script src="src/languages/es/dictionary.js?v=20260928-2"></script>
   <script src="src/user-data.js?v=20260928-5"></script>
-  <script src="src/app.js?v=20260930-1"></script>
+  <script src="src/app.js?v=20260930-17"></script>
 </body>
 </html>

@@ -3446,6 +3446,145 @@
       text-overflow: ellipsis;
     }
 
+    /* 测验 filter: a button that looks like the neighbouring selects, and its menu with the 已测验 flyout. */
+    .user-words-controls .learning-filter-button {
+      box-sizing: border-box;
+      position: relative;
+      width: 100%;
+      min-width: 0;
+      min-height: 22px;
+      height: 22px;
+      padding: 0 12px 0 4px;
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+      border-radius: 7px;
+      background: var(--panel);
+      color: var(--ink);
+      font-size: 11px;
+      line-height: 20px;
+      text-align: left;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .user-words-controls .learning-filter-button::after {
+      content: "";
+      position: absolute;
+      right: 5px;
+      top: 8px;
+      border: 3px solid transparent;
+      border-top: 4px solid currentColor;
+      border-bottom: 0;
+    }
+
+    .learning-filter-menu {
+      position: fixed;
+      z-index: 120;
+      padding: 4px;
+      border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+      border-radius: 6px;
+      background: var(--panel);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+      /* Fade only: sliding would open a gap under the button that the pointer could fall through. */
+      animation: learning-menu-in 120ms ease;
+      transition: opacity 120ms ease;
+    }
+
+    /* Closing: fade out, and ignore the pointer meanwhile (the script hides it after the fade). */
+    .learning-filter-menu.is-closing {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    @keyframes learning-menu-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .learning-filter-menu[hidden] {
+      display: none;
+    }
+
+    .learning-filter-menu button {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      min-height: 26px;
+      padding: 0 8px;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--ink);
+      font-size: 12px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .learning-filter-menu button:hover,
+    .learning-filter-parent:hover > button,
+    .learning-filter-menu button:focus-visible {
+      background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+      outline: none;
+    }
+
+    .learning-filter-menu button.is-current,
+    .learning-filter-menu button.is-current-family {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .learning-filter-arrow {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .learning-filter-parent {
+      position: relative;
+    }
+
+    .learning-filter-sub {
+      position: absolute;
+      top: -5px;
+      /* Starts exactly at the menu's outer edge: its 4px padding + 1px border. */
+      left: calc(100% + 5px);
+      /* Always laid out, shown by opacity so it can fade in and out. */
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 120ms ease, visibility 0s 120ms;
+      min-width: 88px;
+      padding: 4px;
+      border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+      border-radius: 6px;
+      background: var(--panel);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+    }
+
+    /* A thin bridge keeps the flyout open while the pointer crosses the gap. */
+    .learning-filter-sub::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -5px;
+      width: 5px;
+    }
+
+    .learning-filter-parent:hover > .learning-filter-sub,
+    .learning-filter-parent:focus-within > .learning-filter-sub {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity 120ms ease, visibility 0s;
+    }
+
+    .learning-filter-menu.is-flip .learning-filter-sub {
+      left: auto;
+      right: calc(100% + 5px);
+    }
+
     .user-words-list,
     .user-sentences-list {
       display: flex;

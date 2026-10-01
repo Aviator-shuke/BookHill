@@ -2867,11 +2867,147 @@ const fallbackSentences = [
     const englishSelectOptions = {};
     const WORD_LEARNING_CATEGORY_OPTIONS = [
       ["all", "全部"],
-      ["review-new", "未学习"],
-      ["review-learned", "已学习"],
+      ["review-new", "未测验"],
+      ["review-tested", "已测验"],
+      ["review-notdue", "未到期"],
       ["review-due", "已到期"],
       ["review-mastered", "已掌握"]
     ];
+
+    // 测验 filter menu: a native <select> cannot nest options, so the two selects (收藏 and 词库) stay as hidden state holders
+    // and a custom button + menu drives them. 已测验 opens a flyout with its three sub-options (未到期 / 已到期 / 已掌握)
+    // while hovering; clicking 已测验 itself selects every tested word.
+    const LEARNING_FILTER_TESTED_FAMILY = ["review-tested", "review-notdue", "review-due", "review-mastered"];
+    const LEARNING_FILTER_MENU_ITEMS = [
+      { value: "all", label: "全部", title: "不按测验状态筛选，显示全部单词" },
+      { value: "review-new", label: "未测验", title: "还没有测验记录的单词" },
+      { value: "review-tested", label: "已测验", title: "已经有测验记录的单词；鼠标停在这里，右边可以继续选全部、未到期、已到期、已掌握", children: [
+        { value: "review-tested", label: "全部", title: "全部已测验的单词（未到期、已到期、已掌握都包括）" },
+        { value: "review-notdue", label: "未到期", title: "已测验，复习时间还没到的单词" },
+        { value: "review-due", label: "已到期", title: "已测验，复习时间已到、该复习的单词" },
+        { value: "review-mastered", label: "已掌握", title: "达到掌握标准或手动标记掌握的单词" }
+      ] }
+    ];
+    let learningFilterMenu = null;
+
+    // The menu closes the moment the pointer leaves both its button and the menu (the menu starts flush under the button,
+    // so there is no gap to cross). Moving between the two does not close it: the event's relatedTarget says where the
+    // pointer went.
+    function learningFilterPointerLeft(event) {
+      if (!learningFilterMenu || learningFilterMenu.hidden) return;
+      const to = event.relatedTarget;
+      if (to && (learningFilterMenu.contains(to) || learningFilterMenu.ownerButton?.contains(to))) return;
+      closeLearningFilterMenu();
+    }
+
+    function learningFilterLabel(value) {
+      for (const item of LEARNING_FILTER_MENU_ITEMS) {
+        if (item.value === value) return item.label;
+        const child = item.children?.find((entry) => entry.value === value);
+        // The button is narrow, so a sub-option shows only its own name (the full path is in the tooltip).
+        if (child) return child.label;
+      }
+      return "全部";
+    }
+
+    // Closing fades the menu out quickly (120 ms) instead of cutting it off; opening again during the fade cancels it.
+    let learningFilterFadeTimer = 0;
+
+    function closeLearningFilterMenu() {
+      if (!learningFilterMenu || learningFilterMenu.hidden || learningFilterMenu.classList.contains("is-closing")) return;
+      learningFilterMenu.classList.add("is-closing");
+      learningFilterFadeTimer = setTimeout(() => {
+        learningFilterMenu.hidden = true;
+        learningFilterMenu.classList.remove("is-closing");
+      }, 120);
+    }
+
+    function openLearningFilterMenu(select, button) {
+      if (!learningFilterMenu) {
+        learningFilterMenu = document.createElement("div");
+        learningFilterMenu.className = "learning-filter-menu";
+        learningFilterMenu.setAttribute("role", "menu");
+        learningFilterMenu.innerHTML = LEARNING_FILTER_MENU_ITEMS.map((item) => item.children
+          ? `<div class="learning-filter-parent"><button type="button" role="menuitem" data-learning-value="${item.value}" title="${item.title}">${item.label}<span class="learning-filter-arrow">▸</span></button><div class="learning-filter-sub" role="menu">${item.children.map((child) => `<button type="button" role="menuitem" data-learning-value="${child.value}" title="${child.title}">${child.label}</button>`).join("")}</div></div>`
+          : `<button type="button" role="menuitem" data-learning-value="${item.value}" title="${item.title}">${item.label}</button>`).join("");
+        learningFilterMenu.addEventListener("click", (event) => {
+          const choice = event.target.closest("[data-learning-value]");
+          const owner = learningFilterMenu.ownerSelect;
+          if (!choice || !owner) return;
+          owner.value = choice.dataset.learningValue;
+          owner.dispatchEvent(new Event("change", { bubbles: true }));
+          closeLearningFilterMenu();
+        });
+        learningFilterMenu.addEventListener("pointerleave", learningFilterPointerLeft);
+        document.body.append(learningFilterMenu);
+        document.addEventListener("pointerdown", (event) => {
+          if (!learningFilterMenu.hidden && !learningFilterMenu.contains(event.target) && !event.target.closest(".learning-filter-button")) closeLearningFilterMenu();
+        });
+        window.addEventListener("resize", closeLearningFilterMenu);
+        // The menu closes whenever it loses focus: focus moving elsewhere (Tab, a click), the window or tab losing focus,
+        // or anything outside it scrolling.
+        document.addEventListener("focusin", (event) => {
+          if (!learningFilterMenu.hidden && !learningFilterMenu.contains(event.target) && !event.target.closest(".learning-filter-button")) closeLearningFilterMenu();
+        });
+        window.addEventListener("blur", closeLearningFilterMenu);
+        document.addEventListener("visibilitychange", closeLearningFilterMenu);
+        window.addEventListener("scroll", (event) => {
+          if (!learningFilterMenu.contains(event.target)) closeLearningFilterMenu();
+        }, true);
+      }
+      learningFilterMenu.ownerSelect = select;
+      learningFilterMenu.ownerButton = button;
+      const current = select.value;
+      learningFilterMenu.querySelectorAll("[data-learning-value]").forEach((item) => {
+        const value = item.dataset.learningValue;
+        item.classList.toggle("is-current", value === current);
+        if (value === "review-tested") item.classList.toggle("is-current-family", LEARNING_FILTER_TESTED_FAMILY.includes(current));
+      });
+      const rect = button.getBoundingClientRect();
+      learningFilterMenu.style.minWidth = `${Math.round(rect.width)}px`;
+      clearTimeout(learningFilterFadeTimer);
+      learningFilterMenu.classList.remove("is-closing");
+      learningFilterMenu.hidden = false;
+      const menuRect = learningFilterMenu.getBoundingClientRect();
+      // The menu and its 已测验 flyout stay inside the word column: shift the menu left when the flyout would stick out.
+      const sub = learningFilterMenu.querySelector(".learning-filter-sub");
+      sub.style.visibility = "hidden";
+      sub.style.display = "block";
+      const subWidth = sub.offsetWidth + 5;
+      sub.style.display = "";
+      sub.style.visibility = "";
+      const column = button.closest(".user-phrases-collection")?.getBoundingClientRect();
+      const right = column ? column.right : window.innerWidth;
+      const leftLimit = column ? column.left + 4 : 4;
+      const left = Math.min(rect.left, right - 4 - menuRect.width - subWidth);
+      learningFilterMenu.style.left = `${Math.max(leftLimit, left)}px`;
+      learningFilterMenu.style.top = `${rect.bottom}px`;
+      learningFilterMenu.classList.remove("is-flip");
+    }
+
+    function initLearningFilterMenu(selectId) {
+      const select = $(selectId);
+      if (!select || select.dataset.menuReady) return;
+      select.dataset.menuReady = "1";
+      select.style.display = "none";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "learning-filter-button";
+      const refresh = () => {
+        button.textContent = learningFilterLabel(select.value);
+        button.title = `按测验状态筛选，当前：${LEARNING_FILTER_TESTED_FAMILY.includes(select.value) && select.value !== "review-tested" ? "已测验 · " : ""}${learningFilterLabel(select.value)}。全部、未测验、已测验（里面还有全部、未到期、已到期、已掌握）`;
+      };
+      refresh();
+      select.addEventListener("change", refresh);
+      button.addEventListener("pointerleave", (event) => {
+        if (learningFilterMenu?.ownerSelect === select) learningFilterPointerLeft(event);
+      });
+      button.addEventListener("click", () => {
+        if (learningFilterMenu && !learningFilterMenu.hidden && !learningFilterMenu.classList.contains("is-closing") && learningFilterMenu.ownerSelect === select) closeLearningFilterMenu();
+        else openLearningFilterMenu(select, button);
+      });
+      select.after(button);
+    }
 
     function isWordLearningFilter(value) {
       return value !== "all" && WORD_LEARNING_CATEGORY_OPTIONS.some(([optionValue]) => optionValue === value);
@@ -3247,6 +3383,11 @@ ${orderNote}`;
       if (event.isComposing) return;
       if (event.target && event.target.closest && event.target.closest("[data-shortcut]")) return;
       if (document.activeElement === counterIndexInput || event.target === counterIndexInput) return;
+      if (event.key === "Escape" && learningFilterMenu && !learningFilterMenu.hidden) {
+        event.preventDefault();
+        closeLearningFilterMenu();
+        return;
+      }
       if (event.key === "Escape" && englishLookupTop()) {
         event.preventDefault();
         closeEnglishLookup(englishLookupTop());
@@ -3843,8 +3984,8 @@ ${orderNote}`;
       // Same precedence as the list status icons: a due record shows 已到期 even if it was mastered.
       if (wordReviewRecordStarted(record) && Number(record.due) <= Date.now()) return { key: "due", label: "已到期" };
       if (wordReviewMastered(record)) return { key: "mastered", label: "已掌握" };
-      if (wordReviewRecordStarted(record)) return { key: "learning", label: "学习中" };
-      return { key: "new", label: "未学习" };
+      if (wordReviewRecordStarted(record)) return { key: "learning", label: "未到期" };
+      return { key: "new", label: "未测验" };
     }
 
     function wordReviewIntervalLabel(record) {
@@ -4623,7 +4764,8 @@ ${orderNote}`;
     }
 
     async function loadDictionaryStudyWords(category, sort) {
-      const learning = $("dictionaryLearningSelect").value;
+      // The 测验 filter is only for viewing the list; the practice deck is always the whole category.
+      const learning = "all";
       const cacheKey = `${currentDictionaryId()}:${category}:${learning}:${sort}`;
       if (!dictionaryStudyDeckCache.has(cacheKey)) {
         const loader = sort === "favorites"
@@ -4652,7 +4794,7 @@ ${orderNote}`;
       try {
         const words = await loadDictionaryStudyWords(category, sort);
         if (!words.length) {
-          alert(`${label}分类中没有可学习的单词。`);
+          alert(`${label}分类中没有可测验的单词。`);
           return;
         }
         const context = {
@@ -4802,7 +4944,7 @@ ${orderNote}`;
     function dictionaryPracticeButtons(word) {
       const safeWord = escapeHtml(String(word || "").trim());
       if (!safeWord) return "";
-      return `<button class="dictionary-practice-button" type="button" data-dictionary-practice="listen" data-practice-word="${safeWord}" title="练习这个单词：听发音，结合释义写出单词；「下一个」会重新练这个词，不计入学习记录">练习</button>`;
+      return `<button class="dictionary-practice-button" type="button" data-dictionary-practice="listen" data-practice-word="${safeWord}" title="练习这个单词：听发音，结合释义写出单词；「下一个」会重新练这个词，不计入测验记录">练习</button>`;
     }
 
     function dictionaryPronunciationButton(word) {
@@ -4895,7 +5037,8 @@ ${orderNote}`;
       if (learning === "review-new") return !started && !manualMastered;
       if (learning === "review-due") return started && !manualMastered && Number(record?.due) <= Date.now();
       if (learning === "review-mastered") return mastered;
-      if (learning === "review-learned") return started && !mastered;
+      if (learning === "review-tested") return started;
+      if (learning === "review-notdue") return started && !manualMastered && Number(record?.due) > Date.now();
       return true;
     }
 
@@ -4904,8 +5047,11 @@ ${orderNote}`;
         && (!isWordLearningFilter(learning) || userWordMatchesLearningFilter(item, learning, records, marks));
     }
 
-    function filteredAndSortedUserWords(words) {
+    // `scopeOnly` is the practice scope (预习 / 复习 / 测验): it is decided by the 分类 alone. The 测验 filter, the search box
+    // and the sort only change what the list shows, so they are left out (and the order does not matter for practice).
+    function filteredAndSortedUserWords(words, scopeOnly = false) {
       const category = $("userWordsCategorySelect").value;
+      if (scopeOnly) return words.filter((item) => userWordMatchesFilters(item, category));
       const learning = $("userWordsLearningSelect").value;
       const sort = $("userWordsSortSelect").value;
       const query = $("userWordsSearchInput").value.trim().toLocaleLowerCase("en-US");
@@ -5324,7 +5470,7 @@ ${orderNote}`;
 
     function updateFavoriteReviewLaunchers() {
       const category = $("userWordsCategorySelect").value;
-      const learning = $("userWordsLearningSelect").value;
+      const learning = "all"; // the 测验 filter is only for viewing, not part of the practice scope
       const reviewRecords = isWordLearningFilter(learning) ? loadWordReviewRecords() : null;
       const manualMastery = isWordLearningFilter(learning) ? loadWordManualMastery() : null;
       const words = loadUserWords().filter((item) => userWordMatchesFilters(item, category, learning, reviewRecords, manualMastery));
@@ -5379,8 +5525,8 @@ ${orderNote}`;
       const menu = $("wordStatusMenu");
       menu.dataset.word = word;
       menu.innerHTML = marks.mastered
-        ? '<button type="button" role="menuitem" data-word-status-action="undo-all" title="取消手动掌握，恢复显示原来的学习状态，并重新参加背单词练习">取消手动掌握</button>'
-        : '<button type="button" role="menuitem" data-word-status-action="master-all" title="标记为手动掌握🟢：统计为已掌握，不再出现在背单词练习中；原来的学习记录保留">标记为手动掌握🟢</button>';
+        ? '<button type="button" role="menuitem" data-word-status-action="undo-all" title="取消手动掌握，恢复显示原来的测验状态，并重新参加背单词练习">取消手动掌握</button>'
+        : '<button type="button" role="menuitem" data-word-status-action="master-all" title="标记为手动掌握🟢：统计为已掌握，不再出现在背单词练习中；原来的测验记录保留">标记为手动掌握🟢</button>';
       menu.hidden = false;
       const rect = menu.getBoundingClientRect();
       menu.style.left = `${Math.max(8, Math.min(event.clientX, window.innerWidth - rect.width - 8))}px`;
@@ -5417,7 +5563,7 @@ ${orderNote}`;
 
     function wordReviewSourceItems(review = state.wordReview) {
       if (review?.source === "wordList") return review.words || [];
-      return filteredAndSortedUserWords(loadUserWords()).filter((item) => wordReviewEligible(item, review?.mode || "recognize"));
+      return filteredAndSortedUserWords(loadUserWords(), true).filter((item) => wordReviewEligible(item, review?.mode || "recognize"));
     }
 
     function wordReviewRecord(item, mode, review = state.wordReview) {
@@ -5469,7 +5615,7 @@ ${orderNote}`;
         }
         review = { source: "wordList", deckCategory: category };
       } else {
-        items = filteredAndSortedUserWords(loadUserWords()).filter((item) => wordReviewEligible(item, mode));
+        items = filteredAndSortedUserWords(loadUserWords(), true).filter((item) => wordReviewEligible(item, mode));
         review = { source: "favorites" };
       }
       review.records = loadWordReviewRecords();
@@ -5484,7 +5630,7 @@ ${orderNote}`;
       const group = Array.isArray(saved) ? saved : [];
       const learned = group.filter((key) => review.records[key] || marks[key]?.mastered);
       if (!group.length) {
-        alert("这个范围里没有可学的单词。");
+        alert("这个范围里没有可测验的单词。");
         return;
       }
       let nextGroup = null;
@@ -5497,12 +5643,12 @@ ${orderNote}`;
         }
         nextGroup = shuffledWordReviewItems(pool).slice(0, practiceGroupSize("wordGroupSize"));
       } else if (!learned.length) {
-        alert("本组的单词都还没有学过，不需要重置。");
+        alert("本组的单词都还没有测验过，不需要重置。");
         return;
       }
       const message = kind === "switch"
-        ? `清除本组已学过的 ${learned.length} 个单词的学习记录，并换一组新的待学新词？原来这组词会回到待学单词，以后可能再被抽到。已清除的记录无法撤销。`
-        : `清除本组已学过的 ${learned.length} 个单词的学习记录，让它们回到待学新词？无法撤销。`;
+        ? `清除本组已测验的 ${learned.length} 个单词的测验记录，并换一组新的待学新词？原来这组词会回到待学单词，以后可能再被抽到。已清除的记录无法撤销。`
+        : `清除本组已测验的 ${learned.length} 个单词的测验记录，让它们回到待学新词？无法撤销。`;
       // Nothing is cleared when no word of the group was learned, so there is nothing to confirm.
       if (learned.length && !await showAppConfirm(message, { title: kind === "switch" ? "切换本组新词" : "重置本组记录" })) return;
       const records = loadWordReviewRecords();
@@ -5524,7 +5670,7 @@ ${orderNote}`;
       const marks = loadWordManualMastery();
       const words = (review?.source === "wordList"
         ? wordReviewSourceItems(review)
-        : filteredAndSortedUserWords(loadUserWords()).filter((item) => wordReviewEligible(item, mode)))
+        : filteredAndSortedUserWords(loadUserWords(), true).filter((item) => wordReviewEligible(item, mode)))
         .filter((item) => !marks[dictionaryFavoriteKey(item.word)]?.mastered);
       const dueReviewed = words
         .filter((item) => wordReviewRecord(item, mode, review) && Number(wordReviewRecord(item, mode, review).due) <= now)
@@ -5548,8 +5694,21 @@ ${orderNote}`;
       return WORD_REVIEW_MODES.map((item) => item.id);
     }
 
+    // Words are tested in small batches: each batch of WORD_REVIEW_BATCH_SIZE words has its three question types (识义,
+    // 听写, 默写) shuffled together, and the next batch only starts when the batch is finished. Stopping part-way then
+    // leaves at most one batch half-done, because a word's result is saved only after all three of its questions.
+    const WORD_REVIEW_BATCH_SIZE = 10;
+
     function expandWordReviewQueue(keys, section = "review") {
       const uniqueKeys = [...new Set(keys.filter(Boolean))];
+      const queue = [];
+      for (let start = 0; start < uniqueKeys.length; start += WORD_REVIEW_BATCH_SIZE) {
+        queue.push(...expandWordReviewBatch(uniqueKeys.slice(start, start + WORD_REVIEW_BATCH_SIZE), section));
+      }
+      return queue;
+    }
+
+    function expandWordReviewBatch(uniqueKeys, section) {
       if (uniqueKeys.length <= 1) {
         return uniqueKeys.flatMap((key) => shuffledWordReviewItems(wordReviewModeSequence()).map((mode) => ({ key, mode, section })));
       }
@@ -5681,8 +5840,8 @@ ${orderNote}`;
         sourceLabel = "收藏";
       }
       if (!await showAppConfirm(
-        `清除“${sourceLabel}”范围内所有单词的学习记录？这些单词在其他词表和收藏中的同一掌握记录也会被清除，无法撤销。`,
-        { title: "清除学习记录" }
+        `清除“${sourceLabel}”范围内所有单词的测验记录？这些单词在其他词表和收藏中的同一掌握记录也会被清除，无法撤销。`,
+        { title: "清除测验记录" }
       )) return;
       const records = loadWordReviewRecords();
       items.forEach((item) => {
@@ -5796,7 +5955,7 @@ ${orderNote}`;
       let words;
       if (source === "favorites") {
         const category = $("userWordsCategorySelect").value;
-        const learning = $("userWordsLearningSelect").value;
+        const learning = "all"; // the 测验 filter is only for viewing, not part of the practice scope
         const reviewRecords = isWordLearningFilter(learning) ? loadWordReviewRecords() : null;
         const manualMastery = isWordLearningFilter(learning) ? loadWordManualMastery() : null;
         words = loadUserWords().filter((item) => userWordMatchesFilters(item, category, learning, reviewRecords, manualMastery) && wordReviewEligible(item, mode));
@@ -5812,15 +5971,17 @@ ${orderNote}`;
       const records = loadWordReviewRecords();
       const marks = loadWordManualMastery();
       const now = Date.now();
-      const stats = { fresh: 0, learning: 0, mastered: 0, due: 0 };
+      const stats = { fresh: 0, notdue: 0, due: 0, mastered: 0 };
       words.forEach((item) => {
         const key = dictionaryFavoriteKey(item.word);
         const record = records[key];
-        if (marks[key]?.mastered) stats.mastered += 1;
-        else if (!record) stats.fresh += 1;
-        else if (wordReviewMastered(record)) stats.mastered += 1;
-        else stats.learning += 1;
-        if (record && !marks[key]?.mastered && Number(record.due) <= now) stats.due += 1;
+        const manual = Boolean(marks[key]?.mastered);
+        if (manual || wordReviewMastered(record)) stats.mastered += 1;
+        if (!record && !manual) stats.fresh += 1;
+        if (record && !manual) {
+          if (Number(record.due) <= now) stats.due += 1;
+          else stats.notdue += 1;
+        }
       });
       return stats;
     }
@@ -5830,16 +5991,16 @@ ${orderNote}`;
       const scope = source === "favorites"
         ? `收藏页当前分类（${escapeHtml($("userWordsCategorySelect").selectedOptions[0]?.textContent || "全部")}）中的单词。`
         : `词表【${escapeHtml($("dictionaryCategorySelect").selectedOptions[0]?.textContent || "当前分类")}】中的全部单词。`;
-      const statItems = [["未学习", "fresh", " is-new"], ["学习中📕", "learning", " is-learning"], ["已掌握✅", "mastered", " is-mastered"], ["已到期🕗", "due", " is-due"]];
+      const statItems = [["未测验", "fresh", " is-new"], ["未到期📕", "notdue", " is-learning"], ["已到期🕗", "due", " is-due"], ["已掌握✅", "mastered", " is-mastered"]];
       const statsHtml = stats
         ? `<div class="dictionary-mastery-items">${statItems.map(([name, key, cls]) => `<div class="dictionary-mastery-item${cls}"><div class="dictionary-mastery-head"><b>${name}</b><span>${stats[key].toLocaleString()}</span></div></div>`).join("")}</div>`
         : '<div class="small-note">正在统计…（词库请先选一个词表）</div>';
       const ease = practiceEaseSettings();
       const mastery = practiceMasterySettings();
       const method = {
-        preview: "预习只练本组还没学过的新词，不计入记忆。每个词会穿插完成识义、听写、默写，避免同一个词连续出现。",
-        review: "复习就是之前的自由练习：练全部已学词，不管是否到期，也不计入记忆。每个词会穿插完成识义、听写、默写，适合额外巩固。",
-        test: "测验是正式新词学习：先做已到期旧词，再做本组新词，并写入记忆。每个词会穿插完成识义、听写、默写。"
+        preview: "预习只练本组还没测验过的新词，不计入记忆。每个词会穿插完成识义、听写、默写，避免同一个词连续出现。",
+        review: "复习就是之前的自由练习：练全部已测验的词，不管是否到期，也不计入记忆。每个词会穿插完成识义、听写、默写，适合额外巩固。",
+        test: "测验是正式流程：先做已到期旧词，再做本组新词，并写入记忆。每个词会穿插完成识义、听写、默写。"
       }[session] || "每个词会穿插完成识义、听写、默写，三项全对才算本轮答对。";
       return `
         <div class="word-review-help">
@@ -5848,7 +6009,7 @@ ${orderNote}`;
           <section><div class="dictionary-section-label">2. 练习方式</div><ul><li>${method}</li></ul></section>
           <section><div class="dictionary-section-label">3. 练习组题</div><ul>
             <li><b>到期复习</b>：已到复习时间的词，最早到期的排最前，不限数量。</li>
-            <li><b>新词初测</b>：从没练过的词，每轮最多 ${practiceGroupSize("wordGroupSize")} 个；每 ${practiceGroupSize("wordGroupSize")} 个新词为一组，进度栏显示第几组。</li>
+            <li><b>新词初测</b>：本组里还没测验过的新词；每组 ${practiceGroupSize("wordGroupSize")} 个，进度栏显示第几组。</li>
             <li><b>忘了再练</b>：本轮答错的词追加到队尾，本轮再考一次。</li>
           </ul></section>
           <section><div class="dictionary-section-label">4. 复习时间怎么定</div>
@@ -6185,7 +6346,7 @@ ${orderNote}`;
     function wordSpeakHtml(review) {
       const supported = Boolean(speechRecognitionCtor());
       return `<div class="word-review-speak">
-        <button type="button" class="primary hold-speak-button word-speak-button" data-word-speak ${supported ? "" : "disabled"} title="${supported ? `按住说出这个单词（或按住快捷键 ${state.shortcuts.holdSpeaking || "未设置"}），松开后识别；识别到的词会写入下面的输入框（先清空原来的内容）；不计入学习记录` : "当前浏览器不支持语音识别"}">按住说话</button>
+        <button type="button" class="primary hold-speak-button word-speak-button" data-word-speak ${supported ? "" : "disabled"} title="${supported ? `按住说出这个单词（或按住快捷键 ${state.shortcuts.holdSpeaking || "未设置"}），松开后识别；识别到的词会写入下面的输入框（先清空原来的内容）；不计入测验记录` : "当前浏览器不支持语音识别"}">按住说话</button>
         <strong>识别结果</strong>
         <span class="word-speak-result" data-word-speak-result>${wordSpeakResultHtml(review)}</span>
       </div>`;
@@ -6330,7 +6491,7 @@ ${orderNote}`;
           elements.progress.textContent = total ? `${name}完成 ${totalWords} 个词` : (isNew ? "没有新词可练" : "没有可自由练习的单词");
           card.innerHTML = `
             <div class="word-review-done">
-              <strong>${total ? `${name}完成` : (isNew ? `当前范围内的单词都已经学过了` : `还没有学过的单词`)}</strong>
+              <strong>${total ? `${name}完成` : (isNew ? `当前范围内的单词都已经测验过了` : `还没有测验过的单词`)}</strong>
               ${total ? `<div>${wordReviewResultSummary(review)}</div>` : ""}
               <div class="small-note">${name}不计入练习记忆，不改变复习安排</div>
               <div class="word-review-actions">
@@ -6350,7 +6511,7 @@ ${orderNote}`;
         const nextNote = due
           ? `下一个单词将在 ${new Date(due).toLocaleString()} 到期`
           : review.source === "wordList"
-            ? `${review.sourceLabel}当前没有待复习或尚未学习的单词`
+            ? `${review.sourceLabel}当前没有待复习或尚未测验的单词`
             : "收藏新单词后会自动加入复习";
         card.innerHTML = `
           <div class="word-review-done">
@@ -6359,7 +6520,7 @@ ${orderNote}`;
             <div class="small-note">${nextNote}</div>
             <div class="small-note">${scopeNote}</div>
             <div class="word-review-actions">
-              <button type="button" data-word-review-action="free" title="练习已学过的词，不管是否到期；结果不计入练习记忆，不改变复习安排">自由练习</button>
+              <button type="button" data-word-review-action="free" title="练习已测验过的词，不管是否到期；结果不计入练习记忆，不改变复习安排">自由练习</button>
               <button type="button" data-word-review-action="close">完成</button>
             </div>
             <div class="small-note">自由练习不计入练习记忆</div>
@@ -6503,7 +6664,7 @@ ${orderNote}`;
 
     function askPreviewNewWords(count) {
       const modal = $("wordPreviewPrompt");
-      $("wordPreviewPromptText").textContent = `本组有 ${count} 个新词还没学过，要先预习一下吗？`;
+      $("wordPreviewPromptText").textContent = `本组有 ${count} 个新词还没测验过，要先预习一下吗？`;
       modal.hidden = false;
       $("wordPreviewYesBtn").focus();
       return new Promise((resolve) => {
@@ -6587,14 +6748,21 @@ ${orderNote}`;
       const key = dictionaryFavoriteKey(item.word);
       review.results[grade] += 1;
       userData.append("reviewEvent", [key, review.mode, grade === "good" ? 1 : 0, review.hints ? 1 : 0, review.free ? 1 : 0, Math.floor(Date.now() / 1000)], languageScope());
-      const wordGrade = review.wordGrades[key] || { good: 0, again: 0, modes: {} };
+      const wordGrade = review.wordGrades[key] || { good: 0, again: 0, modes: {}, savedAgain: false };
       wordGrade[grade] += 1;
       wordGrade.modes[review.mode] = true;
       review.wordGrades[key] = wordGrade;
+      // One wrong answer already decides the word's result (答错), so it is saved at once instead of waiting for the
+      // other questions: leaving part-way never loses a mistake (words answered right but unfinished are simply dropped,
+      // by design: no confirmation is asked on exit). The rest of its questions are still asked.
+      if (grade === "again" && !wordGrade.savedAgain && !review.free && review.source !== "single") {
+        saveWordReviewGrade(key, review.mode, "again");
+        wordGrade.savedAgain = true;
+      }
       const isWordFinished = review.source === "single" || wordReviewModeSequence().every((mode) => wordGrade.modes[mode]);
       if (!isWordFinished) return;
       const finalGrade = wordGrade.again > 0 ? "again" : "good";
-      if (!review.free) saveWordReviewGrade(key, review.mode, finalGrade);
+      if (!review.free && !wordGrade.savedAgain) saveWordReviewGrade(key, review.mode, finalGrade);
       delete review.wordGrades[key];
       if (finalGrade === "again" && review.source !== "single") review.queue.push(...expandWordReviewQueue([key], "again"));
     }
@@ -8690,6 +8858,8 @@ ${orderNote}`;
       updateDictionaryStudyButton();
       renderDictionaryLibrary();
     });
+    initLearningFilterMenu("dictionaryLearningSelect");
+    initLearningFilterMenu("userWordsLearningSelect");
     $("dictionaryLearningSelect").addEventListener("change", () => {
       state.dictionaryLibraryPage = 1;
       updateDictionaryStudyButton();
