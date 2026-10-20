@@ -8342,10 +8342,15 @@ ${orderNote}`;
       } catch (error) {
         setSpeakingStatus(`无法启动识别：${error.message || error}`);
       }
-      try {
-        startedRecording = await startRecording();
-      } catch (error) {
-        setSpeakingStatus(`无法启动录音：${error.message || "请检查麦克风权限"}`);
+      // Mobile browsers give the microphone to one consumer at a time: opening getUserMedia
+      // alongside SpeechRecognition silences the recognizer, so mobile uses recognition only.
+      const mobileMicExclusive = startedRecognition && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      if (!mobileMicExclusive) {
+        try {
+          startedRecording = await startRecording();
+        } catch (error) {
+          setSpeakingStatus(`无法启动录音：${error.message || "请检查麦克风权限"}`);
+        }
       }
       if (!startedRecognition && !startedRecording) {
         setSpeakingStatus("当前浏览器无法启动识别或录音。");
