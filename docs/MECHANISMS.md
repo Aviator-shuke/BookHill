@@ -282,6 +282,8 @@ Supabase 为每个 Google 账号存储一行同步状态。
 
 ## 手机弹窗与点击选择
 
+主页回放音源只在 `state.speaking.recognition` 已清空且 `isRecognizing` 为 false 时同步：新的录音 URL 与现有属性不同才赋值；没有录音时仅在旧 `src` 存在时移除并 `load()`。普通 UI 渲染不得重置播放元素。`startSpeakingPractice()` 先调用 `stopSpeech()` 并暂停正在播放的回放，再启动识别和录音，避免范读与收音重叠；不改变录音或识别服务，也不改变按住说话交互。
+
 按住说话手势在 window 捕获阶段跟踪 pointerdown / pointermove / pointerup / pointercancel。contextmenu 若命中 `.hold-speak-button`、发生在按住期间，或在松手后 800 毫秒内且距松手点不超过 48 像素，则取消默认菜单并停止传播，覆盖松手后事件目标变成外层元素的情况。起点为说话按钮的 touchstart / touchend / touchcancel 使用非被动监听取消系统长按默认行为，指针事件仍负责录音。失焦时清理手势状态；其他位置及保护时间过后的右键保留，动态单词按钮同样适用。
 
 主页语音状态保存在临时 `state.speaking.statusMessage`，`setSpeakingStatus()` 无参数时仅重新显示，不清除消息；`resetSpeakingResult()` 开始下一次练习时清空。识别回调先核对当前实例，空结果不覆盖已有文字，空会话结束时显示明确提示。错误内容通过 `textContent` 展示，手机状态文字可换行。此修改不改变浏览器识别服务、录音策略或任何 AI 调用。

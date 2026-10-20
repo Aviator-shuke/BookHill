@@ -8125,7 +8125,18 @@ ${orderNote}`;
       const isListening = state.speaking.holdActive || state.speaking.permissionLock || state.speaking.isStarting || state.speaking.isRecognizing || state.speaking.isRecording;
       holdButton.textContent = isListening ? "正在聆听" : "按住说话";
       holdButton.classList.toggle("is-listening", isListening);
-      $("speakingAudio").src = state.speaking.recordedAudioUrl || "";
+      // Resetting even an unchanged/empty src reloads the media element. Keep UI renders
+      // out of the audio session, especially while a mobile recognizer is finishing.
+      const recordedAudio = $("speakingAudio");
+      const recordedUrl = state.speaking.recordedAudioUrl;
+      if (!state.speaking.recognition && !state.speaking.isRecognizing) {
+        if (recordedUrl && recordedAudio.getAttribute("src") !== recordedUrl) {
+          recordedAudio.src = recordedUrl;
+        } else if (!recordedUrl && recordedAudio.hasAttribute("src")) {
+          recordedAudio.removeAttribute("src");
+          recordedAudio.load();
+        }
+      }
       $("recordingStatus").textContent = state.speaking.recordedAudioUrl
         ? "已生成本次录音，可直接回放。"
         : "录音完成后会出现在这里。";
@@ -8319,6 +8330,8 @@ ${orderNote}`;
     async function startSpeakingPractice() {
       clearScheduledSpeakingStop();
       if (state.speaking.isStarting || state.speaking.isRecognizing || state.speaking.isRecording) return;
+      stopSpeech();
+      if (!$("speakingAudio").paused) $("speakingAudio").pause();
       state.speaking.isStarting = true;
       state.speaking.stopAfterStart = false;
       resetSpeakingResult();
