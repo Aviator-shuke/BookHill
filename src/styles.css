@@ -2213,6 +2213,8 @@
       padding: 2px 20px 2px 7px;
     }
 
+    #mobileSpeakMode { width: auto; min-width: 0; min-height: 28px; padding: 2px 18px 2px 6px; font-size: 13px; }
+
     .voice-select {
       width: min(100%, 140px);
       min-height: 26px;

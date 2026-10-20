@@ -8327,6 +8327,14 @@ ${orderNote}`;
       return true;
     }
 
+    function isMobileSpeaker() {
+      return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    }
+
+    function mobileSpeakMode() {
+      try { return localStorage.getItem("langLSRWMobileSpeakMode") === "record" ? "record" : "text"; } catch { return "text"; }
+    }
+
     async function startSpeakingPractice() {
       clearScheduledSpeakingStop();
       if (state.speaking.isStarting || state.speaking.isRecognizing || state.speaking.isRecording) return;
@@ -8337,15 +8345,17 @@ ${orderNote}`;
       resetSpeakingResult();
       let startedRecognition = false;
       let startedRecording = false;
-      try {
-        startedRecognition = startSpeechRecognition();
-      } catch (error) {
-        setSpeakingStatus(`无法启动识别：${error.message || error}`);
-      }
       // Mobile browsers give the microphone to one consumer at a time: opening getUserMedia
-      // alongside SpeechRecognition silences the recognizer, so mobile uses recognition only.
-      const mobileMicExclusive = startedRecognition && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-      if (!mobileMicExclusive) {
+      // alongside SpeechRecognition silences the recognizer, so mobile runs only the chosen one.
+      const mobileMode = isMobileSpeaker() ? mobileSpeakMode() : "";
+      if (mobileMode !== "record") {
+        try {
+          startedRecognition = startSpeechRecognition();
+        } catch (error) {
+          setSpeakingStatus(`无法启动识别：${error.message || error}`);
+        }
+      }
+      if (mobileMode !== "text") {
         try {
           startedRecording = await startRecording();
         } catch (error) {
@@ -9325,6 +9335,14 @@ ${orderNote}`;
       setReplayRate(currentReplayRate() - 0.1);
     });
 
+    const mobileSpeakSelect = $("mobileSpeakMode");
+    if (isMobileSpeaker()) {
+      mobileSpeakSelect.hidden = false;
+      mobileSpeakSelect.value = mobileSpeakMode();
+      mobileSpeakSelect.addEventListener("change", () => {
+        try { localStorage.setItem("langLSRWMobileSpeakMode", mobileSpeakSelect.value); } catch {}
+      });
+    }
     const holdSpeakBtn = $("startSpeakingBtn");
     holdSpeakBtn.addEventListener("pointerdown", (event) => {
       if (event.button !== 0) return;

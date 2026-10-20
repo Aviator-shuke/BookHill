@@ -282,8 +282,6 @@ Supabase 为每个 Google 账号存储一行同步状态。
 
 ## 手机弹窗与点击选择
 
-`src/diagnostics/speech.html` / `speech.js` 是独立的 Android 识别对照工具，不加载 `app.js`、用户数据或云登录。“只识别”不调用 `getUserMedia` / `MediaRecorder`；“识别＋录音”复现主页双路启动顺序。两组共用按住 / 松开手势。记录只保留本页内存，导出排除音频和识别原话；回放在识别结束且录音 stop 事件完成后挂载。松手早于授权完成时释放迟到的 stream，不启动后台录音；页面离开时清理识别、轨道、计时器及 Blob URL。此工具不自动切换学习页能力，也不据此自动选择另一种识别服务。
-
 技术边界参考：[MDN 的 start() 文档](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition/start)及其[兼容数据](https://github.com/mdn/browser-compat-data/blob/main/api/SpeechRecognition.json)显示 `start(audioTrack)` 的支持与普通麦克风识别不同，Android Chromium 的音轨参数当前未标记为可用；不能把桌面单音轨方案直接当作手机修复。[WebKit 报告](https://bugs.webkit.org/show_bug.cgi?id=321436)中的媒体 / 识别相互干扰也只用于了解风险，不能据此断定 Android 的具体根因。
 
 主页回放音源只在 `state.speaking.recognition` 已清空且 `isRecognizing` 为 false 时同步：新的录音 URL 与现有属性不同才赋值；没有录音时仅在旧 `src` 存在时移除并 `load()`。普通 UI 渲染不得重置播放元素。`startSpeakingPractice()` 先调用 `stopSpeech()` 并暂停正在播放的回放，再启动识别和录音，避免范读与收音重叠；不改变录音或识别服务，也不改变按住说话交互。
