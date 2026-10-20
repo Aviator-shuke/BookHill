@@ -5934,33 +5934,39 @@
         display: flex; align-items: center; gap: 4px; min-width: 0;
       }
       .sentence-material-controls > .current-library-label { display: none; }
-      .sentence-material-controls #currentLibrarySelect { width: 96px; min-width: 0; flex: 0 1 96px; margin-left: 0; }
-      .sentence-tools .sentence-material-controls #modeSelect { width: 52px; min-width: 52px; }
+      .sentence-material-controls #currentLibrarySelect { width: auto; min-width: 0; flex: 1 1 auto; margin-left: 0; padding: 0 15px 0 5px; }
+      .sentence-tools .sentence-material-controls #modeSelect { width: 48px; min-width: 48px; }
       .sentence-material-controls #nextUnifiedBtn { margin-right: 0; }
-      .sentence-tools .sentence-material-controls #displayModeSelect { width: 88px; margin-right: 0; flex-shrink: 0; }
+      .sentence-tools .sentence-material-controls #displayModeSelect { width: auto; margin-right: 0; flex: 1 1 auto; }
       .sentence-display-controls .check-row:has(#autoSpeakToggle) { margin-right: 0; }
       .sentence-display-controls .control-label-prefix { display: none; }
       .sentence-audio-controls { display: flex; align-items: center; gap: 4px; min-width: 0; }
       .sentence-action-controls { display: contents; }
+      .sentence-tools .sentence-audio-controls { justify-content: flex-end; }
       .sentence-tools .sentence-audio-controls #voiceSelect { width: 104px; min-width: 56px; flex: 0 1 104px; }
-      .sentence-tools .sentence-display-controls #accentSelect { width: 56px; min-width: 0; }
-      .sentence-audio-controls .speech-rate-label { display: none; }
+      .sentence-tools .sentence-display-controls #accentSelect { width: auto; min-width: 0; padding: 0 15px 0 5px; }
+      .sentence-audio-controls .speech-rate-label, .sentence-display-controls .speech-rate-label { display: none; }
       .sentence-tools #analyzeGrammarBtn { font-size: 0; flex-shrink: 0; }
-      .sentence-tools #analyzeGrammarBtn::before { content: "AI语法"; font-size: 13px; }
+      .sentence-tools #analyzeGrammarBtn::before { content: "AI语法"; font-size: 12px; }
       .sentence-tools button, .sentence-tools select, .sentence-tools .check-row {
         height: 28px;
         min-height: 28px;
       }
-      .sentence-tools .check-row { font-size: 13px; gap: 2px; }
+      .sentence-tools .check-row { font-size: 12px; gap: 2px; }
       .sentence-tools .check-row input { margin: 0 2px 0 0; }
       .sentence-tools .sentence-nav-button { width: 28px; min-width: 28px; }
+      .sentence-tools .sentence-material-controls #speakBtn { flex: 0 0 auto; }
+      .sentence-tools .sentence-display-controls { flex-wrap: nowrap; }
+      .sentence-tools .sentence-display-controls > * { flex-shrink: 0; }
+      .sentence-tools .sentence-display-controls #voiceSelect { width: auto; min-width: 40px; flex: 1 1 0; }
+      .sentence-tools .sentence-display-controls #voiceSelect { width: auto; min-width: 0; flex: 1 1 0; }
       .sentence-tools .sentence-index-stepper button,
       .sentence-tools .speech-rate-stepper button { min-height: 13px; }
       .sentence-tools #voiceSelect { width: 112px; min-width: 0; }
-      .sentence-tools #displayModeSelect { width: 92px; min-width: 0; }
-      .sentence-tools #modeSelect, .sentence-tools #accentSelect { width: 64px; }
-      .sentence-tools #accentSelect.is-wide { width: 100px; }
-      .sentence-tools select { background-position: calc(100% - 8px) 13px, calc(100% - 4px) 13px !important; }
+      .sentence-tools #displayModeSelect { width: auto; min-width: 0; }
+      .sentence-tools #modeSelect, .sentence-tools #accentSelect { width: 48px; }
+      .sentence-tools #accentSelect.is-wide { width: auto; }
+      .sentence-tools select { background-position: calc(100% - 8px) 13px, calc(100% - 4px) 13px !important; padding-left: 5px; padding-right: 15px; }
       .sentence-tools .speech-rate-control { margin-left: 0; height: 28px; }
       .speech-rate-label { margin-left: 0; }
       .sentence-tool-end { max-width: 100%; margin-left: 0; }
@@ -5991,13 +5997,11 @@
       .sentence-tools .check-row, .sentence-tools .counter,
       .sentence-tools #counterIndexInput, .sentence-tools #speechRateValue {
         font-family: inherit;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 400;
         line-height: 1.2;
       }
       .sentence-tools #analyzeGrammarBtn { font-size: 0; }
-      .sentence-tools #speakBtn { font-size: 0; }
-      .sentence-tools #speakBtn::before { content: "朗读"; font-size: 13px; }
       .sentence-tools .sentence-nav-button { line-height: 1; }
       .sentence-tools .sentence-index-control { height: 28px; }
       .sentence-tools .sentence-index-stepper { display: none; }
@@ -6009,7 +6013,7 @@
       }
       .sentence-tools .counter { height: 28px; gap: 2px; }
       .sentence-tools .sentence-tool-end { gap: 4px; }
-      .sentence-tools .help-popover summary { height: 28px; min-height: 28px; width: 28px; font-size: 13px; }
+      .sentence-tools .help-popover summary { height: 28px; min-height: 28px; width: 28px; font-size: 12px; }
       .library-modal {
         padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
       }

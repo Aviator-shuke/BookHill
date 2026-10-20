@@ -6,7 +6,7 @@
   <title>langLSRW</title>
   <!-- Page content stays hidden until the user's own settings (theme, fonts) are applied, so the default look never flashes. -->
   <style>html.is-booting body > * { visibility: hidden; }</style>
-  <link rel="stylesheet" href="src/styles.css?v=20261020-9">
+  <link rel="stylesheet" href="src/styles.css?v=20261020-21">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -114,6 +114,11 @@
                 <option value="favorites">用户收藏</option>
                 <option value="audio">音频字幕</option>
               </select>
+              <select id="displayModeSelect" class="compact-select" aria-label="原文显示方式" title="单句显示：只显示当前句；&#10;长文显示：显示当前句前后多句，当前句始终居中；&#10;长文聚焦：同长文显示，其他句子变淡">
+                <option value="single">单句显示</option>
+                <option value="long">长文显示</option>
+                <option value="focus">长文聚焦</option>
+              </select>
               <select id="modeSelect" class="compact-select" aria-label="练习模式">
                 <option value="ordered">顺序</option>
                 <option value="random" selected>随机</option>
@@ -122,11 +127,6 @@
               </select>
               <button id="previousUnifiedBtn" class="sentence-nav-button" type="button" aria-label="上一句">◀</button>
               <button id="nextUnifiedBtn" class="sentence-nav-button" type="button" aria-label="下一句">▶</button>
-              <select id="displayModeSelect" class="compact-select" aria-label="原文显示方式" title="单句显示：只显示当前句；&#10;长文显示：显示当前句前后多句，当前句始终居中；&#10;长文聚焦：同长文显示，其他句子变淡">
-                <option value="single">单句显示</option>
-                <option value="long">长文显示</option>
-                <option value="focus">长文聚焦</option>
-              </select>
               </div>
               <div class="sentence-display-controls">
               <label class="check-row">
@@ -807,6 +807,6 @@
   <script src="src/languages/en/dictionary.js?v=20260928-2"></script>
   <script src="src/languages/es/dictionary.js?v=20260928-2"></script>
   <script src="src/user-data.js?v=20260928-5"></script>
-  <script src="src/app.js?v=20261020-10"></script>
+  <script src="src/app.js?v=20261020-13"></script>
 </body>
 </html>

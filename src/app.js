@@ -8334,7 +8334,7 @@ ${orderNote}`;
     }
 
     function mobileSpeakMode() {
-      try { return localStorage.getItem("langLSRWMobileSpeakMode") === "record" ? "record" : "text"; } catch { return "text"; }
+      try { return localStorage.getItem("langLSRWMobileSpeakMode") === "text" ? "text" : "record"; } catch { return "record"; }
     }
 
     async function startSpeakingPractice() {
@@ -9326,6 +9326,22 @@ ${orderNote}`;
       if (event.target === $("aiTextModal")) closeAiTextModal();
     });
 
+    // Phone layout: 朗读 joins the first toolbar row (after ▶), and 音色 / 语速 join the end of the
+    // second row (after 口音); wider layouts keep every control in its original container.
+    {
+      const placements = [
+        { el: $("speakBtn"), phoneAfter: $("nextUnifiedBtn") },
+        { el: $("voiceSelect"), phoneAfter: $("accentSelect") },
+        { el: document.querySelector(".speech-rate-group"), phoneAfter: $("voiceSelect") }
+      ].map((item) => ({ ...item, parent: item.el.parentNode, next: item.el.nextSibling }));
+      const phoneQuery = window.matchMedia("(max-width: 700px), (max-width: 900px) and (max-height: 500px)");
+      const placeControls = () => {
+        if (phoneQuery.matches) placements.forEach((item) => item.phoneAfter.after(item.el));
+        else [...placements].reverse().forEach((item) => item.parent.insertBefore(item.el, item.next));
+      };
+      phoneQuery.addEventListener("change", placeControls);
+      placeControls();
+    }
     $("speakBtn").addEventListener("click", () => {
       saveSpeechSettings();
       speakCurrentSentence();
