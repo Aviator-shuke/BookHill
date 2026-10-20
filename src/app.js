@@ -237,6 +237,7 @@ const fallbackSentences = [
         volumeSamples: 0,
         audioChunks: [],
         spokenText: "",
+        statusMessage: "",
         recordedAudioUrl: "",
         recordedAudioBlob: null,
         metrics: null,
@@ -6454,6 +6455,54 @@ ${orderNote}`;
       wordSpeakRecognition = null;
     }
 
+    // A browser can retarget the release-time menu outside the button (including after
+    // the word card replaces its DOM). Track the gesture, not just the menu's target.
+    let speakingHoldGesture = null;
+    let speakingHoldTouchActive = false;
+    window.addEventListener("pointerdown", (event) => {
+      const button = event.target.closest(".hold-speak-button");
+      if (!button || button.disabled || event.button !== 0) return;
+      speakingHoldGesture = { id: event.pointerId, active: true, x: event.clientX, y: event.clientY, releasedAt: 0 };
+    }, { capture: true });
+    window.addEventListener("pointermove", (event) => {
+      if (!speakingHoldGesture?.active || speakingHoldGesture.id !== event.pointerId) return;
+      speakingHoldGesture.x = event.clientX;
+      speakingHoldGesture.y = event.clientY;
+    }, { capture: true });
+    ["pointerup", "pointercancel"].forEach((type) => {
+      window.addEventListener(type, (event) => {
+        if (!speakingHoldGesture || speakingHoldGesture.id !== event.pointerId) return;
+        speakingHoldGesture.active = false;
+        speakingHoldGesture.releasedAt = performance.now();
+      }, { capture: true });
+    });
+    window.addEventListener("contextmenu", (event) => {
+      const gesture = speakingHoldGesture;
+      const followsRelease = gesture && performance.now() - gesture.releasedAt < 800
+        && Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) <= 48;
+      if (!event.target.closest(".hold-speak-button") && !gesture?.active && !followsRelease) return;
+      event.preventDefault();
+      event.stopPropagation();
+    }, { capture: true });
+    // Cancel the browser's native long-press gesture too; pointer events still drive recording.
+    window.addEventListener("touchstart", (event) => {
+      const button = event.target.closest(".hold-speak-button");
+      if (!button || button.disabled) return;
+      speakingHoldTouchActive = true;
+      event.preventDefault();
+    }, { capture: true, passive: false });
+    ["touchend", "touchcancel"].forEach((type) => {
+      window.addEventListener(type, (event) => {
+        if (!speakingHoldTouchActive) return;
+        event.preventDefault();
+        if (!event.touches.length) speakingHoldTouchActive = false;
+      }, { capture: true, passive: false });
+    });
+    window.addEventListener("blur", () => {
+      speakingHoldGesture = null;
+      speakingHoldTouchActive = false;
+    });
+
     document.addEventListener("pointerdown", (event) => {
       const button = event.target.closest("[data-word-speak]");
       if (!button || event.button !== 0 || button.disabled) return;
@@ -8052,9 +8101,10 @@ ${orderNote}`;
       return notes.join(" ");
     }
 
-    function setSpeakingStatus(message = "") {
+    function setSpeakingStatus(message) {
+      if (message !== undefined) state.speaking.statusMessage = message;
       const capability = speakingCapabilityText();
-      $("speakingStatus").innerHTML = [message, capability].filter(Boolean).join(" ");
+      $("speakingStatus").textContent = [state.speaking.statusMessage, capability].filter(Boolean).join(" ");
     }
 
     function renderSpeakingPage() {
@@ -8109,6 +8159,7 @@ ${orderNote}`;
     function resetSpeakingResult() {
       stopLoopCompare();
       state.speaking.spokenText = "";
+      state.speaking.statusMessage = "";
       state.speaking.metrics = null;
       state.speaking.volumeLevel = 0;
       state.speaking.volumeTotal = 0;
@@ -8178,28 +8229,47 @@ ${orderNote}`;
       recognition.continuous = false;
 
       recognition.onstart = () => {
+        if (state.speaking.recognition !== recognition) return;
         state.speaking.permissionLock = false;
         state.speaking.isRecognizing = true;
         renderSpeakingPage();
       };
       recognition.onresult = (event) => {
+        if (state.speaking.recognition !== recognition) return;
         const text = Array.from(event.results)
           .map((result) => result[0] ? result[0].transcript : "")
           .join(" ")
           .trim();
+        // Some mobile recognizers send an empty final result after an interim transcript.
+        if (!text) return;
         state.speaking.spokenText = text;
         state.speaking.metrics = compareSpeakingText(currentSentence(), text);
         renderSpeakingPage();
       };
       recognition.onerror = (event) => {
+        if (state.speaking.recognition !== recognition) return;
         state.speaking.permissionLock = false;
-        setSpeakingStatus(`识别失败：${event.error || "未知错误"}`);
+        const messages = {
+          "not-allowed": "未获准使用语音识别，请检查浏览器的麦克风权限。",
+          "service-not-allowed": "当前浏览器未允许语音识别，可先用录音回放练习。",
+          "audio-capture": "语音识别未能取得麦克风声音，请检查麦克风权限或其他占用麦克风的应用。",
+          "network": "语音识别连接失败，请检查网络后重试；录音回放仍可单独使用。",
+          "no-speech": "没有识别到语音，请按住按钮，稍等片刻再说话。",
+          "language-not-supported": "当前浏览器的语音识别不支持所选语言或口音。",
+          "aborted": "本次语音识别已中断，请重新按住说话。"
+        };
+        setSpeakingStatus(messages[event.error] || `识别失败：${event.error || "未知错误"}`);
       };
       recognition.onend = () => {
+        if (state.speaking.recognition !== recognition) return;
         state.speaking.permissionLock = false;
         state.speaking.isRecognizing = false;
         state.speaking.recognition = null;
-        state.speaking.metrics = compareSpeakingText(currentSentence(), state.speaking.spokenText);
+        if (!state.speaking.spokenText && !state.speaking.statusMessage) {
+          setSpeakingStatus("本次没有识别出文字，请按住按钮，稍等片刻再说；也可先回放录音检查声音。");
+        }
+        state.speaking.metrics = state.speaking.spokenText
+          ? compareSpeakingText(currentSentence(), state.speaking.spokenText) : null;
         renderSpeakingPage();
       };
       state.speaking.permissionLock = true;

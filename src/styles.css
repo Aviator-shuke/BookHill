@@ -5971,6 +5971,8 @@
       .mini-metric { gap: 2px; }
       .metric-toggle { margin-right: 0; font-size: 12px; }
       .speech-result { min-height: 36px; padding: 6px 8px; }
+      .speaking-status { white-space: normal; overflow-wrap: anywhere; line-height: 1.4; flex-basis: 100%; }
+      .speaking-status:empty { display: none; }
       .target-english, .translation-prompt { padding-top: 5px; padding-bottom: 5px; }
       .box-heading-row, .inline-metrics, .audio-options, .grammar-toolbar,
       .library-header, .dialog-header-actions, .ai-text-header, .ai-text-actions,
@@ -6078,5 +6080,5 @@
     }
 
     @media (pointer: coarse) {
-      .hold-speak-button, .word-speak-button { touch-action: none; user-select: none; -webkit-user-select: none; }
+      .hold-speak-button, .word-speak-button { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
     }
