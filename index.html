@@ -6,7 +6,7 @@
   <title>langLSRW</title>
   <!-- Page content stays hidden until the user's own settings (theme, fonts) are applied, so the default look never flashes. -->
   <style>html.is-booting body > * { visibility: hidden; }</style>
-  <link rel="stylesheet" href="src/styles.css?v=20261020-8">
+  <link rel="stylesheet" href="src/styles.css?v=20261020-9">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -222,10 +222,7 @@
           <section class="box compact-speaking-box">
             <div class="box-heading-row">
               <button id="startSpeakingBtn" class="primary hold-speak-button" type="button">按住说话</button>
-              <select id="mobileSpeakMode" class="compact-select" aria-label="手机收音方式" title="手机的麦克风一次只能给一个功能用：选“识别文字”显示你说的单词，选“录音”可回放自己的声音" hidden>
-                <option value="text">文字</option>
-                <option value="record">录音</option>
-              </select>
+              <button id="mobileSpeakMode" class="audio-option-button" type="button" title="手机的麦克风一次只能给一个功能用。点击切换：“文字”显示你说的单词，“录音”可回放自己的声音" hidden>文字</button>
               <h2>识别结果</h2>
               <div id="speakingStatus" class="speaking-status"></div>
               <div id="speakingVolumeMeter" class="volume-meter" aria-label="口说音量"></div>
@@ -810,6 +807,6 @@
   <script src="src/languages/en/dictionary.js?v=20260928-2"></script>
   <script src="src/languages/es/dictionary.js?v=20260928-2"></script>
   <script src="src/user-data.js?v=20260928-5"></script>
-  <script src="src/app.js?v=20261020-7"></script>
+  <script src="src/app.js?v=20261020-10"></script>
 </body>
 </html>

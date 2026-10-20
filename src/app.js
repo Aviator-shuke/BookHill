@@ -8328,7 +8328,9 @@ ${orderNote}`;
     }
 
     function isMobileSpeaker() {
-      return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      return Boolean(navigator.userAgentData?.mobile)
+        || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+        || window.matchMedia("(pointer: coarse)").matches;
     }
 
     function mobileSpeakMode() {
@@ -9335,12 +9337,18 @@ ${orderNote}`;
       setReplayRate(currentReplayRate() - 0.1);
     });
 
-    const mobileSpeakSelect = $("mobileSpeakMode");
+    const mobileSpeakBtn = $("mobileSpeakMode");
     if (isMobileSpeaker()) {
-      mobileSpeakSelect.hidden = false;
-      mobileSpeakSelect.value = mobileSpeakMode();
-      mobileSpeakSelect.addEventListener("change", () => {
-        try { localStorage.setItem("langLSRWMobileSpeakMode", mobileSpeakSelect.value); } catch {}
+      const showMode = () => {
+        const record = mobileSpeakMode() === "record";
+        mobileSpeakBtn.textContent = record ? "录音" : "文字";
+        mobileSpeakBtn.classList.toggle("is-active", record);
+      };
+      mobileSpeakBtn.hidden = false;
+      showMode();
+      mobileSpeakBtn.addEventListener("click", () => {
+        try { localStorage.setItem("langLSRWMobileSpeakMode", mobileSpeakMode() === "record" ? "text" : "record"); } catch {}
+        showMode();
       });
     }
     const holdSpeakBtn = $("startSpeakingBtn");
