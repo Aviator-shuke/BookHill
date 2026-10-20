@@ -5977,6 +5977,8 @@
       .box-heading-row { gap: 4px; margin-bottom: 4px; }
       .box-heading-row h2 { font-size: 13px; }
       .inline-metrics { gap: 4px 8px; padding: 3px 5px; border: 0; background: transparent; }
+      .inline-metrics:has(#speakWordToggle) .mini-metric { display: none; }
+      .speaking-header-metrics { display: none; }
       .speaking-header-metrics { justify-content: flex-start; margin-left: 0; }
       .mini-metric { gap: 2px; }
       .metric-toggle { margin-right: 0; font-size: 12px; }
@@ -6069,10 +6071,39 @@
       }
       .word-review-card, .word-review-card.is-recognize { padding: 12px; }
       .word-review-result-panel { z-index: 1; }
+      /* Word practice dialogs on a phone: no keyboard hints, one compact header, nothing wider than the screen. */
+      #wordListenReviewModal.is-single-word .word-review-stage { width: 100%; min-width: 0; max-width: 100%; }
+      .word-review-modal .library-header { padding: 8px 10px; flex-wrap: nowrap; }
+      .word-review-modal .library-header h2 { font-size: 16px; white-space: nowrap; }
+      .word-review-modal .library-header .small-note { font-size: 11px; line-height: 1.3; }
+      .word-review-modal .library-header button { min-height: 28px; padding: 0 10px; white-space: nowrap; }
+      .word-review-card { gap: 8px; }
+      .word-review-keys { display: none; }
+      .word-review-footer { justify-content: flex-end; gap: 8px; }
+      .word-review-footer button, .word-review-actions button { min-height: 32px; padding: 0 12px; }
+      .word-review-input { min-height: 40px; padding: 6px 10px; font-size: 18px; }
+      .word-review-pattern { font-size: 18px; }
+      .word-review-pattern-row { gap: 6px; margin-top: 6px; }
+      .word-review-speak { gap: 6px; margin-top: 6px; }
       .ai-text-dialog textarea { min-height: 80px; max-height: 35dvh; }
       .dictionary-lookup-popover { max-height: calc(100dvh - 16px); }
-      .dictionary-lookup-header { flex-wrap: wrap; gap: 8px; }
-      .dictionary-lookup-actions { flex-wrap: wrap; max-width: 100%; }
+      .dictionary-lookup-header { flex-wrap: nowrap; gap: 4px; align-items: center; }
+      .dictionary-lookup-actions { flex-wrap: nowrap; max-width: 100%; gap: 3px; }
+      /* One-row header: the phonetic is already tap-to-pronounce, so the extra 🔊 is dropped when it exists. */
+      .dictionary-lookup-header .dictionary-phonetic ~ .dictionary-pronunciation-button { display: none; }
+      .dictionary-lookup-header .dictionary-auto-speak { font-size: 11px; gap: 2px; white-space: nowrap; }
+      .dictionary-lookup-header .dictionary-headword { min-width: 0; flex-shrink: 1; }
+      .dictionary-lookup-header { font-size: 17px; }
+      /* Every item in the one-row header shares the same 26px centre line. */
+      .dictionary-lookup-header { line-height: 1; }
+      /* Glyphs sit low in their boxes: share one baseline for the headword and phonetic, set the checkbox on the text line, lift the ×. */
+      .dictionary-lookup-header .dictionary-headword { align-items: baseline; position: relative; top: -3px; }
+      .dictionary-lookup-header .dictionary-auto-speak input { top: 0; }
+      .dictionary-lookup-header [data-dictionary-close] { padding-bottom: 3px; }
+      .dictionary-lookup-actions { height: 26px; }
+      .dictionary-lookup-header .dictionary-auto-speak,
+      .dictionary-lookup-header .dictionary-practice-button,
+      .dictionary-lookup-header .dictionary-favorite-button { display: inline-flex; align-items: center; justify-content: center; height: 26px; min-height: 26px; }
     }
 
     /* Landscape / open keyboard: scroll whole panes instead of clipping their lower rows. */

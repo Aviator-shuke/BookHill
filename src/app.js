@@ -9477,6 +9477,15 @@ ${orderNote}`;
         return;
       }
 
+      // Touch screens have no right click: a tap on a visible source word looks it up.
+      if (isMobileSpeaker() && !targetEl.classList.contains("hidden-source") && !String(window.getSelection?.() || "").trim()) {
+        const wordEl = targetWordFromEvent(event);
+        if (wordEl) {
+          lookupTargetWord(wordEl, event);
+          return;
+        }
+      }
+
       const levelButton = event.target.closest("[data-grammar-level]");
       if (levelButton) {
         setGrammarExpansion(levelButton.dataset.grammarLevel);
