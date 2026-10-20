@@ -4371,6 +4371,7 @@ ${orderNote}`;
             activateDictionaryLibraryWord(button, result.total, typeLabel);
           };
           button.addEventListener("mouseenter", activateFromPointer);
+          bindTouchWordSelection(button, activateFromPointer);
           button.addEventListener("pointermove", () => {
             if (list.classList.contains("is-keyboard-navigation")) activateFromPointer();
           });
@@ -4390,6 +4391,15 @@ ${orderNote}`;
         list.innerHTML = `<div class="user-phrases-empty">${escapeHtml(message)}${notInstalled ? `<br>请先在设置中安装 ${escapeHtml(language.dictionaryName)}。` : ""}</div>`;
         $("dictionaryLibraryCountText").textContent = notInstalled ? "词典未安装" : "读取失败";
       }
+    }
+
+    // Touch must select a row explicitly; synthetic mouse hover is inconsistent between browsers.
+    function bindTouchWordSelection(row, activate) {
+      row.addEventListener("click", (event) => {
+        if (event.pointerType !== "touch" && !window.matchMedia("(hover: none)").matches) return;
+        if (event.target.closest("button, input, [data-word-status]")) return;
+        activate();
+      });
     }
 
     async function activateDictionaryLibraryWord(button, total, typeLabel) {
@@ -5141,6 +5151,7 @@ ${orderNote}`;
           activate();
         };
         button.addEventListener("mouseenter", activateFromPointer);
+        bindTouchWordSelection(button, activateFromPointer);
         button.addEventListener("pointermove", () => {
           if ($("userPhrasesList").classList.contains("is-keyboard-navigation")) activateFromPointer();
         });
@@ -6297,6 +6308,9 @@ ${orderNote}`;
         <div class="word-review-result ${review.correct ? "is-correct" : "is-wrong"}">
           <div class="word-review-verdict">${verdict}</div>
           ${body}
+        </div>
+        <div class="word-review-actions mobile-only">
+          <button type="button" class="primary" data-word-review-action="next" title="进入下一题（Enter）">下一个</button>
         </div>`;
     }
 
@@ -9552,6 +9566,10 @@ ${orderNote}`;
     $("themeToggleBtn").addEventListener("click", toggleTheme);
     $("openSettingsBtn").addEventListener("click", openSettings);
     $("closeSettingsBtn").addEventListener("click", closeSettings);
+    $("toggleSettingsHelpBtn").addEventListener("click", () => {
+      const expanded = document.querySelector(".settings-dialog").classList.toggle("is-help-open");
+      $("toggleSettingsHelpBtn").setAttribute("aria-expanded", String(expanded));
+    });
     document.querySelectorAll("[data-settings-tab]").forEach((button) => {
       button.addEventListener("click", () => selectSettingsTab(button.dataset.settingsTab));
     });

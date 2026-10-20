@@ -279,3 +279,9 @@ Supabase 为每个 Google 账号存储一行同步状态。
 - 本地测试使用 `tools/start-langlsrw-server.bat` 和 `http://localhost:8848/`。
 - 成功的本地构建不会部署任何内容。
 - 推送或部署需要所有者的显式操作或请求。
+
+## 手机弹窗与点击选择
+
+手机断点和验证边界见 `MOBILE_TABLET.md`。`.mobile-only` 默认隐藏，仅手机布局显示：设置标题栏的“说明”通过 `.settings-dialog.is-help-open` 切换说明区域，并同步 `aria-expanded`；桌面说明栏始终按原布局显示。答题结果中的手机“下一个”入口复用 `data-word-review-action="next"`，不改变队列、评分和保存规则。
+
+词库与收藏列表都通过 `bindTouchWordSelection(row, activate)` 处理明确的触屏点击；仅当点击来自触摸指针或设备没有悬停能力时启用，并排除星级、输入框和单词进度按钮。桌面原有的鼠标悬停和焦点事件保留。手机弹窗打开时锁住背景页面滚动，各内容滚动区通过 `overscroll-behavior` 限制滚动向外传递。

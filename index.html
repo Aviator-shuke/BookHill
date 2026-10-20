@@ -2,11 +2,11 @@
 <html lang="zh-CN" class="is-booting">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>langLSRW</title>
   <!-- Page content stays hidden until the user's own settings (theme, fonts) are applied, so the default look never flashes. -->
   <style>html.is-booting body > * { visibility: hidden; }</style>
-  <link rel="stylesheet" href="src/styles.css?v=20260930-6">
+  <link rel="stylesheet" href="src/styles.css?v=20261020-6">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -70,10 +70,10 @@
         </nav>
       </div>
       <div class="toolbar">
-        <button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="切换背景模式">黑夜</button>
-        <button id="openLibraryBtn" type="button">句库</button>
         <button id="openDictionaryLibraryBtn" type="button">词库</button>
+        <button id="openLibraryBtn" type="button">句库</button>
         <button id="userPhrasesBtn" type="button">收藏</button>
+        <button id="themeToggleBtn" class="theme-toggle" type="button" aria-label="切换背景模式">黑夜</button>
         <button id="openSettingsBtn" type="button" title="打开设置（字体、快捷键、练习、AI 接口等）">设置</button>
         <details class="user-menu">
           <summary id="userBadge">未登录</summary>
@@ -107,6 +107,7 @@
           <div id="target" class="target" aria-live="polite"></div>
           <div class="sentence-tools" aria-label="句子控制">
             <div class="sentence-tool-row">
+              <div class="sentence-material-controls">
               <span class="current-library-label">句库：</span>
               <select id="currentLibrarySelect" class="current-library-indicator" aria-label="切换句库">
                 <option value="common">常用句库</option>
@@ -126,13 +127,15 @@
                 <option value="long">长文显示</option>
                 <option value="focus">长文聚焦</option>
               </select>
+              </div>
+              <div class="sentence-display-controls">
               <label class="check-row">
                 <input id="showSourceToggle" type="checkbox" checked>
-                <span>显示原文</span>
+                <span><b class="control-label-prefix">显示</b>原文</span>
               </label>
               <label class="check-row">
                 <input id="showTranslationToggle" type="checkbox" checked>
-                <span>显示翻译</span>
+                <span><b class="control-label-prefix">显示</b>翻译</span>
               </label>
               <label class="check-row">
                 <input id="autoSpeakToggle" type="checkbox" title="打开后，切换到新句子时自动发音一遍">
@@ -143,9 +146,12 @@
                 <option value="en-GB">英音</option>
                 <option value="en-US">美音</option>
               </select>
+              </div>
+              <div class="sentence-audio-controls">
               <select id="voiceSelect" class="voice-select" aria-label="可用声音">
                 <option value="">自动声音</option>
               </select>
+              <div class="speech-rate-group">
               <span class="current-library-label speech-rate-label">语速：</span>
               <div id="speechRateIndicator" class="speech-rate-control" aria-label="朗读速度">
                 <output id="speechRateValue">1.0</output>
@@ -154,6 +160,8 @@
                   <button id="decreaseSpeechRateBtn" type="button" title="减慢朗读" aria-label="减慢朗读">▼</button>
                 </span>
               </div>
+              </div>
+              <div class="sentence-action-controls">
               <button id="analyzeGrammarBtn" type="button">Ai语法分析</button>
               <div class="sentence-tool-end">
                 <div id="counter" class="counter" aria-label="句子序号">
@@ -176,6 +184,8 @@
                     录音完成后会出现在录音回放中
                   </div>
                 </details>
+              </div>
+              </div>
               </div>
             </div>
           </div>
@@ -343,6 +353,7 @@
       <div class="library-header">
         <div><h2 id="settingsTitle">设置</h2><div class="small-note">设置按用户保存</div></div>
         <div class="dialog-header-actions">
+          <button id="toggleSettingsHelpBtn" class="mobile-only" type="button" title="展开或收起当前设置的说明" aria-controls="settingsDetail" aria-expanded="false">说明</button>
           <button id="closeSettingsBtn" type="button" title="关闭设置（Esc）">关闭</button>
         </div>
       </div>
@@ -795,6 +806,6 @@
   <script src="src/languages/en/dictionary.js?v=20260928-2"></script>
   <script src="src/languages/es/dictionary.js?v=20260928-2"></script>
   <script src="src/user-data.js?v=20260928-5"></script>
-  <script src="src/app.js?v=20260930-17"></script>
+  <script src="src/app.js?v=20261020-1"></script>
 </body>
 </html>

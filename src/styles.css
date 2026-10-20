@@ -1315,6 +1315,14 @@
       margin-left: auto;
     }
 
+    /* Group mobile rows without changing the desktop flex layout or control order. */
+    .sentence-material-controls, .sentence-display-controls,
+    .sentence-audio-controls, .sentence-action-controls {
+      display: contents;
+    }
+
+    .control-label-prefix { font-weight: inherit; }
+
     .sentence-nav-button {
       box-sizing: border-box;
       width: 24px;
@@ -1509,6 +1517,13 @@
 
     .speech-rate-label {
       margin-left: 8px;
+    }
+
+    .speech-rate-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex: 0 0 auto;
     }
 
     #speechRateValue {
@@ -5862,4 +5877,206 @@
     .long-text-target .long-text-item .translation-grammar-button {
       height: 18px;
       font-size: 12px;
+    }
+
+    /* Keep compact desktop controls, but allow the practice toolbar to reflow on tablets. */
+    @media (max-width: 1100px) {
+      .sentence-tool-row { flex-wrap: wrap; row-gap: 8px; }
+      .sentence-tools select { max-width: 100%; }
+    }
+
+    .mobile-only { display: none; }
+
+    /* Phone layout, including landscape: keep each module's content and behavior. */
+    @media (max-width: 700px), (max-width: 900px) and (max-height: 500px) {
+      html { scrollbar-gutter: auto; }
+      body:has(.library-modal:not([hidden])) { overflow: hidden; }
+      .mobile-only { display: flex; }
+      .app {
+        width: auto;
+        margin-inline: max(8px, env(safe-area-inset-left)) max(8px, env(safe-area-inset-right));
+        padding: 8px 0 max(16px, env(safe-area-inset-bottom));
+      }
+      .topbar { padding: 6px 8px; gap: 6px; min-height: 0; margin-bottom: 6px; box-shadow: none; }
+      .brand-area { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 6px; }
+      .brand { font-size: 16px; }
+      .language-nav, .page-nav { padding: 2px; }
+      .language-tab { width: 24px; min-width: 24px; height: 28px; min-height: 28px; }
+      .page-nav { margin-left: auto; }
+      .page-tab { min-width: 30px; min-height: 28px; padding: 0 6px; font-size: 14px; }
+      .toolbar { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); width: 100%; gap: 4px; }
+      .toolbar > button, .user-menu > summary { min-height: 32px; padding: 0 4px; font-size: 13px; border-radius: 6px; }
+      .toolbar .user-menu { margin-left: 0; min-width: 0; }
+      .user-menu > summary { display: flex; justify-content: center; font-size: 0; }
+      .user-menu > summary::before { content: "用户"; font-size: 13px; }
+      .user-popover { max-width: calc(100vw - 32px); }
+      .login-screen {
+        align-items: flex-start;
+        overflow-y: auto;
+        padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+      }
+      .login-options { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+      .login-choice-or { justify-self: center; font-size: 30px; }
+      .login-option-content { min-height: 0; }
+      .login-card { padding: 16px; }
+      .login-card h1 { margin-bottom: 18px; }
+      .login-option { padding: 12px; }
+      .layout, .sentence-row, .notebook, .box, .speaking-card { min-width: 0; }
+      .layout { gap: 6px; }
+      .page { padding: 6px; }
+      .sentence-row { padding: 6px; gap: 6px; box-shadow: none; }
+      .sentence-tool-row { display: grid; grid-template-columns: minmax(0, 1fr); padding: 0; gap: 4px; border: 0; background: transparent; }
+      .sentence-material-controls, .sentence-display-controls {
+        display: flex; align-items: center; gap: 4px; min-width: 0;
+      }
+      .sentence-material-controls > .current-library-label { display: none; }
+      .sentence-material-controls #currentLibrarySelect { width: 96px; min-width: 0; flex: 0 1 96px; margin-left: 0; }
+      .sentence-tools .sentence-material-controls #modeSelect { width: 52px; min-width: 52px; }
+      .sentence-material-controls #nextUnifiedBtn { margin-right: 0; }
+      .sentence-tools .sentence-material-controls #displayModeSelect { width: 88px; margin-right: 0; flex-shrink: 0; }
+      .sentence-display-controls .check-row:has(#autoSpeakToggle) { margin-right: 0; }
+      .sentence-display-controls .control-label-prefix { display: none; }
+      .sentence-audio-controls { display: flex; align-items: center; gap: 4px; min-width: 0; }
+      .sentence-action-controls { display: contents; }
+      .sentence-tools .sentence-audio-controls #voiceSelect { width: 104px; min-width: 56px; flex: 0 1 104px; }
+      .sentence-tools .sentence-display-controls #accentSelect { width: 56px; min-width: 0; }
+      .sentence-audio-controls .speech-rate-label { display: none; }
+      .sentence-tools #analyzeGrammarBtn { font-size: 0; flex-shrink: 0; }
+      .sentence-tools #analyzeGrammarBtn::before { content: "AI语法"; font-size: 13px; }
+      .sentence-tools button, .sentence-tools select, .sentence-tools .check-row {
+        height: 28px;
+        min-height: 28px;
+      }
+      .sentence-tools .check-row { font-size: 13px; gap: 2px; }
+      .sentence-tools .check-row input { margin: 0 2px 0 0; }
+      .sentence-tools .sentence-nav-button { width: 28px; min-width: 28px; }
+      .sentence-tools .sentence-index-stepper button,
+      .sentence-tools .speech-rate-stepper button { min-height: 13px; }
+      .sentence-tools #voiceSelect { width: 112px; min-width: 0; }
+      .sentence-tools #displayModeSelect { width: 92px; min-width: 0; }
+      .sentence-tools #modeSelect, .sentence-tools #accentSelect { width: 64px; }
+      .sentence-tools #accentSelect.is-wide { width: 100px; }
+      .sentence-tools select { background-position: calc(100% - 8px) 13px, calc(100% - 4px) 13px !important; }
+      .sentence-tools .speech-rate-control { margin-left: 0; height: 28px; }
+      .speech-rate-label { margin-left: 0; }
+      .sentence-tool-end { max-width: 100%; margin-left: 0; }
+      .notebook, .speaking-card, .compact-speaking-box { box-shadow: none; }
+      .speaking-card { margin-top: 6px; padding: 6px; }
+      .compact-speaking-box { padding: 6px; }
+      .speaking-result-grid { gap: 6px; margin-bottom: 0; }
+      .box-heading-row { gap: 4px; margin-bottom: 4px; }
+      .box-heading-row h2 { font-size: 13px; }
+      .inline-metrics { gap: 4px 8px; padding: 3px 5px; border: 0; background: transparent; }
+      .speaking-header-metrics { justify-content: flex-start; margin-left: 0; }
+      .mini-metric { gap: 2px; }
+      .metric-toggle { margin-right: 0; font-size: 12px; }
+      .speech-result { min-height: 36px; padding: 6px 8px; }
+      .target-english, .translation-prompt { padding-top: 5px; padding-bottom: 5px; }
+      .box-heading-row, .inline-metrics, .audio-options, .grammar-toolbar,
+      .library-header, .dialog-header-actions, .ai-text-header, .ai-text-actions,
+      .word-review-actions, .word-review-speak { flex-wrap: wrap; }
+      .target, .user-phrase-detail, .word-review-card, .settings-panels { overflow-wrap: anywhere; }
+      .audio-player { min-width: 0; max-width: 100%; }
+      /* 16px prevents automatic input zoom in mobile Safari. */
+      input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+      select, textarea { font-size: 16px; }
+      /* One type scale for the complete phone toolbar, including numeric controls. */
+      .sentence-tool-row, .sentence-tools button, .sentence-tools select,
+      .sentence-tools .check-row, .sentence-tools .counter,
+      .sentence-tools #counterIndexInput, .sentence-tools #speechRateValue {
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 400;
+        line-height: 1.2;
+      }
+      .sentence-tools #analyzeGrammarBtn { font-size: 0; }
+      .sentence-tools #speakBtn { font-size: 0; }
+      .sentence-tools #speakBtn::before { content: "朗读"; font-size: 13px; }
+      .sentence-tools .sentence-nav-button { line-height: 1; }
+      .sentence-tools .sentence-index-control { height: 28px; }
+      .sentence-tools .sentence-index-stepper { display: none; }
+      .sentence-tools .sentence-index-stepper,
+      .sentence-tools .speech-rate-stepper { height: 26px; }
+      .sentence-tools .sentence-index-stepper button,
+      .sentence-tools .speech-rate-stepper button {
+        height: 13px; min-height: 13px; font-size: 8px; line-height: 1;
+      }
+      .sentence-tools .counter { height: 28px; gap: 2px; }
+      .sentence-tools .sentence-tool-end { gap: 4px; }
+      .sentence-tools .help-popover summary { height: 28px; min-height: 28px; width: 28px; font-size: 13px; }
+      .library-modal {
+        padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+      }
+      .library-modal > [role="dialog"] { min-width: 0; max-width: 100%; }
+      .library-dialog, .user-phrases-dialog {
+        height: calc(100dvh - max(8px, env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)));
+        max-height: 100%;
+      }
+      #dictionaryLibraryModal .user-phrases-dialog,
+      #userPhrasesModal .user-phrases-dialog {
+        min-width: 0; min-height: 0; max-width: 100%; max-height: 100%; resize: none;
+      }
+      .library-header { gap: 8px; padding: 10px; }
+      #resetDictionaryLibrarySizeBtn, #resetUserPhrasesSizeBtn { display: none; }
+      .library-sidebar, .user-phrases-tabs, .settings-panels, .user-phrase-detail,
+      .library-sentence-list, .word-review-card, .word-review-result-panel {
+        overscroll-behavior: contain;
+      }
+      .dictionary-library-pagination { grid-template-columns: 32px 32px minmax(72px, 1fr) 32px 32px; }
+      .dictionary-library-pagination button { width: 32px; min-height: 32px; }
+      /* Tabs remain reachable; list and detail have bounded, independent scrolling. */
+      .user-phrases-layout,
+      .user-phrases-layout.is-sentences-view,
+      .settings-dialog .user-phrases-layout {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto minmax(200px, 1fr) minmax(120px, 0.8fr);
+        overflow: hidden;
+      }
+      .user-phrases-layout.is-sentences-view { grid-template-rows: auto minmax(0, 1fr); }
+      .user-phrases-tabs, .settings-dialog .user-phrases-tabs {
+        display: flex; overflow-x: auto; padding: 6px; gap: 4px;
+        border-right: 0; border-bottom: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+      }
+      .user-phrases-tabs button { flex: 0 0 auto; width: auto; min-height: 36px; white-space: nowrap; }
+      .user-phrases-collection { border-right: 0; }
+      .user-phrase-detail { padding: 10px; border-top: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); }
+      #dictionaryLibraryList, #userPhrasesList { overflow-y: auto; }
+      .settings-dialog .user-phrases-layout { grid-template-rows: auto minmax(0, 1fr); }
+      .settings-dialog .settings-detail { display: none; }
+      .settings-dialog.is-help-open .user-phrases-layout { grid-template-rows: auto minmax(0, 1fr) minmax(80px, 0.45fr); }
+      .settings-dialog.is-help-open .settings-detail { display: block; }
+      .settings-panels { min-width: 0; padding: 10px; }
+      .settings-panels .settings-section > label:not(.grammar-color-row) {
+        grid-template-columns: minmax(0, 1fr); gap: 4px;
+      }
+      .settings-panels .settings-section > button { margin-left: 0; }
+      .settings-panels .settings-section > .button-row { flex-wrap: wrap; }
+      .settings-panels .shortcut-list, .settings-panels .grammar-color-grid { grid-template-columns: minmax(0, 1fr); }
+      .settings-panels .grammar-common-palette { grid-template-columns: repeat(auto-fit, 22px); }
+      .word-review-stage, .word-review-dialog, .ai-text-dialog, .app-confirm-dialog {
+        max-height: calc(100dvh - max(8px, env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)));
+        min-width: 0;
+      }
+      .word-review-card, .word-review-card.is-recognize { padding: 12px; }
+      .word-review-result-panel { z-index: 1; }
+      .ai-text-dialog textarea { min-height: 80px; max-height: 35dvh; }
+      .dictionary-lookup-popover { max-height: calc(100dvh - 16px); }
+      .dictionary-lookup-header { flex-wrap: wrap; gap: 8px; }
+      .dictionary-lookup-actions { flex-wrap: wrap; max-width: 100%; }
+    }
+
+    /* Landscape / open keyboard: scroll whole panes instead of clipping their lower rows. */
+    @media (max-width: 900px) and (max-height: 500px) {
+      .user-phrases-layout, .user-phrases-layout.is-sentences-view,
+      .settings-dialog .user-phrases-layout { display: block; overflow-y: auto; }
+      .user-phrases-collection { height: 320px; }
+      .user-phrase-detail { min-height: 120px; overflow-y: visible; }
+      .settings-panels { overflow-y: visible; }
+      .library-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+      .library-sidebar { display: flex; overflow-x: auto; }
+      .library-type-button { width: auto; flex: 0 0 auto; }
+    }
+
+    @media (pointer: coarse) {
+      .hold-speak-button, .word-speak-button { touch-action: none; user-select: none; -webkit-user-select: none; }
     }
