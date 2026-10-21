@@ -20,6 +20,7 @@
     position: { scope: "language", kind: "state" },
     favoriteWord: { scope: "language", kind: "state" },
     favoriteSentence: { scope: "language", kind: "state" },
+    favoritePhrase: { scope: "language", kind: "state" },
     wordProgress: { scope: "language", kind: "state" },
     newWordBatch: { scope: "language", kind: "state" },
     sentenceProgress: { scope: "language", kind: "state" },

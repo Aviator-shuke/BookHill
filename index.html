@@ -6,7 +6,7 @@
   <title>langLSRW</title>
   <!-- Page content stays hidden until the user's own settings (theme, fonts) are applied, so the default look never flashes. -->
   <style>html.is-booting body > * { visibility: hidden; }</style>
-  <link rel="stylesheet" href="src/styles.css?v=20261021-40">
+  <link rel="stylesheet" href="src/styles.css?v=20261021-44">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -685,6 +685,7 @@
         <aside class="user-phrases-tabs" role="tablist" aria-label="收藏类型">
           <button id="userWordsTabBtn" class="is-active" type="button" role="tab" aria-selected="true">单词</button>
           <button id="userSentencesTabBtn" type="button" role="tab" aria-selected="false">句子</button>
+          <button id="userSavedPhrasesTabBtn" type="button" role="tab" aria-selected="false" title="在原句里选中一段文字（如 at all）后收藏的短语">短语</button>
         </aside>
         <div class="user-phrases-collection">
           <div id="userWordsControls" class="user-words-controls">
@@ -735,6 +736,7 @@
           </div>
           <div id="userPhrasesList" class="user-words-list" role="tabpanel"></div>
           <div id="userSentencesList" class="user-sentences-list" role="tabpanel" hidden></div>
+          <div id="userSavedPhrasesList" class="user-sentences-list" role="tabpanel" hidden></div>
           <div id="userWordsPagination" class="dictionary-library-pagination">
             <button id="userWordsFirstPageBtn" type="button" aria-label="最前页" title="最前页">≪</button>
             <button id="userWordsPrevPageBtn" type="button" aria-label="上一页" title="上一页">‹</button>
@@ -756,6 +758,7 @@
       </div>
     </div>
   </div>
+  <button id="phraseSaveBtn" class="phrase-save-button" type="button" title="把选中的文字（如 at all）收藏为短语，可在 收藏 → 短语 里查看" hidden>☆ 收藏短语</button>
   <div id="aiTextModal" class="ai-text-modal" hidden>
     <div class="ai-text-dialog" role="dialog" aria-modal="true" aria-labelledby="aiTextModalTitle">
       <div class="ai-text-header">
@@ -808,6 +811,6 @@
   <script src="src/languages/en/dictionary.js?v=20260928-2"></script>
   <script src="src/languages/es/dictionary.js?v=20260928-2"></script>
   <script src="src/user-data.js?v=20260928-5"></script>
-  <script src="src/app.js?v=20261021-20"></script>
+  <script src="src/app.js?v=20261021-24"></script>
 </body>
 </html>

@@ -5194,7 +5194,11 @@ ${orderNote}`;
       state.userWordsPageCount = pageCount;
       const start = (state.userWordsPage - 1) * state.userWordsPageSize;
       const pageWords = words.slice(start, start + state.userWordsPageSize);
-      $("userPhrasesSummary").textContent = `${words.length}/${allWords.length} 个单词 · ${sentences.length} 个句子`;
+      const phrases = loadUserPhrases();
+      $("userPhrasesSummary").textContent = `${words.length}/${allWords.length} 个单词 · ${sentences.length} 个句子 · ${phrases.length} 个短语`;
+      $("userSavedPhrasesList").innerHTML = phrases.length
+        ? phrases.map(userPhraseItemHtml).join("")
+        : '<div class="user-phrases-empty">还没有收藏短语。在原句里选中一段文字，点“收藏短语”即可收藏。</div>';
       $("userWordsCountText").textContent = `0 / ${words.length.toLocaleString()} 个单词`;
       $("userWordsPageInput").value = state.userWordsPage;
       $("userWordsPageInput").max = pageCount;
@@ -5432,22 +5436,145 @@ ${orderNote}`;
       if (!$("userPhrasesModal").hidden) renderUserPhrases();
     }
 
+    // Phrase favorites (favoritePhrase): a stretch of text the learner selected inside a practice sentence, e.g. "at all".
+    // Stored as { text, src: source sentence, tr: its translation, r: 1-5 stars, t: saved seconds }, keyed by the normalized phrase.
+    function phraseFavoriteKey(phrase) {
+      return String(phrase || "").replace(/\s+/g, " ").trim().toLocaleLowerCase("en-US");
+    }
+
+    function loadUserPhrases() {
+      return userData.entries("favoritePhrase", languageScope()).map(({ key, value }) => ({
+        recordKey: key,
+        phrase: String(value?.text || ""),
+        source: String(value?.src || ""),
+        translation: String(value?.tr || ""),
+        rating: Math.max(1, Math.min(5, Number(value?.r) || 1)),
+        savedAt: Number(value?.t) || 0
+      })).filter((item) => item.phrase).sort((left, right) => right.savedAt - left.savedAt);
+    }
+
+    function phraseInSourceHtml(source, phrase) {
+      const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const pattern = new RegExp(phrase.trim().split(/\s+/).map(escapeRegExp).join("\\s+"), "i");
+      const match = source ? pattern.exec(source) : null;
+      if (!match) return escapeHtml(source);
+      return `${escapeHtml(source.slice(0, match.index))}<mark>${escapeHtml(match[0])}</mark>${escapeHtml(source.slice(match.index + match[0].length))}`;
+    }
+
+    function phraseFavoriteStars(item) {
+      const starIcon = '<svg class="dictionary-star-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.75 5.57 6.15.89-4.45 4.34 1.05 6.12L12 16.83l-5.5 2.89 1.05-6.12L3.1 9.26l6.15-.89L12 2.8Z"/></svg>';
+      return `<div class="dictionary-rating sentence-rating" role="group" aria-label="短语收藏等级">${[1, 2, 3, 4, 5].map((level) => `<button class="dictionary-favorite-button${level <= item.rating ? " is-saved" : ""}${level === item.rating ? " is-current-rating" : ""}" type="button" data-phrase-favorite="${escapeHtml(item.recordKey)}" data-phrase-favorite-level="${level}" aria-label="${level} 星收藏短语${level === item.rating ? "，再次点击取消收藏" : ""}" aria-pressed="${level <= item.rating}">${starIcon}</button>`).join("")}</div>`;
+    }
+
+    function userPhraseItemHtml(item) {
+      const source = item.source
+        ? `<span class="user-phrase-origin" role="button" tabindex="0" data-phrase-source="${escapeHtml(item.source)}" title="点击跳转到主页的这个句子">${phraseInSourceHtml(item.source, item.phrase)}</span>`
+        : "";
+      return `<article class="user-sentence-item user-phrase-item"><div class="user-sentence-text">${escapeHtml(item.phrase)}</div>${source}${phraseFavoriteStars(item)}</article>`;
+    }
+
+    // Opens the sentence a phrase came from on the practice page: in the current sentence list when it is there,
+    // otherwise as a small 短语来源 list made of the saved phrases' source sentences.
+    function openPhraseSource(sourceText) {
+      const key = sentenceFavoriteKey(sourceText);
+      if (!key) return;
+      let index = state.sentences.findIndex((item) => sentenceFavoriteKey(sentenceText(item)) === key);
+      if (index < 0) {
+        const seen = new Set();
+        const sources = loadUserPhrases().filter((item) => {
+          const sourceKey = sentenceFavoriteKey(item.source);
+          if (!sourceKey || seen.has(sourceKey)) return false;
+          seen.add(sourceKey);
+          return true;
+        }).map((item) => ({ sentence: item.source, translation: item.translation }));
+        state.sentences = normalizeSentenceList(sources);
+        index = Math.max(0, state.sentences.findIndex((item) => sentenceFavoriteKey(sentenceText(item)) === key));
+        setCurrentLibrary("短语来源", `当前句库：短语来源（${state.sentences.length.toLocaleString()}句）`);
+      }
+      state.index = index;
+      closeUserPhrases();
+      setActivePage("listenPage");
+      resetCurrent(true);
+    }
+
+    function toggleUserPhraseRating(button) {
+      const recordKey = button.dataset.phraseFavorite;
+      const level = Math.max(1, Math.min(5, Number(button.dataset.phraseFavoriteLevel) || 1));
+      const scope = languageScope();
+      const record = userData.get("favoritePhrase", recordKey, scope);
+      if (!record) return;
+      if (level === Math.max(1, Math.min(5, Number(record.r) || 1))) userData.remove("favoritePhrase", recordKey, scope);
+      else userData.put("favoritePhrase", recordKey, { ...record, r: level }, scope);
+      scheduleCloudSync();
+      renderUserPhrases();
+    }
+
+    // Selecting text inside a practice sentence offers a small 收藏短语 button next to the selection.
+    function selectedPhraseInfo() {
+      if (!currentLearningLanguage().sentenceFavoritesEnabled) return null;
+      const selection = window.getSelection?.();
+      if (!selection || selection.isCollapsed || !selection.rangeCount) return null;
+      const range = selection.getRangeAt(0);
+      const englishLine = (node) => (node?.nodeType === 1 ? node : node?.parentElement)?.closest?.(".target-english");
+      const line = englishLine(range.startContainer);
+      if (!line || line !== englishLine(range.endContainer)) return null;
+      const text = selection.toString().replace(/\s+/g, " ").trim().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+      if (text.length < 2 || text.length > 120 || !/\p{L}/u.test(text)) return null;
+      const row = line.closest(".long-text-item");
+      const index = row ? Number(row.dataset.longTextIndex) : state.index;
+      const item = normalizeSentenceItem(state.sentences[index]);
+      return { text, rect: range.getBoundingClientRect(), source: item.text, translation: item.translation };
+    }
+
+    function updatePhraseSaveButton() {
+      const button = $("phraseSaveBtn");
+      const info = document.querySelector(".library-modal:not([hidden]), .user-phrases-modal:not([hidden])") ? null : selectedPhraseInfo();
+      if (!info) {
+        button.hidden = true;
+        return;
+      }
+      const saved = userData.get("favoritePhrase", phraseFavoriteKey(info.text), languageScope());
+      button.textContent = saved ? "★ 已收藏" : "☆ 收藏短语";
+      button.disabled = Boolean(saved);
+      button.hidden = false;
+      const width = button.offsetWidth;
+      const height = button.offsetHeight;
+      const left = Math.max(8, Math.min(info.rect.left + info.rect.width / 2 - width / 2, window.innerWidth - width - 8));
+      const below = info.rect.bottom + 8;
+      button.style.left = `${left}px`;
+      button.style.top = `${below + height > window.innerHeight - 8 ? Math.max(8, info.rect.top - height - 8) : below}px`;
+    }
+
+    function saveSelectedPhrase() {
+      const info = selectedPhraseInfo();
+      if (!info) return;
+      const key = phraseFavoriteKey(info.text);
+      if (userData.get("favoritePhrase", key, languageScope())) return;
+      userData.put("favoritePhrase", key, { text: info.text, src: info.source, tr: info.translation, r: 1, t: Math.floor(Date.now() / 1000) }, languageScope());
+      scheduleCloudSync();
+      updatePhraseSaveButton();
+      if (!$("userPhrasesModal").hidden) renderUserPhrases();
+    }
+
     function setUserPhrasesView(view) {
       const showWords = view === "words";
+      const showSentences = view === "sentences";
+      const showPhrases = view === "phrases";
       $("userPhrasesList").hidden = !showWords;
-      $("userSentencesList").hidden = showWords;
+      $("userSentencesList").hidden = !showSentences;
+      $("userSavedPhrasesList").hidden = !showPhrases;
       $("userWordsControls").hidden = !showWords;
       $("userWordsCount").hidden = !showWords;
       $("userWordsPagination").hidden = !showWords;
-      $("userSentencesPagination").hidden = showWords;
+      $("userSentencesPagination").hidden = !showSentences;
       $("userPhrasesModal").querySelector(".user-phrases-layout").classList.toggle("is-sentences-view", !showWords);
-      $("userWordsTabBtn").classList.toggle("is-active", showWords);
-      $("userSentencesTabBtn").classList.toggle("is-active", !showWords);
-      $("userWordsTabBtn").setAttribute("aria-selected", String(showWords));
-      $("userSentencesTabBtn").setAttribute("aria-selected", String(!showWords));
+      [["userWordsTabBtn", showWords], ["userSentencesTabBtn", showSentences], ["userSavedPhrasesTabBtn", showPhrases]].forEach(([id, active]) => {
+        $(id).classList.toggle("is-active", active);
+        $(id).setAttribute("aria-selected", String(active));
+      });
       closeDictionaryLookup();
       delete $("userPhraseDetail").dataset.word;
-      $("userPhraseDetail").innerHTML = `<div class="user-phrases-empty">${showWords ? "将鼠标移到单词上查看释义。" : "将鼠标移到句子上查看详情。"}</div>`;
+      $("userPhraseDetail").innerHTML = `<div class="user-phrases-empty">${showWords ? "将鼠标移到单词上查看释义。" : showSentences ? "将鼠标移到句子上查看详情。" : "在原句里选中一段文字，点“收藏短语”即可收藏。"}</div>`;
     }
 
     function openUserPhrases() {
@@ -9162,6 +9289,38 @@ ${orderNote}`;
       setUserPhrasesView("sentences");
       renderUserPhrases();
     });
+    $("userSavedPhrasesTabBtn").addEventListener("click", () => {
+      setUserPhrasesView("phrases");
+      renderUserPhrases();
+    });
+    $("userSavedPhrasesList").addEventListener("click", (event) => {
+      const starButton = event.target.closest("[data-phrase-favorite]");
+      if (starButton) {
+        toggleUserPhraseRating(starButton);
+        return;
+      }
+      const sourceLine = event.target.closest("[data-phrase-source]");
+      if (sourceLine) openPhraseSource(sourceLine.dataset.phraseSource);
+    });
+    $("userSavedPhrasesList").addEventListener("keydown", (event) => {
+      const sourceLine = event.target.closest?.("[data-phrase-source]");
+      if (sourceLine && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault();
+        openPhraseSource(sourceLine.dataset.phraseSource);
+      }
+    });
+    {
+      let selectionTimer = 0;
+      document.addEventListener("selectionchange", () => {
+        clearTimeout(selectionTimer);
+        selectionTimer = setTimeout(updatePhraseSaveButton, 150);
+      });
+      // Keep the text selected while the button is pressed.
+      $("phraseSaveBtn").addEventListener("pointerdown", (event) => event.preventDefault());
+      $("phraseSaveBtn").addEventListener("mousedown", (event) => event.preventDefault());
+      $("phraseSaveBtn").addEventListener("click", saveSelectedPhrase);
+      window.addEventListener("scroll", () => { if (!$("phraseSaveBtn").hidden) updatePhraseSaveButton(); }, true);
+    }
     $("userWordsCategorySelect").addEventListener("change", () => {
       state.userWordsPage = 1;
       renderUserPhrases();
