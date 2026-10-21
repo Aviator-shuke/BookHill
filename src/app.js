@@ -9527,6 +9527,29 @@ ${orderNote}`;
       }
     });
 
+    // Touch screens: the 编辑 button is hidden; pressing and holding the translation text opens the editor instead.
+    {
+      let holdTimer = 0;
+      let holdStart = null;
+      const clearHold = () => { clearTimeout(holdTimer); holdTimer = 0; holdStart = null; };
+      const translationText = (event) => event.target.closest?.(".translation-prompt:not(.translation-editor):not(.is-hidden) > span");
+      targetEl.addEventListener("pointerdown", (event) => {
+        if (!isMobileSpeaker() || event.pointerType !== "touch" || !translationText(event)) return;
+        const editButton = translationText(event).parentElement.querySelector('[data-translation-action="edit"]');
+        if (!editButton) return;
+        holdStart = { x: event.clientX, y: event.clientY };
+        holdTimer = setTimeout(() => { holdTimer = 0; editButton.click(); }, 550);
+      });
+      targetEl.addEventListener("pointermove", (event) => {
+        if (holdStart && Math.hypot(event.clientX - holdStart.x, event.clientY - holdStart.y) > 10) clearHold();
+      });
+      ["pointerup", "pointercancel"].forEach((name) => targetEl.addEventListener(name, clearHold));
+      // Without this the browser's own long-press menu / text selection would pop up over the editor.
+      targetEl.addEventListener("contextmenu", (event) => {
+        if (isMobileSpeaker() && translationText(event)) event.preventDefault();
+      });
+    }
+
     targetEl.addEventListener("contextmenu", (event) => {
       const wordEl = targetWordFromEvent(event);
       if (!wordEl) return;

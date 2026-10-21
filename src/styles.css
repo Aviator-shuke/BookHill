@@ -6028,6 +6028,9 @@
       .target-english > .sentence-rating { flex-direction: column; align-self: center; margin-top: 0; }
       .target-english > .sentence-rating .dictionary-favorite-button { width: 16px; min-width: 16px; height: 16px; min-height: 16px; }
       .translation-prompt { font-size: 12px; min-height: 48px; gap: 5px; padding-right: 4px; align-items: center; }
+      /* Phone: no 编辑 button on the translation; press and hold the text to edit. */
+      .translation-prompt:not(.translation-editor) .translation-edit-button { display: none; }
+      .translation-prompt:not(.translation-editor) > span { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
       /* Narrow screens: the edit button sits right after the translation (5px gap) instead of in the reserved star column. */
       .target .translation-prompt:not(.translation-editor),
       .long-text-target .long-text-item .translation-prompt:not(.translation-editor) { padding-right: 4px; }
