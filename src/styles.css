@@ -5981,6 +5981,7 @@
       .sentence-tools .sentence-display-controls { flex-wrap: nowrap; }
       .sentence-tools .sentence-display-controls > * { flex-shrink: 0; }
       .sentence-tools .sentence-display-controls #voiceSelect { width: auto; min-width: 40px; flex: 1 1 0; }
+      .sentence-tools .sentence-display-controls #systemVoiceBtn { flex: 1 1 0; min-width: 40px; padding: 0 4px; white-space: nowrap; }
       .sentence-tools .sentence-display-controls #voiceSelect { width: auto; min-width: 0; flex: 1 1 0; }
       .sentence-tools .sentence-index-stepper button,
       .sentence-tools .speech-rate-stepper button { min-height: 13px; }

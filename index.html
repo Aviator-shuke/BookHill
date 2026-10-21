@@ -6,7 +6,7 @@
   <title>langLSRW</title>
   <!-- Page content stays hidden until the user's own settings (theme, fonts) are applied, so the default look never flashes. -->
   <style>html.is-booting body > * { visibility: hidden; }</style>
-  <link rel="stylesheet" href="src/styles.css?v=20261021-19">
+  <link rel="stylesheet" href="src/styles.css?v=20261021-20">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -151,6 +151,7 @@
               <select id="voiceSelect" class="voice-select" aria-label="可用声音">
                 <option value="">自动声音</option>
               </select>
+              <button id="systemVoiceBtn" type="button" title="手机浏览器看不到系统声音列表：点击打开手机的“文本转语音”设置，在里面选英音 / 美音的音色" hidden>系统音色</button>
               <div class="speech-rate-group">
               <span class="current-library-label speech-rate-label">语速：</span>
               <div id="speechRateIndicator" class="speech-rate-control" aria-label="朗读速度">
@@ -807,6 +808,6 @@
   <script src="src/languages/en/dictionary.js?v=20260928-2"></script>
   <script src="src/languages/es/dictionary.js?v=20260928-2"></script>
   <script src="src/user-data.js?v=20260928-5"></script>
-  <script src="src/app.js?v=20261021-12"></script>
+  <script src="src/app.js?v=20261021-15"></script>
 </body>
 </html>

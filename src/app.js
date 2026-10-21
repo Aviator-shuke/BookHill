@@ -3567,24 +3567,24 @@ ${orderNote}`;
       $("showTranslationToggle").checked = state.speechSettings.showTranslation !== false;
     }
 
-    function normalizedVoiceLanguage(language) {
-      return String(language || "").replaceAll("_", "-").toLowerCase();
-    }
-
     function populateVoices() {
       if (!("speechSynthesis" in window)) return;
       state.voices = window.speechSynthesis.getVoices();
       const accent = ttsAccent();
-      const matchingVoices = state.voices.filter((voice) => normalizedVoiceLanguage(voice.lang) === normalizedVoiceLanguage(accent));
+      const matchingVoices = state.voices.filter((voice) => voice.lang && voice.lang.toLowerCase().startsWith(accent.toLowerCase()));
       const languagePrefix = `${state.learningLanguageId || "en"}-`;
-      const voices = matchingVoices.length ? matchingVoices : state.voices.filter((voice) => normalizedVoiceLanguage(voice.lang).startsWith(languagePrefix));
-      $("voiceSelect").innerHTML = '<option value="">自动选择</option>' + voices.map((voice) => (
+      const voices = matchingVoices.length ? matchingVoices : state.voices.filter((voice) => String(voice.lang || "").toLowerCase().startsWith(languagePrefix));
+      $("voiceSelect").innerHTML = `<option value="">${voices.length ? "自动选择" : "自动（无其他）"}</option>` + voices.map((voice) => (
         `<option value="${escapeHtml(voice.voiceURI)}">${escapeHtml(voice.name)} (${escapeHtml(voice.lang)})</option>`
       )).join("");
       const savedVoice = state.speechSettings[voiceSettingKey()];
       if (savedVoice && voices.some((voice) => voice.voiceURI === savedVoice)) {
         $("voiceSelect").value = savedVoice;
       }
+      // Android browsers often expose no voice list at all; the voice is then chosen in the system TTS settings.
+      const systemOnly = !voices.length && /Android/i.test(navigator.userAgent);
+      $("voiceSelect").hidden = systemOnly;
+      $("systemVoiceBtn").hidden = !systemOnly;
     }
 
     function getSpeechText() {
@@ -3595,8 +3595,10 @@ ${orderNote}`;
       const voiceURI = usingOriginalVoice() ? "" : $("voiceSelect").value;
       const accent = ttsAccent();
       if (voiceURI) return state.voices.find((voice) => voice.voiceURI === voiceURI) || null;
-      // Leave voice unset when this accent is unavailable; lang can then reach the system engine.
-      return state.voices.find((voice) => normalizedVoiceLanguage(voice.lang) === normalizedVoiceLanguage(accent)) || null;
+      return state.voices.find((voice) => voice.lang === accent)
+        || state.voices.find((voice) => voice.lang && voice.lang.toLowerCase().startsWith(accent.toLowerCase()))
+        || state.voices.find((voice) => String(voice.lang || "").toLowerCase().startsWith(`${state.learningLanguageId || "en"}-`))
+        || null;
     }
 
     function speakText(text, options = {}) {
@@ -3605,7 +3607,6 @@ ${orderNote}`;
         return;
       }
       if (!text) return;
-      populateVoices();
       if (options.interrupt !== false) {
         stopFullTextReading();
         window.speechSynthesis.cancel();
@@ -3622,13 +3623,14 @@ ${orderNote}`;
 
     // English words in a Spanish entry's English definitions are read with the learner's saved English accent/voice.
     function englishReferenceSpeechOptions() {
-      populateVoices();
       const accent = state.speechSettings.accent || "en-GB";
       const voiceURI = state.speechSettings.voiceURI || "";
       const isEnglish = (voice) => String(voice?.lang || "").toLowerCase().startsWith("en");
       const saved = state.voices.find((voice) => voice.voiceURI === voiceURI && isEnglish(voice));
       const voice = saved
-        || state.voices.find((item) => normalizedVoiceLanguage(item.lang) === normalizedVoiceLanguage(accent))
+        || state.voices.find((item) => item.lang === accent)
+        || state.voices.find((item) => String(item.lang || "").toLowerCase().startsWith(accent.toLowerCase()))
+        || state.voices.find(isEnglish)
         || null;
       return { lang: accent, voice, rate: currentReplayRate() };
     }
@@ -3764,7 +3766,6 @@ ${orderNote}`;
         utterance.lang = ttsAccent();
         utterance.rate = options.rate || 1;
         utterance.pitch = 1;
-        populateVoices();
         const voice = chooseVoice();
         if (voice) utterance.voice = voice;
         utterance.onend = () => resolve();
@@ -9435,7 +9436,8 @@ ${orderNote}`;
       const placements = [
         { el: $("speakBtn"), phoneAfter: $("nextUnifiedBtn") },
         { el: $("voiceSelect"), phoneAfter: $("accentSelect") },
-        { el: document.querySelector(".speech-rate-group"), phoneAfter: $("voiceSelect") }
+        { el: $("systemVoiceBtn"), phoneAfter: $("voiceSelect") },
+        { el: document.querySelector(".speech-rate-group"), phoneAfter: $("systemVoiceBtn") }
       ].map((item) => ({ ...item, parent: item.el.parentNode, next: item.el.nextSibling }));
       const phoneQuery = window.matchMedia("(max-width: 700px), (max-width: 900px) and (max-height: 500px)");
       const placeControls = () => {
@@ -9739,9 +9741,14 @@ ${orderNote}`;
       updateSentenceNavigationTitles();
     });
     updateSentenceNavigationTitles();
+    $("systemVoiceBtn").addEventListener("click", () => {
+      // Chrome-based Android browsers can open the system TTS settings through an intent link.
+      window.location.href = "intent:#Intent;action=android.settings.TTS_SETTINGS;end";
+      setTimeout(() => {
+        if (!document.hidden) alert("没能自动打开。请在手机「设置 → 文本转语音」中选择英音 / 美音的音色。");
+      }, 1200);
+    });
     $("voiceSelect").addEventListener("change", saveSpeechSettings);
-    $("voiceSelect").addEventListener("pointerdown", populateVoices);
-    $("voiceSelect").addEventListener("focus", populateVoices);
     $("autoSpeakToggle").addEventListener("change", saveSpeechSettings);
     $("displayModeSelect").addEventListener("change", () => {
       saveSpeechSettings();
@@ -10015,11 +10022,6 @@ ${orderNote}`;
     populateVoices();
     if ("speechSynthesis" in window) {
       window.speechSynthesis.onvoiceschanged = populateVoices;
-      // Some mobile engines expose voices late without emitting voiceschanged.
-      [300, 1000, 2500].forEach((delay) => setTimeout(populateVoices, delay));
-      window.addEventListener("focus", populateVoices);
-      window.addEventListener("pageshow", populateVoices);
-      document.addEventListener("visibilitychange", () => { if (!document.hidden) populateVoices(); });
     }
 
     if (state.currentUser) {
