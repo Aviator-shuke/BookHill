@@ -3567,13 +3567,17 @@ ${orderNote}`;
       $("showTranslationToggle").checked = state.speechSettings.showTranslation !== false;
     }
 
+    function normalizedVoiceLanguage(language) {
+      return String(language || "").replaceAll("_", "-").toLowerCase();
+    }
+
     function populateVoices() {
       if (!("speechSynthesis" in window)) return;
       state.voices = window.speechSynthesis.getVoices();
       const accent = ttsAccent();
-      const matchingVoices = state.voices.filter((voice) => voice.lang && voice.lang.toLowerCase().startsWith(accent.toLowerCase()));
+      const matchingVoices = state.voices.filter((voice) => normalizedVoiceLanguage(voice.lang) === normalizedVoiceLanguage(accent));
       const languagePrefix = `${state.learningLanguageId || "en"}-`;
-      const voices = matchingVoices.length ? matchingVoices : state.voices.filter((voice) => String(voice.lang || "").toLowerCase().startsWith(languagePrefix));
+      const voices = matchingVoices.length ? matchingVoices : state.voices.filter((voice) => normalizedVoiceLanguage(voice.lang).startsWith(languagePrefix));
       $("voiceSelect").innerHTML = '<option value="">自动选择</option>' + voices.map((voice) => (
         `<option value="${escapeHtml(voice.voiceURI)}">${escapeHtml(voice.name)} (${escapeHtml(voice.lang)})</option>`
       )).join("");
@@ -3591,10 +3595,8 @@ ${orderNote}`;
       const voiceURI = usingOriginalVoice() ? "" : $("voiceSelect").value;
       const accent = ttsAccent();
       if (voiceURI) return state.voices.find((voice) => voice.voiceURI === voiceURI) || null;
-      return state.voices.find((voice) => voice.lang === accent)
-        || state.voices.find((voice) => voice.lang && voice.lang.toLowerCase().startsWith(accent.toLowerCase()))
-        || state.voices.find((voice) => String(voice.lang || "").toLowerCase().startsWith(`${state.learningLanguageId || "en"}-`))
-        || null;
+      // Leave voice unset when this accent is unavailable; lang can then reach the system engine.
+      return state.voices.find((voice) => normalizedVoiceLanguage(voice.lang) === normalizedVoiceLanguage(accent)) || null;
     }
 
     function speakText(text, options = {}) {
@@ -3603,6 +3605,7 @@ ${orderNote}`;
         return;
       }
       if (!text) return;
+      populateVoices();
       if (options.interrupt !== false) {
         stopFullTextReading();
         window.speechSynthesis.cancel();
@@ -3619,14 +3622,13 @@ ${orderNote}`;
 
     // English words in a Spanish entry's English definitions are read with the learner's saved English accent/voice.
     function englishReferenceSpeechOptions() {
+      populateVoices();
       const accent = state.speechSettings.accent || "en-GB";
       const voiceURI = state.speechSettings.voiceURI || "";
       const isEnglish = (voice) => String(voice?.lang || "").toLowerCase().startsWith("en");
       const saved = state.voices.find((voice) => voice.voiceURI === voiceURI && isEnglish(voice));
       const voice = saved
-        || state.voices.find((item) => item.lang === accent)
-        || state.voices.find((item) => String(item.lang || "").toLowerCase().startsWith(accent.toLowerCase()))
-        || state.voices.find(isEnglish)
+        || state.voices.find((item) => normalizedVoiceLanguage(item.lang) === normalizedVoiceLanguage(accent))
         || null;
       return { lang: accent, voice, rate: currentReplayRate() };
     }
@@ -3762,6 +3764,7 @@ ${orderNote}`;
         utterance.lang = ttsAccent();
         utterance.rate = options.rate || 1;
         utterance.pitch = 1;
+        populateVoices();
         const voice = chooseVoice();
         if (voice) utterance.voice = voice;
         utterance.onend = () => resolve();
@@ -4469,13 +4472,18 @@ ${orderNote}`;
       if (!button) return;
       const word = button.dataset.dictionaryLibraryWord;
       const isAlreadyShown = dictionaryFavoriteKey($("dictionaryLibraryDetail").dataset.word) === dictionaryFavoriteKey(word);
+      const reopeningDetail = showOverlay && dictionaryLibraryUsesOverlay()
+        && !$("dictionaryLibraryModal").classList.contains("is-word-detail-open");
       if (showOverlay && dictionaryLibraryUsesOverlay()) {
         positionDictionaryLibraryOverlay();
         $("dictionaryLibraryModal").classList.add("is-word-detail-open");
         $("dictionaryLibraryDetail").scrollTop = 0;
         if (!isAlreadyShown) $("dictionaryLibraryDetail").innerHTML = `${dictionaryLibraryBackButton()}<div class="user-phrases-empty">正在读取释义……</div>`;
       }
-      if (button.classList.contains("is-current") && (button.classList.contains("is-loading-detail") || isAlreadyShown)) return;
+      if (button.classList.contains("is-current") && (button.classList.contains("is-loading-detail") || isAlreadyShown)) {
+        if (reopeningDetail && isAlreadyShown && !button.classList.contains("is-loading-detail")) autoSpeakLookedUpWord(word);
+        return;
+      }
       $("dictionaryLibraryList").querySelectorAll(".is-current").forEach((item) => item.classList.remove("is-current"));
       button.classList.add("is-current");
       $("dictionaryLibraryCountText").textContent = `${Number(button.dataset.dictionaryLibraryIndex).toLocaleString()} / ${Number(total).toLocaleString()} 个${typeLabel}`;
@@ -9732,6 +9740,8 @@ ${orderNote}`;
     });
     updateSentenceNavigationTitles();
     $("voiceSelect").addEventListener("change", saveSpeechSettings);
+    $("voiceSelect").addEventListener("pointerdown", populateVoices);
+    $("voiceSelect").addEventListener("focus", populateVoices);
     $("autoSpeakToggle").addEventListener("change", saveSpeechSettings);
     $("displayModeSelect").addEventListener("change", () => {
       saveSpeechSettings();
@@ -10005,6 +10015,11 @@ ${orderNote}`;
     populateVoices();
     if ("speechSynthesis" in window) {
       window.speechSynthesis.onvoiceschanged = populateVoices;
+      // Some mobile engines expose voices late without emitting voiceschanged.
+      [300, 1000, 2500].forEach((delay) => setTimeout(populateVoices, delay));
+      window.addEventListener("focus", populateVoices);
+      window.addEventListener("pageshow", populateVoices);
+      document.addEventListener("visibilitychange", () => { if (!document.hidden) populateVoices(); });
     }
 
     if (state.currentUser) {
