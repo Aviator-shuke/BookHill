@@ -5998,12 +5998,12 @@
       .sentence-tools .sentence-display-controls #systemVoiceBtn { flex: 1 1 0; min-width: 40px; padding: 0 4px; white-space: nowrap; }
       .sentence-tools .sentence-display-controls #voiceSelect { width: auto; min-width: 0; flex: 1 1 0; }
       .sentence-tools .sentence-index-stepper button,
-      .sentence-tools .speech-rate-stepper button { min-height: 13px; }
+      .sentence-tools .speech-rate-stepper button { min-height: 11px; }
       .sentence-tools #voiceSelect { width: 112px; min-width: 0; }
       .sentence-tools #displayModeSelect { width: auto; min-width: 0; }
       .sentence-tools #modeSelect, .sentence-tools #accentSelect { width: 48px; }
       .sentence-tools #accentSelect.is-wide { width: auto; }
-      .sentence-tools select { background-position: calc(100% - 8px) 13px, calc(100% - 4px) 13px !important; padding-left: 5px; padding-right: 15px; }
+      .sentence-tools select { background-position: calc(100% - 8px) 10px, calc(100% - 4px) 10px !important; padding-left: 5px; padding-right: 15px; }
       .sentence-tools .speech-rate-control { margin-left: 0; height: 24px; }
       .speech-rate-label { margin-left: 0; }
       .sentence-tool-end { max-width: 100%; margin-left: 0; }
@@ -6058,7 +6058,7 @@
       .sentence-tools .speech-rate-stepper { height: 22px; }
       .sentence-tools .sentence-index-stepper button,
       .sentence-tools .speech-rate-stepper button {
-        height: 13px; min-height: 13px; font-size: 8px; line-height: 1;
+        height: 11px; min-height: 11px; font-size: 8px; line-height: 1;
       }
       .sentence-tools .counter { height: 24px; gap: 2px; }
       .sentence-tools .sentence-tool-end { gap: 4px; }
