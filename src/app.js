@@ -2896,6 +2896,7 @@ const fallbackSentences = [
     // pointer went.
     function learningFilterPointerLeft(event) {
       if (!learningFilterMenu || learningFilterMenu.hidden) return;
+      if (event.pointerType === "touch" || learningFilterMenu.classList.contains("is-tap-menu")) return;
       const to = event.relatedTarget;
       if (to && (learningFilterMenu.contains(to) || learningFilterMenu.ownerButton?.contains(to))) return;
       closeLearningFilterMenu();
@@ -2935,6 +2936,11 @@ const fallbackSentences = [
           const choice = event.target.closest("[data-learning-value]");
           const owner = learningFilterMenu.ownerSelect;
           if (!choice || !owner) return;
+          if (choice.parentElement.classList.contains("learning-filter-parent") && learningFilterMenu.classList.contains("is-tap-menu")) {
+            const expanded = choice.parentElement.classList.toggle("is-expanded");
+            choice.setAttribute("aria-expanded", String(expanded));
+            return;
+          }
           owner.value = choice.dataset.learningValue;
           owner.dispatchEvent(new Event("change", { bubbles: true }));
           closeLearningFilterMenu();
@@ -2958,6 +2964,16 @@ const fallbackSentences = [
       }
       learningFilterMenu.ownerSelect = select;
       learningFilterMenu.ownerButton = button;
+      learningFilterMenu.classList.toggle("is-tap-menu", window.matchMedia("(max-width: 700px), (max-width: 900px) and (max-height: 500px), (hover: none)").matches);
+      learningFilterMenu.querySelectorAll(".learning-filter-parent").forEach((parent) => {
+        parent.classList.remove("is-expanded");
+        const trigger = parent.querySelector("button");
+        trigger.setAttribute("aria-haspopup", "menu");
+        trigger.setAttribute("aria-expanded", "false");
+        trigger.title = learningFilterMenu.classList.contains("is-tap-menu")
+          ? "点击展开已测验选项：全部、未到期、已到期、已掌握"
+          : "筛选全部已测验单词；悬停展开子选项";
+      });
       const current = select.value;
       learningFilterMenu.querySelectorAll("[data-learning-value]").forEach((item) => {
         const value = item.dataset.learningValue;
@@ -4321,9 +4337,37 @@ ${orderNote}`;
       closeEnglishLookup();
     }
 
+    function dictionarySearchPattern(query, exact = false) {
+      const text = String(query || "").trim();
+      if (!text) return null;
+      const pattern = Array.from(text, char => char === "?" ? "[a-zÀ-ÖØ-öø-ÿ]" : "\\u" + char.charCodeAt(0).toString(16).padStart(4, "0")).join("");
+      return new RegExp(exact ? "^(?:" + pattern + ")$" : pattern, "gi");
+    }
+
+    function dictionarySearchMatches(word, query, exact = false) {
+      return dictionarySearchPattern(query, exact)?.test(String(word || "")) ?? true;
+    }
+
+    function dictionarySearchWordHtml(word, query) {
+      const text = String(word || "");
+      const pattern = dictionarySearchPattern(query);
+      if (!pattern) return escapeHtml(text);
+      let html = "", offset = 0;
+      for (const match of text.matchAll(pattern)) {
+        html += escapeHtml(text.slice(offset, match.index)) + '<mark class="dictionary-search-match">' + escapeHtml(match[0]) + '</mark>';
+        offset = match.index + match[0].length;
+      }
+      return html + escapeHtml(text.slice(offset));
+    }
+
+    function prioritizeDictionaryExactMatch(rows, query) {
+      return String(query || "").trim() ? rows.sort((a, b) => Number(dictionarySearchMatches(b.word, query, true)) - Number(dictionarySearchMatches(a.word, query, true))) : rows;
+    }
+
     // languageId lets the English reference popover save into English favorites while another language is active.
     async function renderDictionaryLibrary() {
       const list = $("dictionaryLibraryList");
+      $("dictionaryLibraryModal").classList.remove("is-word-detail-open");
       list.innerHTML = '<div class="user-phrases-empty">正在读取词库...</div>';
       const language = currentLearningLanguage();
       const category = $("dictionaryCategorySelect").value;
@@ -4349,10 +4393,10 @@ ${orderNote}`;
           : state.dictionaryLibraryType === "phrases" ? "短语"
             : state.dictionaryLibraryType === "special" ? "特殊词条" : "单词";
         $("dictionaryLibraryCountText").textContent = `0 / ${result.total.toLocaleString()} 个${typeLabel}`;
-        $("dictionaryLibrarySummary").textContent = `${language.dictionaryName} · 每页 ${result.pageSize} 词`;
+        $("dictionaryLibrarySummary").textContent = language.dictionaryName;
         $("dictionaryPageInput").value = result.page;
         $("dictionaryPageInput").max = result.pageCount;
-        $("dictionaryPageCount").textContent = `/ ${result.pageCount.toLocaleString()} 页`;
+        $("dictionaryPageCount").textContent = `/ ${result.pageCount.toLocaleString()} 页 (每页${result.pageSize}词)`;
         $("dictionaryFirstPageBtn").disabled = result.page <= 1;
         $("dictionaryPrevPageBtn").disabled = result.page <= 1;
         $("dictionaryNextPageBtn").disabled = result.page >= result.pageCount;
@@ -4362,7 +4406,7 @@ ${orderNote}`;
         const favoriteWords = dictionaryCollectionEnabled() ? loadUserWords() : [];
         list.classList.toggle("is-without-review-status", !dictionaryWordStudyEnabled());
         list.innerHTML = result.rows.length
-          ? result.rows.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-dictionary-library-word="${escapeHtml(item.word)}" data-dictionary-library-index="${(result.page - 1) * result.pageSize + index + 1}">${dictionaryWordStudyEnabled() ? wordReviewStatusIconsHtml(item.word, reviewRecords, manualMastery) : ""}<span class="user-word-label">${escapeHtml(item.word)}</span>${dictionaryCollectionEnabled() ? dictionaryFavoriteButton(item.word, false, state.learningLanguageId, favoriteWords) : ""}</div>`).join("")
+          ? result.rows.map((item, index) => `<div class="user-word-item" role="button" tabindex="0" data-dictionary-library-word="${escapeHtml(item.word)}" data-dictionary-library-index="${(result.page - 1) * result.pageSize + index + 1}">${dictionaryWordStudyEnabled() ? wordReviewStatusIconsHtml(item.word, reviewRecords, manualMastery) : ""}<span class="user-word-label">${dictionarySearchWordHtml(item.word, $("dictionaryLibrarySearchInput").value)}</span>${dictionaryCollectionEnabled() ? dictionaryFavoriteButton(item.word, false, state.learningLanguageId, favoriteWords) : ""}</div>`).join("")
           : '<div class="user-phrases-empty">当前分类没有单词。</div>';
         list.querySelectorAll("[data-dictionary-library-word]").forEach((button) => {
           const activateFromPointer = () => {
@@ -4371,8 +4415,12 @@ ${orderNote}`;
             list.classList.remove("is-keyboard-navigation");
             activateDictionaryLibraryWord(button, result.total, typeLabel);
           };
-          button.addEventListener("mouseenter", activateFromPointer);
-          bindTouchWordSelection(button, activateFromPointer);
+          button.addEventListener("mouseenter", () => { if (!dictionaryLibraryUsesOverlay()) activateFromPointer(); });
+          bindTouchWordSelection(button, () => { if (!dictionaryLibraryUsesOverlay()) activateFromPointer(); });
+          button.addEventListener("click", (event) => {
+            if (!dictionaryLibraryUsesOverlay() || event.target.closest("button, input, [data-word-status]")) return;
+            activateDictionaryLibraryWord(button, result.total, typeLabel, true);
+          });
           button.addEventListener("pointermove", () => {
             if (list.classList.contains("is-keyboard-navigation")) activateFromPointer();
           });
@@ -4403,10 +4451,30 @@ ${orderNote}`;
       });
     }
 
-    async function activateDictionaryLibraryWord(button, total, typeLabel) {
+    function dictionaryLibraryUsesOverlay() {
+      return window.matchMedia("(max-width: 700px), (max-width: 900px) and (max-height: 500px)").matches;
+    }
+
+    function dictionaryLibraryBackButton() {
+      return '<button type="button" class="dictionary-detail-back" data-dictionary-detail-back aria-label="关闭单词详情" title="关闭单词详情，回到原位置的单词列表"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>';
+    }
+
+    function positionDictionaryLibraryOverlay() {
+      const layout = $("dictionaryLibraryModal").querySelector(".user-phrases-layout");
+      const top = $("dictionaryLibraryCount").getBoundingClientRect().bottom - layout.getBoundingClientRect().top;
+      layout.style.setProperty("--word-detail-top", `${Math.max(0, top)}px`);
+    }
+
+    async function activateDictionaryLibraryWord(button, total, typeLabel, showOverlay = false) {
       if (!button) return;
       const word = button.dataset.dictionaryLibraryWord;
       const isAlreadyShown = dictionaryFavoriteKey($("dictionaryLibraryDetail").dataset.word) === dictionaryFavoriteKey(word);
+      if (showOverlay && dictionaryLibraryUsesOverlay()) {
+        positionDictionaryLibraryOverlay();
+        $("dictionaryLibraryModal").classList.add("is-word-detail-open");
+        $("dictionaryLibraryDetail").scrollTop = 0;
+        if (!isAlreadyShown) $("dictionaryLibraryDetail").innerHTML = `${dictionaryLibraryBackButton()}<div class="user-phrases-empty">正在读取释义……</div>`;
+      }
       if (button.classList.contains("is-current") && (button.classList.contains("is-loading-detail") || isAlreadyShown)) return;
       $("dictionaryLibraryList").querySelectorAll(".is-current").forEach((item) => item.classList.remove("is-current"));
       button.classList.add("is-current");
@@ -4415,6 +4483,9 @@ ${orderNote}`;
       let item;
       try {
         item = await window.langLSRWDictionary.query(word, currentDictionaryId());
+      } catch (error) {
+        if (button.classList.contains("is-current")) $("dictionaryLibraryDetail").innerHTML = `${dictionaryLibraryBackButton()}<div class="user-phrases-empty">${escapeHtml(error.message || "无法读取释义，请重试。")}</div>`;
+        return;
       } finally {
         button.classList.remove("is-loading-detail");
       }
@@ -4457,7 +4528,7 @@ ${orderNote}`;
       const collectionControl = dictionaryCollectionEnabled() ? dictionaryFavoriteButton(item.word) : dictionaryDisabledNote("收藏");
       const masteryHtml = dictionaryWordStudyEnabled() ? dictionaryWordMasteryHtml(item.word) : "";
       $("dictionaryLibraryDetail").innerHTML = `
-        <div class="dictionary-lookup-header"><div class="dictionary-headword"><strong>${escapeHtml(item.word)}</strong>${item.phonetic ? `<button class="dictionary-phonetic" type="button" data-dictionary-pronounce="${escapeHtml(item.word)}" title="点击朗读" aria-label="朗读 ${escapeHtml(item.word)}">[${escapeHtml(item.phonetic)}]</button>` : ""}${dictionaryPronunciationButton(item.word)}</div><div class="dictionary-lookup-actions">${dictionaryAutoSpeakToggle()}${dictionaryPracticeButtons(item.word)}${collectionControl}</div></div>
+        <div class="dictionary-lookup-header"><div class="dictionary-headword"><strong>${escapeHtml(item.word)}</strong>${item.phonetic ? `<button class="dictionary-phonetic" type="button" data-dictionary-pronounce="${escapeHtml(item.word)}" title="点击朗读" aria-label="朗读 ${escapeHtml(item.word)}">[${escapeHtml(item.phonetic)}]</button>` : ""}${dictionaryPronunciationButton(item.word)}</div><div class="dictionary-lookup-actions">${dictionaryAutoSpeakToggle()}${dictionaryPracticeButtons(item.word)}${collectionControl}${dictionaryLibraryBackButton()}</div></div>
         ${item.pos ? `<div class="dictionary-pos">${escapeHtml(item.pos)}</div>` : ""}
         ${translations.length ? `<div class="dictionary-meanings">${translations.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
         ${definitions.length ? `<div class="dictionary-definitions">${definitions.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>` : ""}
@@ -4673,7 +4744,7 @@ ${orderNote}`;
       return loadUserWords()
         .filter((item) => languageDictionary().matchesCategory(item, category))
         .filter((item) => !isWordLearningFilter(learning) || userWordMatchesLearningFilter(item, learning, records, marks))
-        .filter((item) => !normalizedQuery || String(item.word || "").toLocaleLowerCase("en-US").includes(normalizedQuery))
+        .filter((item) => dictionarySearchMatches(item.word, normalizedQuery))
         .sort((left, right) => (Number(right.rating) || 1) - (Number(left.rating) || 1)
           || String(left.word).localeCompare(String(right.word), currentLearningLanguage().id, { sensitivity: "base" }));
     }
@@ -4681,7 +4752,7 @@ ${orderNote}`;
     async function loadDictionaryFavoriteSortedPage(category, learning, query, page, pageSize) {
       const favoriteWords = dictionaryFavoriteWordsForCategory(category, learning, query);
       const favoriteKeys = favoriteWords.map((item) => dictionaryFavoriteKey(item.word));
-      const normalizedPageSize = Math.max(20, Math.min(Number(pageSize) || 100, 200));
+      const normalizedPageSize = Math.max(1, Math.min(Number(pageSize) || 100, 200));
       const baseOptions = {
         entryType: "words",
         category,
@@ -4691,11 +4762,24 @@ ${orderNote}`;
         pageSize: normalizedPageSize,
         excludeWords: favoriteKeys
       };
+      const needle = String(query || "").trim().toLowerCase();
+      if (needle) {
+        // Probe from page one repeatedly, excluding promoted matches so pagination stays consistent.
+        while (true) {
+          const probe = isWordLearningFilter(learning)
+            ? await loadDictionaryLearningFilterPage(category, learning, "alphabetical", query, 1, 200, favoriteKeys)
+            : await window.langLSRWDictionary.list({ ...baseOptions, page: 1, pageSize: 200 }, currentDictionaryId());
+          const exact = probe.rows.filter(item => dictionarySearchMatches(item.word, query, true));
+          exact.forEach(item => { favoriteWords.push(item); favoriteKeys.push(dictionaryFavoriteKey(item.word)); });
+          if (exact.length < 200) break;
+        }
+      }
       const rest = isWordLearningFilter(learning)
         ? await loadDictionaryLearningFilterPage(category, learning, "alphabetical", query, page, normalizedPageSize, favoriteKeys)
         : await window.langLSRWDictionary.list(baseOptions, currentDictionaryId());
       const favoriteRows = sortDictionaryLearningItems((await window.langLSRWDictionary.queryMany(favoriteWords.map((item) => item.word), currentDictionaryId()))
         .filter((item) => languageDictionary().matchesCategory(item, category)), "favorites");
+      prioritizeDictionaryExactMatch(favoriteRows, query);
       const total = favoriteRows.length + rest.total;
       const pageCount = Math.max(1, Math.ceil(total / normalizedPageSize));
       const normalizedPage = Math.max(1, Math.min(Number(page) || 1, pageCount));
@@ -4756,12 +4840,13 @@ ${orderNote}`;
       }
       const normalizedQuery = String(query || "").trim().toLocaleLowerCase("en-US");
       const keys = wordLearningFilterKeys(learning)
-        .filter((key) => !normalizedQuery || key.toLocaleLowerCase("en-US").includes(normalizedQuery));
+        .filter((key) => dictionarySearchMatches(key, normalizedQuery));
       const excludeKeys = new Set(excludeWords.map((word) => dictionaryFavoriteKey(word)));
       const rows = sortDictionaryLearningItems((await window.langLSRWDictionary.queryMany(keys, currentDictionaryId()))
         .filter((item) => !excludeKeys.has(dictionaryFavoriteKey(item.word)))
         .filter((item) => languageDictionary().matchesCategory(item, category)), sort);
-      const normalizedPageSize = Math.max(20, Math.min(Number(pageSize) || 100, 200));
+      prioritizeDictionaryExactMatch(rows, query);
+      const normalizedPageSize = Math.max(1, Math.min(Number(pageSize) || 100, 200));
       const total = rows.length;
       const pageCount = Math.max(1, Math.ceil(total / normalizedPageSize));
       const normalizedPage = Math.max(1, Math.min(Number(page) || 1, pageCount));
@@ -4850,7 +4935,8 @@ ${orderNote}`;
     function updateDictionaryLibraryPageSize(refresh = true) {
       const listHeight = $("dictionaryLibraryList").clientHeight;
       if (!listHeight) return;
-      const nextPageSize = Math.max(5, Math.min(200, Math.floor(listHeight / 26)));
+      const rowHeight = $("dictionaryLibraryList").querySelector(".user-word-item")?.getBoundingClientRect().height || 26;
+      const nextPageSize = Math.max(1, Math.min(200, Math.floor(listHeight / rowHeight)));
       if (nextPageSize === state.dictionaryLibraryPageSize) return;
       const firstVisibleIndex = (state.dictionaryLibraryPage - 1) * state.dictionaryLibraryPageSize;
       state.dictionaryLibraryPageSize = nextPageSize;
@@ -5763,13 +5849,15 @@ ${orderNote}`;
       return { position, total: keys.length };
     }
 
-    function wordReviewProgressText(review) {
+    function wordReviewProgressText(review, compact = false) {
       const entry = wordReviewQueueEntry(review);
       const modeLabel = wordReviewModeLabel(entry?.mode);
       if (review.source === "single") return `单词练习 · 「下一个」重新练这个词 · 不计入记忆`;
       const section = entry?.section || (review.free ? "free" : "review");
       const { position, total } = wordReviewSectionStats(review, section);
-      if (review.free) return `${review.freeKind === "new" ? "新词预习" : "自由练习"} · ${modeLabel} · 第 ${position} / ${total} 个 (不计入记忆)`;
+      if (review.free) return compact
+        ? `${modeLabel}：第${position}/${total}个`
+        : `${review.freeKind === "new" ? "新词预习" : "自由练习"} · ${modeLabel} · 第 ${position} / ${total} 个 (不计入记忆)`;
       const { due = 0, fresh = 0, group = 1 } = review.queueParts || {};
       if (section === "due") return `到期复习 · 第 ${position} / ${due || total} 个 · ${modeLabel}`;
       if (section === "fresh") return `新词初测 · 第 ${group} 组 · 第 ${position} / ${fresh || total} 个 · ${modeLabel}`;
@@ -6596,7 +6684,7 @@ ${orderNote}`;
         card.innerHTML = '<div class="word-review-done"><strong>正在读取单词...</strong></div>';
         return;
       }
-      elements.progress.textContent = wordReviewProgressText(review);
+      elements.progress.innerHTML = `<span class="word-review-progress-desktop">${escapeHtml(wordReviewProgressText(review))}</span><span class="word-review-progress-mobile">${escapeHtml(wordReviewProgressText(review, true))}</span>`;
       elements.modal.classList.toggle("is-single-word", review.source === "single");
       card.classList.toggle("is-recognize", activeMode === "recognize");
       card.innerHTML = activeMode === "recognize" ? renderRecognizeCard(item) : renderSpellingCard(item, activeMode);
@@ -9010,6 +9098,10 @@ ${orderNote}`;
       button.addEventListener("click", () => openDictionaryWordStudy(button.dataset.dictionaryStudySession));
     });
     $("dictionaryLibraryDetail").addEventListener("click", (event) => {
+      if (event.target.closest("[data-dictionary-detail-back]")) {
+        $("dictionaryLibraryModal").classList.remove("is-word-detail-open");
+        return;
+      }
       const formButton = event.target.closest("[data-dictionary-form]");
       if (formButton) {
         openDictionaryFormDetail(formButton);
@@ -9049,6 +9141,9 @@ ${orderNote}`;
       if (event.target === $("dictionaryLibraryModal")) closeDictionaryLibrary();
     });
     new ResizeObserver(scheduleDictionaryLibraryResize).observe($("dictionaryLibraryList"));
+    const dictionaryOverlayResize = new ResizeObserver(positionDictionaryLibraryOverlay);
+    dictionaryOverlayResize.observe($("dictionaryLibraryCount"));
+    dictionaryOverlayResize.observe($("dictionaryLibraryModal").querySelector(".user-phrases-layout"));
     $("closeUserPhrasesBtn").addEventListener("click", closeUserPhrases);
     $("resetUserPhrasesSizeBtn").addEventListener("click", resetUserPhrasesSize);
     $("userWordsTabBtn").addEventListener("click", () => setUserPhrasesView("words"));

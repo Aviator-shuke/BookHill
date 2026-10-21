@@ -3367,6 +3367,16 @@
       font-size: 11px;
     }
 
+    .dictionary-search-match {
+      background: #ffe082; color: #302500; border-radius: 2px; padding: 0;
+    }
+
+    .dictionary-word-search {
+      display: flex; align-items: center; gap: 2px; min-width: 0; white-space: nowrap;
+      margin: 0; padding: 0; font-size: 11px; line-height: 22px;
+    }
+    .dictionary-word-search input { flex-shrink: 1; }
+
     .user-words-count span {
       min-width: 0;
       white-space: nowrap;
@@ -3575,6 +3585,13 @@
       border-radius: 6px;
       background: var(--panel);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+    }
+
+    .learning-filter-menu.is-tap-menu .learning-filter-parent:not(.is-expanded) > .learning-filter-sub {
+      opacity: 0; visibility: hidden; pointer-events: none;
+    }
+    .learning-filter-menu.is-tap-menu .learning-filter-parent.is-expanded > .learning-filter-sub {
+      opacity: 1; visibility: visible; pointer-events: auto;
     }
 
     /* A thin bridge keeps the flyout open while the pointer crosses the gap. */
@@ -5892,7 +5909,12 @@
     .mobile-only { display: none; }
 
     /* Phone layout, including landscape: keep each module's content and behavior. */
+    .word-review-progress-mobile { display: none; }
+    .dictionary-detail-back { display: none; }
+
     @media (max-width: 700px), (max-width: 900px) and (max-height: 500px) {
+      .word-review-progress-desktop { display: none; }
+      .word-review-progress-mobile { display: inline; }
       html { scrollbar-gutter: auto; }
       body:has(.library-modal:not([hidden])) { overflow: hidden; }
       .mobile-only { display: flex; }
@@ -6029,6 +6051,17 @@
         min-width: 0; min-height: 0; max-width: 100%; max-height: 100%; resize: none;
       }
       .library-header { gap: 8px; padding: 10px; }
+      #dictionaryLibraryModal > .user-phrases-dialog > .library-header > div:first-child {
+        display: flex; align-items: baseline; gap: 8px; white-space: nowrap;
+      }
+      #dictionaryLibraryModal > .user-phrases-dialog > .library-header {
+        padding: 4px 10px; flex-wrap: nowrap;
+      }
+      #closeDictionaryLibraryBtn { min-height: 28px; padding: 2px 10px; font-size: 14px; line-height: 1.2; }
+      #dictionaryLibrarySearchInput {
+        width: 96px; max-width: 100%; height: 22px; min-height: 22px;
+        padding: 1px 5px; font-size: 12px; line-height: 18px;
+      }
       #resetDictionaryLibrarySizeBtn, #resetUserPhrasesSizeBtn { display: none; }
       .library-sidebar, .user-phrases-tabs, .settings-panels, .user-phrase-detail,
       .library-sentence-list, .word-review-card, .word-review-result-panel {
@@ -6050,6 +6083,8 @@
         border-right: 0; border-bottom: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
       }
       .user-phrases-tabs button { flex: 0 0 auto; width: auto; min-height: 36px; white-space: nowrap; }
+      #dictionaryLibraryModal .user-phrases-tabs { padding: 3px 8px; }
+      #dictionaryLibraryModal .user-phrases-tabs button { min-height: 28px; padding: 2px 12px; font-size: 14px; line-height: 1.2; }
       .user-phrases-collection { border-right: 0; }
       .user-phrase-detail { padding: 10px; border-top: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); }
       #dictionaryLibraryList, #userPhrasesList { overflow-y: auto; }
@@ -6087,12 +6122,15 @@
       .word-review-speak { gap: 6px; margin-top: 6px; }
       .ai-text-dialog textarea { min-height: 80px; max-height: 35dvh; }
       .dictionary-lookup-popover { max-height: calc(100dvh - 16px); }
-      .dictionary-lookup-header { flex-wrap: nowrap; gap: 4px; align-items: center; }
-      .dictionary-lookup-actions { flex-wrap: nowrap; max-width: 100%; gap: 3px; }
-      /* One-row header: the phonetic is already tap-to-pronounce, so the extra 🔊 is dropped when it exists. */
+      .dictionary-lookup-header { flex-wrap: wrap-reverse; gap: 4px; align-items: center; }
+      .dictionary-lookup-actions { flex-wrap: nowrap; max-width: 100%; gap: 3px; margin-left: auto; }
+      /* Keep short entries compact; move actions above when word + phonetic need their own row. */
       .dictionary-lookup-header .dictionary-phonetic ~ .dictionary-pronunciation-button { display: none; }
       .dictionary-lookup-header .dictionary-auto-speak { font-size: 11px; gap: 2px; white-space: nowrap; }
-      .dictionary-lookup-header .dictionary-headword { min-width: 0; flex-shrink: 1; }
+      .dictionary-lookup-header .dictionary-headword { min-width: 0; flex: 0 0 auto; max-width: 100%; flex-wrap: wrap; row-gap: 4px; }
+      .dictionary-lookup-header .dictionary-headword strong { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+      .dictionary-lookup-header .dictionary-phonetic { flex-shrink: 0; max-width: 100%; margin-left: 0; overflow-wrap: anywhere; }
+      .dictionary-lookup-header .dictionary-headword { column-gap: 10px; }
       .dictionary-lookup-header { font-size: 17px; }
       /* Every item in the one-row header shares the same 26px centre line. */
       .dictionary-lookup-header { line-height: 1; }
@@ -6116,6 +6154,48 @@
       .library-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
       .library-sidebar { display: flex; overflow-x: auto; }
       .library-type-button { width: auto; flex: 0 0 auto; }
+    }
+
+    @media (max-width: 700px), (max-width: 900px) and (max-height: 500px) {
+      #dictionaryLibraryModal {
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        background: var(--panel); backdrop-filter: none;
+      }
+      #dictionaryLibraryModal > .user-phrases-dialog {
+        width: 100%; height: 100%; max-width: 100%; max-height: 100%;
+        margin: 0; border: 0; border-radius: 0; box-shadow: none; animation: none;
+      }
+      #dictionaryLibraryModal .user-phrases-layout {
+        position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden;
+      }
+      #dictionaryLibraryModal .user-phrases-collection { height: auto; min-height: 0; }
+      #dictionaryLibraryDetail { display: none; }
+      #dictionaryLibraryModal.is-word-detail-open .user-phrases-layout::after {
+        content: ""; position: absolute; z-index: 1;
+        top: calc(var(--word-detail-top, 0px) - 1px); bottom: 0; left: 0; right: 0;
+        background: rgba(0, 0, 0, .16);
+      }
+      #dictionaryLibraryModal.is-word-detail-open #dictionaryLibraryDetail {
+        display: block; position: absolute; z-index: 2;
+        top: calc(var(--word-detail-top, 0px) + 3px); bottom: 4px; left: 4px; right: 4px;
+        min-height: 0; overflow-y: auto; background: var(--panel);
+        border: 1px solid color-mix(in srgb, var(--ink) 38%, transparent);
+        border-radius: 10px; padding: 10px;
+        scrollbar-width: none; -ms-overflow-style: none;
+        box-shadow: 0 -2px 4px rgba(0, 0, 0, .14), 0 2px 5px rgba(0, 0, 0, .16);
+      }
+      #dictionaryLibraryModal.is-word-detail-open #dictionaryLibraryCount {
+        position: relative; z-index: 3;
+        border-bottom: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+      }
+      #dictionaryLibraryModal.is-word-detail-open #dictionaryLibraryDetail::-webkit-scrollbar { display: none; width: 0; height: 0; }
+      #dictionaryLibraryDetail .dictionary-detail-back {
+        display: inline-flex; align-items: center; justify-content: center; flex: 0 0 26px;
+        width: 26px; min-width: 26px; height: 26px; min-height: 26px;
+        padding: 0; font-size: 18px; line-height: 1; text-decoration: none;
+        position: static; vertical-align: middle;
+      }
+      #dictionaryLibraryDetail .dictionary-detail-back svg { display: block; flex: none; margin: 0; }
     }
 
     @media (pointer: coarse) {

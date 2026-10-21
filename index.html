@@ -6,7 +6,7 @@
   <title>langLSRW</title>
   <!-- Page content stays hidden until the user's own settings (theme, fonts) are applied, so the default look never flashes. -->
   <style>html.is-booting body > * { visibility: hidden; }</style>
-  <link rel="stylesheet" href="src/styles.css?v=20261020-31">
+  <link rel="stylesheet" href="src/styles.css?v=20261021-18">
 
 </head>
 <body data-theme="eye" data-active-page="listenPage">
@@ -591,7 +591,7 @@
             </div>
           </div>
           <div id="dictionaryLibraryCount" class="user-words-count">
-            <input id="dictionaryLibrarySearchInput" type="search" autocomplete="off" placeholder="搜索单词" aria-label="搜索完整词库">
+            <label class="dictionary-word-search" for="dictionaryLibrarySearchInput">单词搜索：<input id="dictionaryLibrarySearchInput" type="search" autocomplete="off" placeholder="搜索单词" title="在当前筛选范围内搜索单词；? 代表任意一个字母，完全匹配优先显示" aria-label="搜索完整词库"></label>
             <span id="dictionaryLibraryCountText">0 个单词</span>
           </div>
           <div id="dictionaryLibraryList" class="user-words-list"></div>
@@ -801,12 +801,12 @@
   <script src="src/auth/supabase-auth-service.js?v=20260925-1"></script>
   <script src="src/generated/grammar-prompt.js?v=20260921-10"></script>
   <script src="src/library.js?v=20260923-1"></script>
-  <script src="src/dictionary/dictionary-service.js?v=20260928-1"></script>
+  <script src="src/dictionary/dictionary-service.js?v=20261021-3"></script>
   <script src="src/languages/en/text.js?v=20260928-2"></script>
   <script src="src/languages/es/text.js?v=20260928-2"></script>
   <script src="src/languages/en/dictionary.js?v=20260928-2"></script>
   <script src="src/languages/es/dictionary.js?v=20260928-2"></script>
   <script src="src/user-data.js?v=20260928-5"></script>
-  <script src="src/app.js?v=20261020-14"></script>
+  <script src="src/app.js?v=20261021-10"></script>
 </body>
 </html>

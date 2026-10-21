@@ -349,24 +349,26 @@ async function list(payload = {}) {
       : `stardict.word GLOB '${letter}*' AND instr(trim(stardict.word), ' ') = 0`;
   const normalizedQuery = String(query || "").trim();
   const escapedQuery = normalizedQuery.replace(/([%_\\])/g, "\\$1");
-  const searchWhere = normalizedQuery ? "stardict.word LIKE ? ESCAPE '\\' COLLATE NOCASE" : "1=1";
+  const wildcard = normalizedQuery.includes("?");
+  const globQuery = Array.from(normalizedQuery, char => char === "?" ? "[a-zA-ZÀ-ÖØ-öø-ÿ]" : char === "*" ? "[*]" : char === "[" ? "[[]" : char === "]" ? "[]]" : /[a-z]/i.test(char) ? `[${char.toLowerCase()}${char.toUpperCase()}]` : char).join("");
+  const searchWhere = normalizedQuery ? wildcard ? "stardict.word GLOB ?" : "stardict.word LIKE ? ESCAPE '\\' COLLATE NOCASE" : "1=1";
   const normalizedExcludeWords = [...new Set((Array.isArray(excludeWords) ? excludeWords : [])
     .map((word) => String(word || "").trim().toLowerCase())
     .filter(Boolean))];
   const excludeWhere = normalizedExcludeWords.length
     ? `lower(stardict.word) NOT IN (${normalizedExcludeWords.map(() => "?").join(",")})`
     : "1=1";
-  const bindings = [...(normalizedQuery ? [`%${escapedQuery}%`] : []), ...normalizedExcludeWords];
+  const bindings = [...(normalizedQuery ? [wildcard ? `*${globQuery}*` : `%${escapedQuery}%`] : []), ...normalizedExcludeWords];
   const source = listSource(dictionary, profile, profile.categories[category] ? category : "all", sort);
   const where = `(${typeWhere}) AND (${categoryWhere}) AND (${searchWhere}) AND (${excludeWhere})`;
-  const normalizedPageSize = Math.max(20, Math.min(Number(pageSize) || 100, 200));
+  const normalizedPageSize = Math.max(1, Math.min(Number(pageSize) || 100, 200));
   const countSql = `SELECT count(*) FROM ${source} WHERE ${where}`;
   const total = Number(bindings.length ? database.selectValue(countSql, bindings) : database.selectValue(countSql)) || 0;
   const pageCount = Math.max(1, Math.ceil(total / normalizedPageSize));
   const normalizedPage = Math.max(1, Math.min(Number(page) || 1, pageCount));
   const rows = database.selectArrays(
-    `SELECT stardict.id, ${listWordColumn(source)}, collins FROM ${source} WHERE ${where} ORDER BY ${profile.orderBy[sort] || profile.orderBy.alphabetical} LIMIT ? OFFSET ?`,
-    [...bindings, normalizedPageSize, (normalizedPage - 1) * normalizedPageSize]
+    `SELECT stardict.id, ${listWordColumn(source)}, collins FROM ${source} WHERE ${where} ORDER BY ${normalizedQuery ? `CASE WHEN ${wildcard ? "stardict.word GLOB ?" : "stardict.word = ? COLLATE NOCASE"} THEN 0 ELSE 1 END, ` : ""}${profile.orderBy[sort] || profile.orderBy.alphabetical} LIMIT ? OFFSET ?`,
+    [...bindings, ...(normalizedQuery ? [wildcard ? globQuery : normalizedQuery] : []), normalizedPageSize, (normalizedPage - 1) * normalizedPageSize]
   ).map(([id, word, collins]) => ({ id, word, collins: Number(collins) || 0 }));
   return { rows, total, page: normalizedPage, pageSize: normalizedPageSize, pageCount };
 }
