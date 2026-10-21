@@ -6122,7 +6122,9 @@
       .word-review-pattern-row { gap: 6px; margin-top: 6px; }
       .word-review-speak { gap: 6px; margin-top: 6px; }
       .ai-text-dialog textarea { min-height: 80px; max-height: 35dvh; }
-      .dictionary-lookup-popover { max-height: calc(100dvh - 16px); }
+      .dictionary-lookup-popover { max-height: calc(100dvh - 16px); overscroll-behavior: contain; }
+      .dictionary-lookup-popover { scrollbar-width: none; }
+      .dictionary-lookup-popover::-webkit-scrollbar { display: none; }
       .dictionary-lookup-header { flex-wrap: wrap-reverse; gap: 4px; align-items: center; }
       .dictionary-lookup-actions { flex-wrap: nowrap; max-width: 100%; gap: 3px; margin-left: auto; }
       /* Keep short entries compact; move actions above when word + phonetic need their own row. */

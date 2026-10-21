@@ -4327,9 +4327,11 @@ ${orderNote}`;
       popover.style.maxHeight = "none";
       const naturalHeight = popover.offsetHeight;
       const viewportLimit = Math.max(0, Math.min(640, window.innerHeight - margin * 2));
-      const popoverHeight = Math.min(naturalHeight, viewportLimit);
-      popover.style.maxHeight = naturalHeight > viewportLimit ? `${viewportLimit}px` : "none";
-      const useBelow = belowSpace >= popoverHeight || (aboveSpace < popoverHeight && belowSpace >= aboveSpace);
+      // Touch screens: stay right under the sentence and scroll inside the popover instead of sliding up over it.
+      const stayBelow = isMobileSpeaker() && belowSpace >= 160;
+      const popoverHeight = Math.min(naturalHeight, stayBelow ? belowSpace : viewportLimit);
+      popover.style.maxHeight = stayBelow ? `${belowSpace}px` : naturalHeight > viewportLimit ? `${viewportLimit}px` : "none";
+      const useBelow = stayBelow || belowSpace >= popoverHeight || (aboveSpace < popoverHeight && belowSpace >= aboveSpace);
       const desiredTop = useBelow ? belowTop : avoidTop - gap - popoverHeight;
       const top = Math.max(margin, Math.min(desiredTop, window.innerHeight - popoverHeight - margin));
       popover.style.left = `${Math.max(margin, Math.min(preferredX, window.innerWidth - popover.offsetWidth - margin))}px`;
@@ -9741,12 +9743,9 @@ ${orderNote}`;
       updateSentenceNavigationTitles();
     });
     updateSentenceNavigationTitles();
+    // Mobile browsers cannot list or open the system voices (the intent link was blocked), so only explain where to pick one.
     $("systemVoiceBtn").addEventListener("click", () => {
-      // Chrome-based Android browsers can open the system TTS settings through an intent link.
-      window.location.href = "intent:#Intent;action=android.settings.TTS_SETTINGS;end";
-      setTimeout(() => {
-        if (!document.hidden) alert("没能自动打开。请在手机「设置 → 文本转语音」中选择英音 / 美音的音色。");
-      }, 1200);
+      alert("手机浏览器看不到系统声音列表。请在手机「设置 → 文本转语音」中选择英音 / 美音的音色。");
     });
     $("voiceSelect").addEventListener("change", saveSpeechSettings);
     $("autoSpeakToggle").addEventListener("change", saveSpeechSettings);
