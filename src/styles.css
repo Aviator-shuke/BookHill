@@ -4292,6 +4292,9 @@
     }
 
     .audio-option {
+      display: inline-flex;
+      align-items: center;
+      box-sizing: border-box;
       min-height: 24px;
       border: 1px solid #d1d5db;
       border-radius: 999px;
@@ -5533,8 +5536,19 @@
       font-size: 15px;
     }
 
+    /* The 下一个 action stays reachable at the bottom edge even when the answer is long and the panel scrolls. */
     .word-review-result-panel .word-review-actions {
+      position: sticky;
+      bottom: 0;
       margin-top: auto;
+      padding-top: 6px;
+      background: var(--panel);
+    }
+
+    /* Short screens (a phone held sideways): tighten the panel so the verdict, answer and button fit without scrolling. */
+    @media (max-height: 520px) {
+      .word-review-result-panel { gap: 4px; padding: 8px 12px; }
+      .word-review-result-panel .word-review-actions button { min-height: 30px; }
     }
 
     @keyframes word-review-panel-in {
@@ -5925,11 +5939,11 @@
       }
       .topbar { padding: 6px 8px; gap: 6px; min-height: 0; margin-bottom: 6px; box-shadow: none; }
       .brand-area { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 6px; }
-      .brand { font-size: 16px; }
+      .brand { font-size: 13px; }
       .language-nav, .page-nav { padding: 2px; }
-      .language-tab { width: 24px; min-width: 24px; height: 28px; min-height: 28px; }
+      .language-tab { width: 24px; min-width: 24px; height: 28px; min-height: 28px; font-size: 13px; }
       .page-nav { margin-left: auto; }
-      .page-tab { min-width: 30px; min-height: 28px; padding: 0 6px; font-size: 14px; }
+      .page-tab { min-width: 30px; min-height: 28px; padding: 0 6px; font-size: 13px; }
       .toolbar { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); width: 100%; gap: 4px; }
       .toolbar > button, .user-menu > summary { min-height: 32px; padding: 0 4px; font-size: 13px; border-radius: 6px; }
       .toolbar .user-menu { margin-left: 0; min-width: 0; }
@@ -5971,12 +5985,12 @@
       .sentence-tools #analyzeGrammarBtn { font-size: 0; flex-shrink: 0; }
       .sentence-tools #analyzeGrammarBtn::before { content: "AI语法"; font-size: 12px; }
       .sentence-tools button, .sentence-tools select, .sentence-tools .check-row {
-        height: 28px;
-        min-height: 28px;
+        height: 24px;
+        min-height: 24px;
       }
       .sentence-tools .check-row { font-size: 12px; gap: 2px; }
       .sentence-tools .check-row input { margin: 0 2px 0 0; }
-      .sentence-tools .sentence-nav-button { width: 28px; min-width: 28px; }
+      .sentence-tools .sentence-nav-button { width: 26px; min-width: 26px; }
       .sentence-tools .sentence-material-controls #speakBtn { flex: 0 0 auto; }
       .sentence-tools .sentence-display-controls { flex-wrap: nowrap; }
       .sentence-tools .sentence-display-controls > * { flex-shrink: 0; }
@@ -5990,7 +6004,7 @@
       .sentence-tools #modeSelect, .sentence-tools #accentSelect { width: 48px; }
       .sentence-tools #accentSelect.is-wide { width: auto; }
       .sentence-tools select { background-position: calc(100% - 8px) 13px, calc(100% - 4px) 13px !important; padding-left: 5px; padding-right: 15px; }
-      .sentence-tools .speech-rate-control { margin-left: 0; height: 28px; }
+      .sentence-tools .speech-rate-control { margin-left: 0; height: 24px; }
       .speech-rate-label { margin-left: 0; }
       .sentence-tool-end { max-width: 100%; margin-left: 0; }
       .notebook, .speaking-card, .compact-speaking-box { box-shadow: none; }
@@ -6009,6 +6023,16 @@
       .speaking-status { white-space: normal; overflow-wrap: anywhere; line-height: 1.4; flex-basis: 100%; }
       .speaking-status:empty { display: none; }
       .target-english, .translation-prompt { padding-top: 5px; padding-bottom: 5px; }
+      /* Narrow screens: the sentence stars stack vertically (1 on top, 5 at the bottom) so the sentence keeps its width. */
+      .target-english { gap: 5px; padding-right: 4px; }
+      .target-english > .sentence-rating { flex-direction: column; align-self: center; margin-top: 0; }
+      .target-english > .sentence-rating .dictionary-favorite-button { width: 16px; min-width: 16px; height: 16px; min-height: 16px; }
+      .translation-prompt { font-size: 12px; min-height: 48px; gap: 5px; padding-right: 4px; align-items: center; }
+      /* Narrow screens: the edit button sits right after the translation (5px gap) instead of in the reserved star column. */
+      .target .translation-prompt:not(.translation-editor),
+      .long-text-target .long-text-item .translation-prompt:not(.translation-editor) { padding-right: 4px; }
+      .target .translation-prompt:not(.translation-editor) > .translation-actions,
+      .long-text-target .long-text-item .translation-prompt:not(.translation-editor) > .translation-actions { position: static; transform: none; }
       .box-heading-row, .inline-metrics, .audio-options, .grammar-toolbar,
       .library-header, .dialog-header-actions, .ai-text-header, .ai-text-actions,
       .word-review-actions, .word-review-speak { flex-wrap: wrap; }
@@ -6028,17 +6052,17 @@
       }
       .sentence-tools #analyzeGrammarBtn { font-size: 0; }
       .sentence-tools .sentence-nav-button { line-height: 1; }
-      .sentence-tools .sentence-index-control { height: 28px; }
+      .sentence-tools .sentence-index-control { height: 24px; }
       .sentence-tools .sentence-index-stepper { display: none; }
       .sentence-tools .sentence-index-stepper,
-      .sentence-tools .speech-rate-stepper { height: 26px; }
+      .sentence-tools .speech-rate-stepper { height: 22px; }
       .sentence-tools .sentence-index-stepper button,
       .sentence-tools .speech-rate-stepper button {
         height: 13px; min-height: 13px; font-size: 8px; line-height: 1;
       }
-      .sentence-tools .counter { height: 28px; gap: 2px; }
+      .sentence-tools .counter { height: 24px; gap: 2px; }
       .sentence-tools .sentence-tool-end { gap: 4px; }
-      .sentence-tools .help-popover summary { height: 28px; min-height: 28px; width: 28px; font-size: 12px; }
+      .sentence-tools .help-popover summary { height: 24px; min-height: 24px; width: 24px; font-size: 12px; }
       .library-modal {
         padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
       }
@@ -6107,6 +6131,8 @@
       }
       .word-review-card, .word-review-card.is-recognize { padding: 12px; }
       .word-review-result-panel { z-index: 1; }
+      /* The result panel grows to fit its content (it may extend below the dialog) instead of being squeezed to the dialog height. */
+      .word-review-result-panel { bottom: auto; max-height: calc(100dvh - 16px); }
       /* Word practice dialogs on a phone: no keyboard hints, one compact header, nothing wider than the screen. */
       #wordListenReviewModal.is-single-word .word-review-stage { width: 100%; min-width: 0; max-width: 100%; }
       .word-review-modal .library-header { padding: 8px 10px; flex-wrap: nowrap; }
